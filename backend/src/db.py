@@ -1,0 +1,80 @@
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
+db = SQLAlchemy()
+
+# Habit model
+class Habit(db.Model):
+    """
+    Habit model
+    """
+
+    __tablename__ = "habits"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    description = db.Column(db.String, nullable = False)
+    done = db.Column(db.Boolean, nullable=False)
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a habit object
+        """
+
+        self.description = kwargs.get("description", "")
+        self.done = kwargs.get("done", False)
+
+    def serialize(self):
+        """
+        Serializing a habit to be returned
+        """
+        return {
+            "id": self.id,
+            "description" : self.description,
+            "done" : self.done
+        }
+    
+#stopwatch model
+class Stopwatch(db.Model):
+    """
+    Stopwatch model. When created stopwatch is paused
+    """
+    __tablename__ = "stopwatches"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    title = db.Column(db.String, nullable = False)
+    start_time = db.Column(db.DateTime, nullable = False)
+    interval_start = db.Column(db.DateTime, nullable = False)
+    end_time = db.Column(db.DateTime, nullable = True)
+    curr_duration = db.Column(db.Float, nullable = False)
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a stopwatch object
+        """
+
+        self.title = kwargs.get("title", "")
+        self.start_time = kwargs.get("start_time", datetime.now())
+        self.interval_start = kwargs.get("interval_start", datetime.now())
+        self.end_time = self.start_time
+        self.curr_duration = 0.0
+
+    def serialize(self):
+        """
+        Serializing a stopwatch to be returned
+        """
+
+        return {
+            "id": self.id,
+            "title": self.title,
+            "start_time": self.start_time.isoformat(),
+            "interval_start": self.interval_start.isoformat(),
+            "end_time": self.end_time.isoformat() if (self.end_time != None) else None,
+            "duration": self.get_duration()
+        }
+    
+    def get_duration(self):
+        """
+        Returns total duration stopwatch has been running
+        """
+        if (self.end_time != None):
+            return self.curr_duration
+        else:
+            return (datetime.now() - self.interval_start).total_seconds() + self.curr_duration
+

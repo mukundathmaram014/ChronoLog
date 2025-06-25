@@ -1,0 +1,281 @@
+body{
+  background-color: #1f1e1e;
+  color: white;
+  overflow: hidden;
+}
+
+h1{
+  text-align: center;
+}
+
+.habit-wrapper{
+  background: #353434;
+  padding: 2%;
+  width: 60%;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 3%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0px 5px 7px rgb(27,27,27);
+}
+
+.habit-input{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* dim background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.habit-input-item{
+  position: relative;
+  background-color: #2f2f2f;
+  padding: 25px;
+  border-radius: 10px;
+  width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px; 
+}
+
+.habit-input-item h3 {
+  margin-top: 0;
+  color: white;
+}
+
+.habit-input-item label{
+  font-weight: bold;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.habit-input-item input{
+  padding: 8px;
+  border: none;
+  border-radius: 5px;
+  width: 250px;
+}
+
+.habit-input-item input:focus{
+  outline: none;
+  outline: 2px solid rgb(0,230,122)
+}
+
+.habit-edit-item{
+  position: relative;
+  background-color: #2f2f2f;
+  padding: 25px;
+  border-radius: 10px;
+  width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px; 
+}
+
+.habit-edit-item h3 {
+  margin-top: 0;
+  color: white;
+}
+
+.habit-edit-item label{
+  font-weight: bold;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.habit-edit-item input{
+  padding: 8px;
+  border: none;
+  border-radius: 5px;
+  width: 250px;
+}
+
+.habit-edit-item input:focus{
+  outline: none;
+  outline: 2px solid rgb(0,230,122)
+}
+
+.addHabitButton {
+  margin-top: 10px;
+  background-color: rgb(0,230,122);
+  border: none;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.editHabitButton {
+  margin-top: 10px;
+  background-color: rgb(0,230,122);
+  border: none;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+/* check icon specific styling */
+.plus-icon {
+  font-size: 25px;   /* Change size here */
+  cursor: pointer;
+  margin-right: 2px;
+  color: white;
+}
+
+.plus-icon:hover {
+  color: white;
+  transform: scale(1.1);
+  transition: transform 0.1s ease;
+}
+
+.primaryBtn{
+  background-color: rgb(0,230,122);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  margin-top: 10px;
+  margin-bottom: 25px;
+  padding: 5px;
+  width: 50px;
+  cursor: pointer;
+}
+
+.primaryBtn:hover{
+  background-color: rgb(4,196,106);
+}
+
+.habit-list{
+  display: flex;
+  flex-direction: column;
+}
+
+.habit-list-item{
+  background-color: rgb(78, 72, 72);
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* Vertically center everything */
+  padding: 15px 20px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.habit-list-item:hover {
+  background-color: #585252;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+}
+
+.close-icon {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 24px;
+  color: white;
+  cursor: pointer;
+}
+
+.close-icon:hover {
+  color: rgb(0, 230, 122); /* green on hover */
+  transform: scale(1.2);   /* slightly enlarge */
+}
+
+.left-section {
+  display: flex;
+  align-items: center;
+  gap: 20px; /* space between check icon and text */
+}
+
+.habit-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.habit-text p {
+  margin: 0;
+  font-size: 1rem;
+  color: white;
+  line-height: 1.4;
+}
+
+.edit-icon {
+  font-size: 25px;   /* Change size here */
+  cursor: pointer;
+  margin-right: 10px;
+  top: 1px; /* nudges the check icon down slightly */
+}
+
+.edit-icon:hover {
+  color: rgb(126, 131, 129);
+  transform: scale(1.1);
+  transition: transform 0.1s ease;
+}
+
+.icon-bar{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.delete-icon {
+  font-size: 25px;   /* Change size here */
+  cursor: pointer;
+  margin-right: 10px;
+  top: 1px; /* nudges the check icon down slightly */
+}
+
+.delete-icon:hover {
+  color: rgb(126, 131, 129);
+  transform: scale(1.1);
+  transition: transform 0.1s ease;
+}
+
+/* check icon specific styling */
+.check-icon {
+  font-size: 25px;   /* Change size here */
+  cursor: pointer;
+  margin-right: 2px;
+  color: rgb(0,230,122);
+}
+
+.check-icon:hover {
+  color: rgb(4,196,106);
+  transform: scale(1.1);
+  transition: transform 0.1s ease;
+}
+
+.custom-checkbox {
+  width: 25px;
+  height: 25px;
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.custom-checkbox.checked {
+  background-color: transparent; /* green color comes from check icon */
+}
+
+.custom-checkbox .check-icon {
+  color: rgb(0, 230, 122);
+  font-size: 18px;
+}
+
+.habit-list-item.completed .habit-text h3,
+.habit-list-item.completed .habit-text p {
+  color: #aaa;
+  text-decoration: line-through;
+}
