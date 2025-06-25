@@ -169,7 +169,7 @@ export function Stopwatch() {
                 <div className = "stopwatch-item" key = {index}>
                     <p>{item.title}</p>
                     <div className="time-display">
-                        {formatTime(secondsElapsed[index])}
+                        {formatTime(secondsElapsed[item.id])}
                     </div>
                     <div className="controls">
                         <button onClick={() => handleStart(item.id, item.end_time)}>Start</button>
