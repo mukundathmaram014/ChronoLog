@@ -66,15 +66,15 @@ class Stopwatch(db.Model):
             "start_time": self.start_time.isoformat(),
             "interval_start": self.interval_start.isoformat(),
             "end_time": self.end_time.isoformat() if (self.end_time != None) else None,
-            "duration": self.get_duration()
+            "curr_duration": self.curr_duration
         }
     
-    def get_duration(self):
-        """
-        Returns total duration stopwatch has been running
-        """
-        if (self.end_time != None):
-            return self.curr_duration
-        else:
-            return (datetime.now() - self.interval_start).total_seconds() + self.curr_duration
+    # def get_duration(self):
+    #     """
+    #     Returns total duration stopwatch has been running
+    #     """
+    #     if (self.end_time != None):
+    #         return self.curr_duration
+    #     else:
+    #         return (datetime.now() - self.interval_start).total_seconds() + self.curr_duration
 

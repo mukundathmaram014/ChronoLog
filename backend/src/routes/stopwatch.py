@@ -89,7 +89,7 @@ def stop_stopwatch(stopwatch_id):
         return failure_response("Stopwatch is not found")
     stopwatch.end_time = datetime.now()
     increment = stopwatch.end_time - stopwatch.interval_start
-    stopwatch.curr_duration = stopwatch.curr_duration + increment.total_seconds()
+    stopwatch.curr_duration = stopwatch.curr_duration + (increment.total_seconds() * 1000)
     db.session.commit()
     return success_response(stopwatch.serialize())
 
