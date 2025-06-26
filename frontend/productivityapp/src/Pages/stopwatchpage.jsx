@@ -9,7 +9,8 @@ export function Stopwatch() {
     const [stopwatchTitle, setStopwatchTitle] = useState("Test");
     const [addingStopwatch, setAddingStopwatch] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
-    const intervalRefs = useRef([]);
+    const [runningId, setRunningId] = useState(null);
+    const intervalRef = useRef(null);
 
     useEffect(() => {
     fetch("http://localhost:5000/stopwatches/", {
@@ -48,11 +49,10 @@ export function Stopwatch() {
         })
         .then(response => response.json())
         .then(data =>{
-            clearInterval(intervalRefs.current[index]);
             setStopwatches(allStopwatches => allStopwatches.filter(stopwatch => (stopwatch.id !== data.id)));
-            if (intervalRefs.current[index]) {
-                clearInterval(intervalRefs.current[index]);
-                delete intervalRefs.current[index];
+            if (runningId === index) {
+                clearInterval(intervalRef.current);
+                setRunningId(null);
             }
             setSecondsElapsed(prev => {
                 const updated = { ...prev };
@@ -67,16 +67,17 @@ export function Stopwatch() {
 
     const handleStart = (index, end_time) => {
       
-        if (end_time !== null){
-            // setStartTime(Date.now());
-            // setNow(Date.now());
-            clearInterval(intervalRefs.current[index]);
-            intervalRefs.current[index] = setInterval(() => {
+        if (runningId === null && end_time !== null){
+            
+            clearInterval(intervalRef.current);
+            intervalRef.current = setInterval(() => {
                 setSecondsElapsed(secondsElapsed => ({
                 ...secondsElapsed, [index] : secondsElapsed[index] + 1
             })
                 );
-            }, 10)
+            }, 10);
+            setRunningId(index);
+            
             fetch(`http://localhost:5000/stopwatches/start/${index}/`, {
                 method: "PATCH",
             })
@@ -93,7 +94,8 @@ export function Stopwatch() {
     const handleStop = (index, end_time) => {
       
         if (end_time === null){
-             clearInterval(intervalRefs.current[index]);
+             clearInterval(intervalRef.current);
+             setRunningId(null);
              fetch(`http://localhost:5000/stopwatches/stop/${index}/`, {
                 method: "PATCH",
             })
@@ -112,7 +114,10 @@ export function Stopwatch() {
         const update = {
             state : end_time
         }
-        clearInterval(intervalRefs.current[index]);
+        if (runningId === index){
+            clearInterval(intervalRef.current);
+            setRunningId(null);
+        }
         setSecondsElapsed(secondsElapsed => ({
                 ...secondsElapsed, [index] : 0
             }));
