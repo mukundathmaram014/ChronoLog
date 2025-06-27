@@ -79,7 +79,7 @@ def delete_stopwatch(stopwatch_id):
     db.session.commit()
     return success_response(stopwatch.serialize())
 
-@stopwatch_routes.route("/stopwatches/stop/<int:stopwatch_id>/", methods = ["PATCH"])
+@stopwatch_routes.route("/stopwatches/stop/<int:stopwatch_id>/", methods = ["PATCH", "POST"])
 def stop_stopwatch(stopwatch_id):
     """
     Endpoint for stopping a stopwatch by id.

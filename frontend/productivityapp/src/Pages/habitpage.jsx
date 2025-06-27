@@ -156,12 +156,12 @@ export function Habit() {
           </div>
          )}
         <div className = "habit-list">
-          {allHabits.map((item, index) =>{
+          {allHabits.map((item) =>{
              return (
               <div className = {`habit-list-item ${item.done ? 'completed' : ''}`} 
                   onClick={() => {setEditHabit(true); setNewDescription(item.description);
                   setEditingHabitID(item.id);
-                  }}key = {index}>
+                  }}key = {item.id}>
                 <div className = "left-section">
                   <div
                     className={`custom-checkbox ${item.done ? 'checked' : ''}`}

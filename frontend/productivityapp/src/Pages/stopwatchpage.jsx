@@ -5,7 +5,8 @@ import { IoMdClose } from "react-icons/io";
 
 export function Stopwatch() {
     const [allStopwatches, setStopwatches] = useState([]);
-    const [stopwatchTitle, setStopwatchTitle] = useState("Test");
+    const allStopwatchesRef = useRef(allStopwatches); // so we dont need to pass allStopwatches as dependency to second useEffect
+    const [stopwatchTitle, setStopwatchTitle] = useState("");
     const [addingStopwatch, setAddingStopwatch] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
     const [runningId, setRunningId] = useState(null);
@@ -17,9 +18,37 @@ export function Stopwatch() {
       method: "GET"
     })
     .then( response => response.json())
-    .then(data => setStopwatches(data.stopwatches))
-    .catch(error => console.error(error))
+    .then(data => {
+        setRunningId(null);
+        setStopwatches((data.stopwatches));
+    })
+    .catch(error => console.error(error));
+
+    return () => {
+        clearInterval(intervalRef.current);
+    }
+
     }, []); 
+
+    // updates reference whenever allStopwatch updated.
+    useEffect ( () => {
+        allStopwatchesRef.current = allStopwatches;
+    }, [allStopwatches]);
+    
+
+    // stops running stopwatches when website closed
+    useEffect ( () => {
+        const handleUnload = () => {
+            allStopwatchesRef.current.forEach(stopwatch => {
+                if (stopwatch.end_time === null){
+                    navigator.sendBeacon(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`
+                    );
+                }
+            });
+        }
+        window.addEventListener('pagehide', handleUnload)
+        return () => window.removeEventListener('pagehide', handleUnload);
+    }, [])
 
     const addStopwatch = () => {
         const newStopwatch = {
@@ -163,9 +192,9 @@ export function Stopwatch() {
                   </div>
                 )}
         <h2>Stopwatches</h2>
-        {allStopwatches.map((item, index) => {
+        {allStopwatches.map((item) => {
             return (
-                <div className = "stopwatch-item" key = {index}>
+                <div className = "stopwatch-item" key = {item.id}>
                     <p>{item.title}</p>
                     <div className="time-display">
                         {formatTime(getElapsed(item))}
