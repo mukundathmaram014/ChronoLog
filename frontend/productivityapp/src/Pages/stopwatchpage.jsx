@@ -75,7 +75,11 @@ export function Stopwatch() {
         })
         .then(response => response.json())
         .then(data =>{
-            setStopwatches(allStopwatches => allStopwatches.filter(stopwatch => (stopwatch.id !== data.id)));
+            setStopwatches(allStopwatches => 
+                allStopwatches.filter(stopwatch => (stopwatch.id !== data.stopwatches[1].id)) // remove deleted stopwatch
+            );
+            setStopwatches(allStopwatches =>
+                allStopwatches.map(stopwatch => stopwatch.id === 1 ? data.stopwatches[0] : stopwatch)); // update total stopwatch)
             if (runningId === index) {
                 clearInterval(intervalRef.current);
                 setRunningId(null);
@@ -101,7 +105,8 @@ export function Stopwatch() {
             .then(data => {
                 setStopwatches(allStopwatches => 
                     allStopwatches.map(stopwatch => 
-                        (stopwatch.id === data.id) ? data : stopwatch)); 
+                        (stopwatch.id === 1) ? data.stopwatches[0] : 
+                     (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that started
             })
             .catch(error => console.error(error))
         }
@@ -118,7 +123,8 @@ export function Stopwatch() {
             .then(data => {
                 setStopwatches(allStopwatches => 
                     allStopwatches.map(stopwatch => 
-                        (stopwatch.id === data.id) ? data : stopwatch));
+                        (stopwatch.id === 1) ? data.stopwatches[0] : 
+                     (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that stopped
                 clearInterval(intervalRef.current);
                 if (tick === 0){}; // just to avoid compiled with warnings. remove later
                 
@@ -138,8 +144,9 @@ export function Stopwatch() {
         .then(response => response.json())
         .then(data => {
                 setStopwatches(allStopwatches => 
-                allStopwatches.map(stopwatch => 
-                (stopwatch.id === data.id) ? data : stopwatch));
+                    allStopwatches.map(stopwatch => 
+                        (stopwatch.id === 1) ? data.stopwatches[0] : 
+                     (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that reset
                 if (runningId === index){
                     clearInterval(intervalRef.current);
                     setRunningId(null);
@@ -193,7 +200,17 @@ export function Stopwatch() {
                 )}
         <h2>Stopwatches</h2>
         {allStopwatches.map((item) => {
-            return (
+            if (item.id === 1){
+                return (
+                    <div className = "total-stopwatch-item" key = {item.id}>
+                        <p>Total Time Worked</p>
+                        <div className = "total-time-display">
+                            {formatTime(getElapsed(item))}
+                        </div>
+                    </div>
+                )
+            } else {
+                return (
                 <div className = "stopwatch-item" key = {item.id}>
                     <p>{item.title}</p>
                     <div className="time-display">
@@ -208,6 +225,7 @@ export function Stopwatch() {
                     </div>
                 </div>
             )
+            }
         })}
     </div>
     );

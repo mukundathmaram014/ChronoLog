@@ -71,53 +71,85 @@ def delete_stopwatch(stopwatch_id):
     """
     Endpoint for deleting a stopwatch by id
     """
-
+    total_stopwatch = Stopwatch.query.filter_by(id=1).first()
     stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
+    if (stopwatch.end_time is None):
+        total_stopwatch.end_time = datetime.now()
+    total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
     db.session.delete(stopwatch)
     db.session.commit()
-    return success_response(stopwatch.serialize())
+    stopwatches = []
+    stopwatches.append(total_stopwatch.serialize())
+    stopwatches.append(stopwatch.serialize())
+    
+    
+    return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/stop/<int:stopwatch_id>/", methods = ["PATCH", "POST"])
 def stop_stopwatch(stopwatch_id):
     """
     Endpoint for stopping a stopwatch by id.
     """
+    total_stopwatch = Stopwatch.query.filter_by(id=1).first()
     stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
-    stopwatch.end_time = datetime.now()
-    increment = stopwatch.end_time - stopwatch.interval_start
-    stopwatch.curr_duration = stopwatch.curr_duration + (increment.total_seconds() * 1000)
+    total_stopwatch.end_time = stopwatch.end_time = datetime.now()
+    increment = (stopwatch.end_time - stopwatch.interval_start).total_seconds() * 1000
+    stopwatch.curr_duration = stopwatch.curr_duration + increment
+    total_stopwatch.curr_duration = total_stopwatch.curr_duration + increment
     db.session.commit()
-    return success_response(stopwatch.serialize())
+
+    stopwatches = []
+    stopwatches.append(total_stopwatch.serialize())
+    stopwatches.append(stopwatch.serialize())
+    
+    
+    return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/start/<int:stopwatch_id>/", methods = ["PATCH"])
 def start_stopwatch(stopwatch_id):
     """
     Endpoint for starting a stopwatch by id.
     """
+    total_stopwatch = Stopwatch.query.filter_by(id=1).first()
     stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
-    stopwatch.interval_start = datetime.now()
-    stopwatch.end_time = None
+    now = datetime.now()
+    total_stopwatch.interval_start = stopwatch.interval_start = now
+    total_stopwatch.end_time = stopwatch.end_time = None
     db.session.commit()
-    return success_response(stopwatch.serialize())
+
+    stopwatches = []
+    stopwatches.append(total_stopwatch.serialize())
+    stopwatches.append(stopwatch.serialize())
+    
+    
+    return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/reset/<int:stopwatch_id>/", methods = ["PATCH"])
 def reset_stopwatch(stopwatch_id):
     """
     Endpoint for starting a stopwatch by id.
     """
+    total_stopwatch = Stopwatch.query.filter_by(id=1).first()
     body = json.loads(request.data)
     state = body.get("state")
     stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
     if (state == None):
-        stopwatch.end_time = datetime.now()
+        total_stopwatch.end_time = stopwatch.end_time = datetime.now()
+    total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
     stopwatch.curr_duration = 0.0
     db.session.commit()
-    return success_response(stopwatch.serialize())
+
+    stopwatches = []
+    stopwatches.append(total_stopwatch.serialize())
+    stopwatches.append(stopwatch.serialize())
+    
+    
+    return success_response({"stopwatches" : stopwatches})
