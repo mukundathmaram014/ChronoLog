@@ -2,6 +2,7 @@ import { useState, useRef, useEffect} from 'react';
 import './stopwatchpage.css';
 import { MdDelete } from "react-icons/md";
 import { IoMdClose } from "react-icons/io";
+import { FaPlus } from "react-icons/fa";
 
 export function Stopwatch() {
     const [allStopwatches, setStopwatches] = useState([]);
@@ -160,7 +161,11 @@ export function Stopwatch() {
         const minutes = String(Math.floor((totalMilliSeconds % 3600000) / 60000)).padStart(2, '0');
         const seconds = String(Math.floor((totalMilliSeconds % 60000) / 1000)).padStart(2, '0');
         const milliseconds = String(Math.floor((totalMilliSeconds % 1000) / 10)).padStart(2,'0')
-        return `${hours}:${minutes}:${seconds}:${milliseconds}`;
+        return (
+            <>
+                {hours}:{minutes}:{seconds}:<span className = "milliseconds">{milliseconds}</span>
+            
+            </>);
     };
 
     const getElapsed = (stopwatch) => {
@@ -172,10 +177,14 @@ export function Stopwatch() {
     }
 
     return (
-    <div className="stopwatches">
-        <button onClick = {() => setAddingStopwatch(true)}>
-            Add a Stopwatch
+    <div className = "App">
+        <h1>Stopwatches</h1>
+        <div className="stopwatches">
+        <div className = "header">
+            <button className = "primaryBtn" onClick = {() => setAddingStopwatch(true)}>
+            <FaPlus className = "plus-icon" />
         </button>
+        </div>
         {addingStopwatch && (
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-input-item">
@@ -198,12 +207,11 @@ export function Stopwatch() {
                     </div>
                   </div>
                 )}
-        <h2>Stopwatches</h2>
         {allStopwatches.map((item) => {
             if (item.id === 1){
                 return (
                     <div className = "total-stopwatch-item" key = {item.id}>
-                        <p>Total Time Worked</p>
+                        <p>Total Time Worked: </p>
                         <div className = "total-time-display">
                             {formatTime(getElapsed(item))}
                         </div>
@@ -211,7 +219,7 @@ export function Stopwatch() {
                 )
             } else {
                 return (
-                <div className = "stopwatch-item" key = {item.id}>
+                <div className = {`stopwatch-item ${((runningId !== null) ? ((runningId !== item.id) ? "not-focused-stopwatch" : "focused-stopwatch")  : "")}`} key = {item.id}>
                     <p>{item.title}</p>
                     <div className="time-display">
                         {formatTime(getElapsed(item))}
@@ -227,6 +235,8 @@ export function Stopwatch() {
             )
             }
         })}
+    </div>
+
     </div>
     );
 }

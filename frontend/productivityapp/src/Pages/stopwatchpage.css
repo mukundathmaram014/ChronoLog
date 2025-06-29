@@ -1,17 +1,258 @@
-.stopwatch-container {
+body {
+  background-color: #1f1e1e;
+  color: white;
+  overflow: hidden;
+}
+
+.stopwatches {
+  background: #353434;
+  padding: 2%;
+  width: 70%;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 3%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0px 5px 7px rgb(27,27,27);
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Two columns */
+  gap: 24px; /* Space between panels */
+  
+}
+
+.stopwatch-input {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* dim background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.stopwatch-input-item {
+  position: relative;
+  background-color: #2f2f2f;
+  padding: 25px;
+  border-radius: 10px;
+  width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stopwatch-input-item h3 {
+  margin-top: 0;
+  color: white;
+}
+
+.stopwatch-input-item label {
+  font-weight: bold;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.stopwatch-input-item input {
+  padding: 8px;
+  border: none;
+  border-radius: 5px;
+  width: 250px;
+}
+
+.stopwatch-input-item input:focus {
+  outline: none;
+  outline: 2px solid rgb(0,230,122);
+}
+
+.addStopwatchButton {
+  margin-top: 10px;
+  background-color: rgb(0,230,122);
+  border: none;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.addStopwatchButton:disabled {
+  background-color: #444;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.addStopwatchButton:hover:enabled {
+  background-color: rgb(4,196,106);
+}
+
+.close-icon {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 24px;
+  color: white;
+  cursor: pointer;
+}
+
+.close-icon:hover {
+  color: rgb(0, 230, 122);
+  transform: scale(1.2);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0px;
+  width: 100%;
+}
+
+h1{
+  text-align: center;
+}
+
+
+.total-stopwatch-item {
+  background: none;
+  color: rgb(0,230,122);
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 50px;
+  border-bottom: 2px solid rgb(0,230,122);
+  grid-column: span 2;
+}
+
+.total-stopwatch-item p {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0 0 6px 0;
+  color: rgb(0,230,122);
+  letter-spacing: 1px;
+}
+
+.total-time-display {
+  font-size: 2.2rem;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
+
+.milliseconds {
+  font-size: 0.5em;
+  opacity: 0.7;
+  vertical-align: sbaseline;
+}
+
+.stopwatch-item {
+  min-width: 0;
+  width: 100%;
+  min-height: 140px;
+  background-color: rgb(78, 72, 72);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 20px 24px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  margin-bottom: 0; /* Remove margin-bottom, use grid gap instead */
+  box-sizing: border-box;
+}
+
+.stopwatch-item p {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  color: white;
 }
 
 .time-display {
-  font-size: 3rem;
-  margin: 20px 0;
+  font-size: 1.3rem;
+  font-family: 'Roboto Mono', monospace;
+  color: rgb(0,230,122);
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
 }
 
 .controls button {
-  margin: 0 10px;
-  padding: 10px 20px;
+  background-color: rgb(0,230,122);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 7px 14px;
+  cursor: pointer;
   font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.controls button:hover:enabled {
+  background-color: rgb(4,196,106);
+}
+
+.controls button:disabled {
+  background-color: #444;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.delete-icon {
+  font-size: 22px;
+  cursor: pointer;
+  margin-left: 8px;
+  color: white;
+  transition: color 0.2s, transform 0.1s;
+}
+
+.delete-icon:hover {
+  color: rgb(126, 131, 129);
+  transform: scale(1.1);
+}
+
+.primaryBtn{
+  background-color: rgb(0,230,122);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  margin-top: 10px;
+  margin-bottom: 25px;
+  padding: 5px;
+  width: 50px;
+  cursor: pointer;
+}
+
+.primaryBtn:hover{
+  background-color: rgb(4,196,106);
+}
+
+.stopwatch-item.focused-stopwatch {
+  background-color: #393e39;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 15px 20px;
+  margin-bottom: 12px;
+  border-radius: 5px;
+  box-shadow: 0 0 12px 2px rgba(0,230,122,0.3);
+  border: 2px solid rgb(0,230,122);
+}
+
+.stopwatch-item.not-focused-stopwatch {
+  opacity: 0.5;
+  filter: grayscale(0.3);
+  background-color: #232323;
+  border: 2px dashed #444;
+  box-shadow: none;
+  pointer-events: none; /* Prevent interaction */
 }
