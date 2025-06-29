@@ -220,7 +220,9 @@ export function Stopwatch() {
             } else {
                 return (
                 <div className = {`stopwatch-item ${((runningId !== null) ? ((runningId !== item.id) ? "not-focused-stopwatch" : "focused-stopwatch")  : "")}`} key = {item.id}>
-                    <p>{item.title}</p>
+                    <div className = "stopwatch-title">
+                        <p>{item.title}</p>
+                    </div>
                     <div className="time-display">
                         {formatTime(getElapsed(item))}
                     </div>

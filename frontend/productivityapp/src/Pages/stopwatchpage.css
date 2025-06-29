@@ -139,7 +139,7 @@ h1{
 }
 
 .total-time-display {
-  font-size: 2.2rem;
+  font-size: 5rem;
   font-weight: bold;
   color: white;
   margin-bottom: 8px;
@@ -165,6 +165,8 @@ h1{
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
   margin-bottom: 0; /* Remove margin-bottom, use grid gap instead */
   box-sizing: border-box;
+  overflow: hidden;
+
 }
 
 .stopwatch-item p {
@@ -174,7 +176,7 @@ h1{
 }
 
 .time-display {
-  font-size: 1.3rem;
+  font-size: 2.2rem;
   font-family: 'Roboto Mono', monospace;
   color: rgb(0,230,122);
   margin-bottom: 10px;
@@ -184,6 +186,9 @@ h1{
 .controls {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;         /* Allow wrapping if needed */
+  width: 100%;             /* Make controls take full width of parent */
+  box-sizing: border-box;
 }
 
 .controls button {
@@ -213,6 +218,7 @@ h1{
   margin-left: 8px;
   color: white;
   transition: color 0.2s, transform 0.1s;
+  align-self: center; 
 }
 
 .delete-icon:hover {
@@ -255,4 +261,11 @@ h1{
   border: 2px dashed #444;
   box-shadow: none;
   pointer-events: none; /* Prevent interaction */
+}
+
+.stopwatch-title p{
+  font-size: 30px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 8px;
 }
