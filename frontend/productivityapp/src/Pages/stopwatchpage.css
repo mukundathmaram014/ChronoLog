@@ -69,7 +69,52 @@ body {
   outline: 2px solid rgb(0,230,122);
 }
 
+.stopwatch-edit-item {
+  position: relative;
+  background-color: #2f2f2f;
+  padding: 25px;
+  border-radius: 10px;
+  width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stopwatch-edit-item h3 {
+  margin-top: 0;
+  color: white;
+}
+
+.stopwatch-edit-item label {
+  font-weight: bold;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.stopwatch-edit-item input {
+  padding: 8px;
+  border: none;
+  border-radius: 5px;
+  width: 250px;
+}
+
+.stopwatch-edit-item input:focus {
+  outline: none;
+  outline: 2px solid rgb(0,230,122);
+}
+
 .addStopwatchButton {
+  margin-top: 10px;
+  background-color: rgb(0,230,122);
+  border: none;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.editStopwatchButton {
   margin-top: 10px;
   background-color: rgb(0,230,122);
   border: none;
@@ -185,6 +230,7 @@ h1{
 
 .controls {
   display: flex;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;         /* Allow wrapping if needed */
   width: 100%;             /* Make controls take full width of parent */
@@ -215,7 +261,15 @@ h1{
 .delete-icon {
   font-size: 22px;
   cursor: pointer;
-  margin-left: 8px;
+  color: white;
+  transition: color 0.2s, transform 0.1s;
+  align-self: center; 
+}
+
+.edit-icon {
+  font-size: 22px;
+  cursor: pointer;
+  margin-left: auto;
   color: white;
   transition: color 0.2s, transform 0.1s;
   align-self: center; 

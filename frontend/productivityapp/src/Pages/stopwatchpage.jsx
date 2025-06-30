@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect} from 'react';
 import './stopwatchpage.css';
 import { MdDelete } from "react-icons/md";
+import { MdEdit } from "react-icons/md";
 import { IoMdClose } from "react-icons/io";
 import { FaPlus } from "react-icons/fa";
 
@@ -12,6 +13,8 @@ export function Stopwatch() {
     const [isAdding, setIsAdding] = useState(false);
     const [runningId, setRunningId] = useState(null);
     const [tick, setTick] = useState(0);
+    const [editStopwatch, setEditStopwatch] = useState(false);
+    const [editingStopwatchID, setEditingStopwatchID] = useState(null);
     const intervalRef = useRef(null);
 
     useEffect(() => {
@@ -156,6 +159,32 @@ export function Stopwatch() {
         .catch(error => console.error(error))
     }
 
+    const handleEditStopwatch = () => {
+        if (editingStopwatchID === null) return;
+
+        const newStopwatch = {
+            title: stopwatchTitle
+        }
+
+        setIsAdding(true);
+        fetch(`http://localhost:5000/stopwatches/${editingStopwatchID}/`, {
+            method: 'PUT',
+            body: JSON.stringify(newStopwatch)
+        })
+        .then(response => response.json())
+        .then(data => {
+            setStopwatches(allStopwatches =>
+                allStopwatches.map(stopwatch =>
+                    (stopwatch.id === data.id) ? data : stopwatch
+            ));
+            setStopwatchTitle("");
+            setEditStopwatch(false);
+            setEditingStopwatchID(null);
+        })
+        .catch(error => console.log(error))
+        .finally(() => setIsAdding(false))
+    }
+
     const formatTime = (totalMilliSeconds) => {
         const hours = String(Math.floor(totalMilliSeconds / 3600000)).padStart(2, '0');
         const minutes = String(Math.floor((totalMilliSeconds % 3600000) / 60000)).padStart(2, '0');
@@ -185,13 +214,35 @@ export function Stopwatch() {
             <FaPlus className = "plus-icon" />
         </button>
         </div>
+        {editStopwatch && (
+                  <div className = "stopwatch-input">
+                    <div className = "stopwatch-edit-item">
+                      <IoMdClose className = "close-icon"
+                        onClick={() => {setEditStopwatch(false); setStopwatchTitle("")}}/>
+                      <h3>Edit Stopwatch</h3>
+                      <label>Title: </label>
+                      <input type= "text" value = {stopwatchTitle} 
+                      onChange={(e) => setStopwatchTitle(e.target.value) }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter"){
+                          handleEditStopwatch();
+                        }
+                      }}
+                      placeholder="What's the stopwatch for"/>
+                      <button type = 'button' className = 'editStopwatchButton'
+                        onClick={handleEditStopwatch}
+                        disabled = {isAdding}
+                        > {isAdding ? "Editing..." : "Done"}</button>
+                    </div>
+                  </div>
+                )}
         {addingStopwatch && (
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-input-item">
                       <IoMdClose className = "close-icon"
                         onClick={() => setAddingStopwatch(false)}/>
                       <h3>Add a New Stopwatch</h3>
-                      <label>Title</label>
+                      <label>Title: </label>
                       <input type= "text" value = {stopwatchTitle} 
                       onChange={(e) => setStopwatchTitle(e.target.value) }
                       onKeyDown={(e) => {
@@ -219,7 +270,10 @@ export function Stopwatch() {
                 )
             } else {
                 return (
-                <div className = {`stopwatch-item ${((runningId !== null) ? ((runningId !== item.id) ? "not-focused-stopwatch" : "focused-stopwatch")  : "")}`} key = {item.id}>
+                <div className = {`stopwatch-item ${((runningId !== null) ? ((runningId !== item.id) ? "not-focused-stopwatch" : "focused-stopwatch")  : "")}`}
+                     onClick={() => {setEditStopwatch(true); setStopwatchTitle(item.title);
+                            setEditingStopwatchID(item.id);
+                        }} key = {item.id}>
                     <div className = "stopwatch-title">
                         <p>{item.title}</p>
                     </div>
@@ -227,11 +281,15 @@ export function Stopwatch() {
                         {formatTime(getElapsed(item))}
                     </div>
                     <div className="controls">
-                        <button onClick={() => handleStart(item.id, item.end_time)}>Start</button>
-                        <button onClick={() => handleStop(item.id, item.end_time)}>Pause</button>
-                        <button onClick={() => handleReset(item.id, item.end_time)}>Reset</button>
+                        <button onClick={(e) => {e.stopPropagation(); handleStart(item.id, item.end_time)}}>Start</button>
+                        <button onClick={(e) => {e.stopPropagation(); handleStop(item.id, item.end_time)}}>Pause</button>
+                        <button onClick={(e) => {e.stopPropagation(); handleReset(item.id, item.end_time)}}>Reset</button>
+                        <MdEdit className = "edit-icon"
+                            onClick={() => {setEditStopwatch(true); setStopwatchTitle(item.title);
+                            setEditingStopwatchID(item.id);
+                        }}/>
                         <MdDelete className = "delete-icon"
-                         onClick = {() => deleteStopwatch(item.id, item.end_time)}/>
+                         onClick = {(e) => {e.stopPropagation();deleteStopwatch(item.id)}}/>
                     </div>
                 </div>
             )
