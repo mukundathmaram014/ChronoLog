@@ -18,7 +18,7 @@ export function Stopwatch() {
     fetch("http://localhost:5000/stopwatches/", {
       method: "GET"
     })
-    .then( response => response.json())
+    .then(response => response.json())
     .then(data => {
         setRunningId(null);
         setStopwatches((data.stopwatches));
@@ -136,7 +136,7 @@ export function Stopwatch() {
 
     const handleReset = (index, end_time) =>{
         const update = {
-            state : end_time
+            state : end_time // if stopwatch is currently running or not
         }
         fetch(`http://localhost:5000/stopwatches/reset/${index}/`, {
             method: "PATCH",
