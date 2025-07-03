@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, date
 db = SQLAlchemy()
 
 # Habit model
@@ -12,6 +12,7 @@ class Habit(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     description = db.Column(db.String, nullable = False)
     done = db.Column(db.Boolean, nullable=False)
+    date = db.Column(db.Date, nullable=False)
 
     def __init__(self, **kwargs):
         """
@@ -20,6 +21,7 @@ class Habit(db.Model):
 
         self.description = kwargs.get("description", "")
         self.done = kwargs.get("done", False)
+        self.date = kwargs.get("date", date.today())
 
     def serialize(self):
         """
@@ -28,7 +30,8 @@ class Habit(db.Model):
         return {
             "id": self.id,
             "description" : self.description,
-            "done" : self.done
+            "done" : self.done,
+            "date": self.date.isoformat()
         }
     
 #stopwatch model
@@ -43,6 +46,8 @@ class Stopwatch(db.Model):
     interval_start = db.Column(db.DateTime, nullable = False)
     end_time = db.Column(db.DateTime, nullable = True)
     curr_duration = db.Column(db.Float, nullable = False)
+    date = db.Column(db.Date, nullable = False)
+    isTotal = db.Column(db.Boolean, nullable = False)
 
     def __init__(self, **kwargs):
         """
@@ -54,6 +59,8 @@ class Stopwatch(db.Model):
         self.interval_start = kwargs.get("interval_start", datetime.now())
         self.end_time = self.start_time
         self.curr_duration = 0.0
+        self.date = kwargs.get("date", date.today())
+        self.isTotal = kwargs.get("isTotal", False)
 
     def serialize(self):
         """
@@ -66,7 +73,9 @@ class Stopwatch(db.Model):
             "start_time": self.start_time.isoformat(),
             "interval_start": self.interval_start.isoformat(),
             "end_time": self.end_time.isoformat() if (self.end_time != None) else None,
-            "curr_duration": self.curr_duration
+            "curr_duration": self.curr_duration,
+            "date": self.date.isoformat(),
+            "isTotal": self.isTotal
         }
     
     # def get_duration(self):

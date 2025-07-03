@@ -15,24 +15,53 @@ export function Stopwatch() {
     const [tick, setTick] = useState(0);
     const [editStopwatch, setEditStopwatch] = useState(false);
     const [editingStopwatchID, setEditingStopwatchID] = useState(null);
+    const [today, setToday] = useState(() => (new Date()).toISOString().slice(0,10));
+    const [selectedDate, setSelectedDate] = useState(today);
     const intervalRef = useRef(null);
+    
+
+    // goes to next day
+    useEffect(() => {
+        const now = new Date();
+        const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now//midnight next day
+        const timeout = setTimeout(() => {
+            setToday(new Date().toISOString().slice(0,10));
+            setSelectedDate((new Date()).toISOString().slice(0,10))
+        }, msUntilMidnight);
+
+        return () => clearTimeout(timeout);
+    },[today]);
 
     useEffect(() => {
-    fetch("http://localhost:5000/stopwatches/", {
-      method: "GET"
-    })
-    .then(response => response.json())
-    .then(data => {
-        setRunningId(null);
-        setStopwatches((data.stopwatches));
-    })
-    .catch(error => console.error(error));
+        // stops any running stopwatches when selected date changes
+        const stopRunning = async () => {
+            const running = allStopwatchesRef.current.find(
+                sw => sw.end_time === null && !sw.isTotal
+            );
+            if (running) {
+                await fetch(`http://localhost:5000/stopwatches/stop/${running.id}/`, {
+                method: "PATCH",
+            });
+            }
+        };
 
-    return () => {
-        clearInterval(intervalRef.current);
-    }
+        stopRunning().then(() => {
+            fetch(`http://localhost:5000/stopwatches/${selectedDate}/`, {
+                method: "GET",
+                })
+            .then(response => response.json())
+            .then(data => {
+                setRunningId(null);
+                setStopwatches((data.stopwatches));
+                console.log(allStopwatchesRef);
+            })
+            .catch(error => console.error(error));
+            });
 
-    }, []); 
+        return () => {
+            clearInterval(intervalRef.current);
+        }
+    }, [selectedDate, today]); 
 
     // updates reference whenever allStopwatch updated.
     useEffect ( () => {
@@ -44,10 +73,10 @@ export function Stopwatch() {
     useEffect ( () => {
         const handleUnload = () => {
             allStopwatchesRef.current.forEach(stopwatch => {
-                if (stopwatch.end_time === null){
+                if ((stopwatch.end_time === null) && !stopwatch.isTotal){
                     navigator.sendBeacon(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`
                     );
-                }
+                };
             });
         }
         window.addEventListener('pagehide', handleUnload)
@@ -56,17 +85,24 @@ export function Stopwatch() {
 
     const addStopwatch = () => {
         const newStopwatch = {
-            title : stopwatchTitle
+            title : stopwatchTitle,
+            date : selectedDate
         }
         setIsAdding(true);
-        fetch("http://localhost:5000/stopwatches/", {
+        fetch(`http://localhost:5000/stopwatches/`, {
             method: "POST",
             body: JSON.stringify(newStopwatch)
         })
         .then(response => response.json())
         .then(data => {
-            setStopwatches(allStopwatches => [...allStopwatches, data])
-            setStopwatchTitle("")
+            console.log(data.stopwatches[0]);
+            if (data.stopwatches[0] === null){
+                setStopwatches(allStopwatches => [...allStopwatches, data.stopwatches[1]]);
+            } else {
+                setStopwatches(allStopwatches => [data.stopwatches[0], data.stopwatches[1]])
+                console.log(allStopwatches)
+            }
+            setStopwatchTitle("");
             setAddingStopwatch(false);
         })
         .catch(error => console.error(error))
@@ -83,7 +119,7 @@ export function Stopwatch() {
                 allStopwatches.filter(stopwatch => (stopwatch.id !== data.stopwatches[1].id)) // remove deleted stopwatch
             );
             setStopwatches(allStopwatches =>
-                allStopwatches.map(stopwatch => stopwatch.id === 1 ? data.stopwatches[0] : stopwatch)); // update total stopwatch)
+                allStopwatches.map(stopwatch => stopwatch.isTotal ? data.stopwatches[0] : stopwatch)); // update total stopwatch)
             if (runningId === index) {
                 clearInterval(intervalRef.current);
                 setRunningId(null);
@@ -109,7 +145,7 @@ export function Stopwatch() {
             .then(data => {
                 setStopwatches(allStopwatches => 
                     allStopwatches.map(stopwatch => 
-                        (stopwatch.id === 1) ? data.stopwatches[0] : 
+                        (stopwatch.isTotal) ? data.stopwatches[0] : 
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that started
             })
             .catch(error => console.error(error))
@@ -127,7 +163,7 @@ export function Stopwatch() {
             .then(data => {
                 setStopwatches(allStopwatches => 
                     allStopwatches.map(stopwatch => 
-                        (stopwatch.id === 1) ? data.stopwatches[0] : 
+                        (stopwatch.isTotal) ? data.stopwatches[0] : 
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that stopped
                 clearInterval(intervalRef.current);
                 if (tick === 0){}; // just to avoid compiled with warnings. remove later
@@ -149,7 +185,7 @@ export function Stopwatch() {
         .then(data => {
                 setStopwatches(allStopwatches => 
                     allStopwatches.map(stopwatch => 
-                        (stopwatch.id === 1) ? data.stopwatches[0] : 
+                        (stopwatch.isTotal) ? data.stopwatches[0] : 
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that reset
                 if (runningId === index){
                     clearInterval(intervalRef.current);
@@ -207,6 +243,15 @@ export function Stopwatch() {
 
     return (
     <div className = "App">
+        <div className="date-slider-container">
+            <label htmlFor="date-slider">Select Date: </label>
+            <input
+                type="date"
+                id="date-slider"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+            />
+        </div>
         <h1>Stopwatches</h1>
         <div className="stopwatches">
         <div className = "header">
@@ -259,7 +304,7 @@ export function Stopwatch() {
                   </div>
                 )}
         {allStopwatches.map((item) => {
-            if (item.id === 1){
+            if (item.isTotal === true){
                 return (
                     <div className = "total-stopwatch-item" key = {item.id}>
                         <p>Total Time Worked: </p>

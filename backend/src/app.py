@@ -22,12 +22,6 @@ app.config["SQLALCHEMY_ECHO"] = True
 db.init_app(app)
 with app.app_context():
     db.create_all()
-    # check if any stopwatches exist
-    if Stopwatch.query.first() is None:
-        # creating total time stopwatch
-        new_stopwatch = Stopwatch(title = "Total Time", start_time = datetime.now())
-        db.session.add(new_stopwatch)
-        db.session.commit()
 
 app.register_blueprint(habit_routes)
 app.register_blueprint(stopwatch_routes)

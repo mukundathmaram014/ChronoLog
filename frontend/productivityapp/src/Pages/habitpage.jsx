@@ -14,20 +14,34 @@ export function Habit() {
   const [newDescription, setNewDescription] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [editingHabitID, setEditingHabitID] = useState(null);
+  const [today, setToday] = useState(() => (new Date()).toISOString().slice(0,10));
+  const [selectedDate, setSelectedDate] = useState(today);
 
   useEffect(() => {
-    fetch("http://localhost:5000/habits/", {
+    const now = new Date();
+    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDay() + 1, 0, 0, 0, 0) //midnight next day
+
+    const timeout = setTimeout(() => {
+      setToday((new Date()).toISOString().slice(0,10))
+    }, msUntilMidnight);
+
+    return () => clearTimeout(timeout);
+  },[today]);
+
+  useEffect(() => {
+    fetch(`http://localhost:5000/habits/${selectedDate}/`, {
       method: "GET"
     })
     .then( response => response.json())
     .then(data => setHabits(data.habits))
     .catch(error => console.error(error))
-  }, []);
+  }, [today, selectedDate]);
 
   const handleAddHabit = () => {
     const newHabit = {
       description: newDescription,
-      done: false
+      done: false,
+      date: selectedDate
     }
     setIsAdding(true);
     fetch("http://localhost:5000/habits/", {
@@ -105,6 +119,15 @@ export function Habit() {
 
   return (
     <div className="App">
+      <div className="date-slider-container">
+            <label htmlFor="date-slider">Select Date: </label>
+            <input
+                type="date"
+                id="date-slider"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+            />
+        </div>
       <h1>My Habits</h1>
       <div className="habit-wrapper">
         <button type = 'button' className = 'primaryBtn'

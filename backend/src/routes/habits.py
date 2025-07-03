@@ -1,9 +1,10 @@
 from flask import Blueprint
-from utils import success_response, failure_response
+from utils import success_response, failure_response, process_date
 import json
 from db import db
 from flask import Flask, request
 from db import Habit
+from datetime import date
 
 
 
@@ -13,13 +14,15 @@ habit_routes = Blueprint('habit', __name__)
 def test():
     return success_response("hello world")
 
-@habit_routes.route("/habits/")
-def get_habits():
+@habit_routes.route("/habits/<string:date_string>/")
+def get_habits(date_string):
     """
     Endpoint for getting all habits
     """
+    requested_date = date.fromisoformat(date_string)
+
     habits = []
-    for habit in Habit.query.all():
+    for habit in Habit.query.filter_by(date=requested_date).all():
         habits.append(habit.serialize())
 
     return success_response({"habits": habits})
@@ -30,7 +33,8 @@ def create_habit():
     Endpoint for creating a new habit
     """
     body = json.loads(request.data)
-    new_habit = Habit(description = body.get("description",""), done = body.get("done", False))
+    requested_date = process_date(request)
+    new_habit = Habit(description = body.get("description",""), done = body.get("done", False), date = requested_date)
     db.session.add(new_habit)
     db.session.commit()
     return success_response(new_habit.serialize(), 201)
@@ -56,6 +60,7 @@ def update_habit(habit_id):
         return failure_response("Habit not found")
     habit.description = body.get("description", habit.description)
     habit.done = body.get("done", habit.done)
+    habit.date = body.get("date", habit.date)
     db.session.commit()
     return success_response(habit.serialize())
 
