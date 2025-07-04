@@ -4,10 +4,27 @@ import json
 from db import db
 from flask import Flask, request
 from db import Stopwatch
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 
 stopwatch_routes = Blueprint('stopwatch', __name__)
+
+def create_stopwatch_for_date(requested_date, title, start_time):
+    stopwatches = []
+    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date)
+
+    if Stopwatch.query.filter_by(date=requested_date).first() is None:
+        # creating total time stopwatch
+        total_stopwatch = Stopwatch(title = "Total Time", start_time = datetime.now(), date = requested_date, isTotal = True)
+        db.session.add(total_stopwatch)
+        stopwatches.append(total_stopwatch.serialize())
+    else:
+        stopwatches.append(None)
+
+    db.session.add(new_stopwatch)
+    db.session.commit()
+    stopwatches.append(new_stopwatch.serialize())
+    return stopwatches
 
 @stopwatch_routes.route("/")
 def test():
@@ -24,6 +41,24 @@ def get_stopwatches(date_string):
     for stopwatch in Stopwatch.query.filter_by(date=requested_date).all():
         stopwatches.append(stopwatch.serialize())
     
+    # gets previous days stopwatches if empty and date is today
+    if not stopwatches and (requested_date == date.today()):
+        prev_date = requested_date - timedelta(days=1)
+        new_stopwatches = []
+
+        for prev_stopwatch in Stopwatch.query.filter_by(date=prev_date).all():
+            if not prev_stopwatch.isTotal:
+                stopwatches = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time)
+
+                if stopwatches[0] is not None:
+                    new_stopwatches.append(stopwatches[0])
+                new_stopwatches.append(stopwatches[1])
+        
+        db.session.commit()
+        stopwatches = new_stopwatches
+
+
+    
     return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/", methods = ["POST"])
@@ -34,21 +69,9 @@ def create_stopwatch():
 
     body = json.loads(request.data)
     requested_date = process_date(request)
-    new_stopwatch = Stopwatch(title = body.get("title", ""), start_time = body.get("start_time", datetime.now()), date = requested_date)
     stopwatches = []
-    
-    # check if any stopwatches exist for this day
-    if Stopwatch.query.filter_by(date=requested_date).first() is None:
-        # creating total time stopwatch
-        total_stopwatch = Stopwatch(title = "Total Time", start_time = datetime.now(), date = requested_date, isTotal = True)
-        db.session.add(total_stopwatch)
-        stopwatches.append(total_stopwatch.serialize())
-    else:
-        stopwatches.append(None)
-    db.session.add(new_stopwatch)
-    db.session.commit()
-    stopwatches.append(new_stopwatch.serialize())
-    
+
+    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now()))
     
     return success_response({"stopwatches" : stopwatches})
 

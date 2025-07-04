@@ -16,3 +16,4 @@ def process_date(request):
     date_string = body.get("date", date.today().isoformat())
     requested_date = date.fromisoformat(date_string)
     return requested_date
+

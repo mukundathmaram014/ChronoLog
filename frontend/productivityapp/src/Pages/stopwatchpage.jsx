@@ -17,6 +17,7 @@ export function Stopwatch() {
     const [editingStopwatchID, setEditingStopwatchID] = useState(null);
     const [today, setToday] = useState(() => (new Date()).toISOString().slice(0,10));
     const [selectedDate, setSelectedDate] = useState(today);
+    const isFuture = (new Date(selectedDate)) > (new Date(today));
     const intervalRef = useRef(null);
     
 
@@ -46,7 +47,12 @@ export function Stopwatch() {
         };
 
         stopRunning().then(() => {
-            fetch(`http://localhost:5000/stopwatches/${selectedDate}/`, {
+            // gets current stopwatches if future date
+            let dateToFetch = selectedDate;
+            if (isFuture){
+                dateToFetch = today;
+            }
+            fetch(`http://localhost:5000/stopwatches/${dateToFetch}/`, {
                 method: "GET",
                 })
             .then(response => response.json())
@@ -61,7 +67,7 @@ export function Stopwatch() {
         return () => {
             clearInterval(intervalRef.current);
         }
-    }, [selectedDate, today]); 
+    }, [selectedDate, today, isFuture]); 
 
     // updates reference whenever allStopwatch updated.
     useEffect ( () => {
@@ -84,6 +90,9 @@ export function Stopwatch() {
     }, [])
 
     const addStopwatch = () => {
+        if (isFuture){
+            return;
+        }
         const newStopwatch = {
             title : stopwatchTitle,
             date : selectedDate
@@ -110,6 +119,9 @@ export function Stopwatch() {
     }
 
     const deleteStopwatch = (index) => {
+        if (isFuture) {
+            return;
+        }
         fetch(`http://localhost:5000/stopwatches/${index}/`, {
             method: "DELETE"
         })
@@ -130,6 +142,10 @@ export function Stopwatch() {
     }
 
     const handleStart = (index, end_time) => {
+
+        if (isFuture) {
+            return;
+        }
       
         if (runningId === null && end_time !== null){
             setRunningId(index);
@@ -153,6 +169,10 @@ export function Stopwatch() {
     }
 
     const handleStop = (index, end_time) => {
+
+        if (isFuture) {
+            return;
+        }
       
         if (end_time === null){
              setRunningId(null);
@@ -174,6 +194,11 @@ export function Stopwatch() {
     }
 
     const handleReset = (index, end_time) =>{
+
+        if (isFuture) {
+            return;
+        }
+
         const update = {
             state : end_time // if stopwatch is currently running or not
         }
@@ -196,6 +221,11 @@ export function Stopwatch() {
     }
 
     const handleEditStopwatch = () => {
+
+        if (isFuture) {
+            return;
+        }
+
         if (editingStopwatchID === null) return;
 
         const newStopwatch = {
@@ -225,7 +255,7 @@ export function Stopwatch() {
         const hours = String(Math.floor(totalMilliSeconds / 3600000)).padStart(2, '0');
         const minutes = String(Math.floor((totalMilliSeconds % 3600000) / 60000)).padStart(2, '0');
         const seconds = String(Math.floor((totalMilliSeconds % 60000) / 1000)).padStart(2, '0');
-        const milliseconds = String(Math.floor((totalMilliSeconds % 1000) / 10)).padStart(2,'0')
+        const milliseconds = String(Math.floor((totalMilliSeconds % 1000) / 10)).padStart(2,'0');
         return (
             <>
                 {hours}:{minutes}:{seconds}:<span className = "milliseconds">{milliseconds}</span>
@@ -234,6 +264,9 @@ export function Stopwatch() {
     };
 
     const getElapsed = (stopwatch) => {
+        if (isFuture) {
+            return 0;
+        }
         if (stopwatch.end_time != null){
             return stopwatch.curr_duration;
         } else {
@@ -255,7 +288,7 @@ export function Stopwatch() {
         <h1>Stopwatches</h1>
         <div className="stopwatches">
         <div className = "header">
-            <button className = "primaryBtn" onClick = {() => setAddingStopwatch(true)}>
+            <button className = "primaryBtn" onClick = {() => setAddingStopwatch(true)} disabled = {isFuture}>
             <FaPlus className = "plus-icon" />
         </button>
         </div>
@@ -315,10 +348,10 @@ export function Stopwatch() {
                 )
             } else {
                 return (
-                <div className = {`stopwatch-item ${((runningId !== null) ? ((runningId !== item.id) ? "not-focused-stopwatch" : "focused-stopwatch")  : "")}`}
+                <div className = {`stopwatch-item ${isFuture ? "disabled-stopwatch" : ""} ${((runningId !== null) ? ((runningId !== item.id) ? "not-focused-stopwatch" : "focused-stopwatch")  : "")}`}
                      onClick={() => {setEditStopwatch(true); setStopwatchTitle(item.title);
                             setEditingStopwatchID(item.id);
-                        }} key = {item.id}>
+                        }} disabled = {isFuture} key = {item.id}>
                     <div className = "stopwatch-title">
                         <p>{item.title}</p>
                     </div>
@@ -326,15 +359,15 @@ export function Stopwatch() {
                         {formatTime(getElapsed(item))}
                     </div>
                     <div className="controls">
-                        <button onClick={(e) => {e.stopPropagation(); handleStart(item.id, item.end_time)}}>Start</button>
-                        <button onClick={(e) => {e.stopPropagation(); handleStop(item.id, item.end_time)}}>Pause</button>
-                        <button onClick={(e) => {e.stopPropagation(); handleReset(item.id, item.end_time)}}>Reset</button>
+                        <button onClick={(e) => {e.stopPropagation(); handleStart(item.id, item.end_time)}} disabled = {isFuture}>Start</button>
+                        <button onClick={(e) => {e.stopPropagation(); handleStop(item.id, item.end_time)}} disabled = {isFuture}>Pause</button>
+                        <button onClick={(e) => {e.stopPropagation(); handleReset(item.id, item.end_time)}} disabled = {isFuture}>Reset</button>
                         <MdEdit className = "edit-icon"
                             onClick={() => {setEditStopwatch(true); setStopwatchTitle(item.title);
                             setEditingStopwatchID(item.id);
-                        }}/>
+                        }} disabled = {isFuture}/>
                         <MdDelete className = "delete-icon"
-                         onClick = {(e) => {e.stopPropagation();deleteStopwatch(item.id)}}/>
+                         onClick = {(e) => {e.stopPropagation();deleteStopwatch(item.id)}} disabled = {isFuture}/>
                     </div>
                 </div>
             )

@@ -323,3 +323,9 @@ h1{
   color: white;
   margin-bottom: 8px;
 }
+
+.disabled-stopwatch {
+  pointer-events: none;
+  opacity: 0.6;
+  /* Add any other styles to indicate disabled */
+}
