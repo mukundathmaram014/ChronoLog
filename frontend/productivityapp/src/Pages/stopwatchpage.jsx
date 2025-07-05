@@ -27,7 +27,6 @@ export function Stopwatch() {
         const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now//midnight next day
         const timeout = setTimeout(() => {
             setToday(new Date().toISOString().slice(0,10));
-            setSelectedDate((new Date()).toISOString().slice(0,10))
         }, msUntilMidnight);
 
         return () => clearTimeout(timeout);

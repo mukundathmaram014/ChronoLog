@@ -23,7 +23,7 @@ export function Habit() {
     const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDay() + 1, 0, 0, 0, 0) //midnight next day
 
     const timeout = setTimeout(() => {
-      setToday((new Date()).toISOString().slice(0,10))
+      setToday((new Date()).toISOString().slice(0,10));
     }, msUntilMidnight);
 
     return () => clearTimeout(timeout);
