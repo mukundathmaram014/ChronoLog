@@ -328,3 +328,35 @@ h1{
   pointer-events: none;
   opacity: 0.6;
 }
+
+.date-slider-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 32px 0 18px 0;
+}
+
+.date-slider-container label {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+.date-slider-container input[type="date"] {
+  background: #232323;
+  color: #fff;
+  border: 1.5px solid #444;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 1rem;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.date-slider-container input[type="date"]:focus {
+  border: 1.5px solid rgb(0,230,122);
+  box-shadow: 0 0 0 2px rgba(0,230,122,0.2);
+}
