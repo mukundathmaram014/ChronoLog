@@ -4,7 +4,7 @@ import json
 from db import db
 from flask import Flask, request
 from db import Habit
-from datetime import date
+from datetime import date, datetime, timedelta
 
 
 
@@ -14,16 +14,36 @@ habit_routes = Blueprint('habit', __name__)
 def test():
     return success_response("hello world")
 
+def create_habit_for_date(requested_date, done, description):
+    new_habit = Habit(description = description, done = done, date = requested_date)
+
+    db.session.add(new_habit)
+    db.session.commit()
+    return new_habit
+
 @habit_routes.route("/habits/<string:date_string>/")
 def get_habits(date_string):
     """
-    Endpoint for getting all habits
+    Endpoint for getting all habits for a specific date
     """
     requested_date = date.fromisoformat(date_string)
 
     habits = []
     for habit in Habit.query.filter_by(date=requested_date).all():
         habits.append(habit.serialize())
+
+    #gets previous days habits if empty and date is today
+    if not habits and (requested_date == date.today()):
+        prev_date = requested_date - timedelta(days=1)
+        new_habits = []
+
+        for prev_habit in Habit.query.filter_by(date=prev_date).all():
+            new_habit = create_habit_for_date(requested_date=requested_date, done = False, description = prev_habit.description)
+            new_habits.append(new_habit)
+
+        db.session.commit()
+        habits = new_habits
+
 
     return success_response({"habits": habits})
 
@@ -34,9 +54,7 @@ def create_habit():
     """
     body = json.loads(request.data)
     requested_date = process_date(request)
-    new_habit = Habit(description = body.get("description",""), done = body.get("done", False), date = requested_date)
-    db.session.add(new_habit)
-    db.session.commit()
+    new_habit = create_habit_for_date(requested_date=requested_date, done = body.get("done", False), description= body.get("description",""))
     return success_response(new_habit.serialize(), 201)
 
 @habit_routes.route("/habits/<int:habit_id>/")

@@ -279,3 +279,8 @@ h1{
   color: #aaa;
   text-decoration: line-through;
 }
+
+.disabled-habit {
+  pointer-events: none;
+  opacity: 0.6;
+}

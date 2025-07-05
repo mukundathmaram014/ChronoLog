@@ -33,7 +33,7 @@ def test():
 @stopwatch_routes.route("/stopwatches/<string:date_string>/")
 def get_stopwatches(date_string):
     """
-    Endpoint for getting all stopwatches
+    Endpoint for getting all stopwatches for a specified date
     """
     requested_date = date.fromisoformat(date_string)
     stopwatches = []

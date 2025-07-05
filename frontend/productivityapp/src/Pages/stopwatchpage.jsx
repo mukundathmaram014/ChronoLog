@@ -43,6 +43,7 @@ export function Stopwatch() {
                 await fetch(`http://localhost:5000/stopwatches/stop/${running.id}/`, {
                 method: "PATCH",
             });
+            setRunningId(null);
             }
         };
 
@@ -59,7 +60,6 @@ export function Stopwatch() {
             .then(data => {
                 setRunningId(null);
                 setStopwatches((data.stopwatches));
-                console.log(allStopwatchesRef);
             })
             .catch(error => console.error(error));
             });
@@ -83,6 +83,7 @@ export function Stopwatch() {
                     navigator.sendBeacon(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`
                     );
                 };
+                setRunningId(null);
             });
         }
         window.addEventListener('pagehide', handleUnload)
@@ -363,11 +364,11 @@ export function Stopwatch() {
                         <button onClick={(e) => {e.stopPropagation(); handleStop(item.id, item.end_time)}} disabled = {isFuture}>Pause</button>
                         <button onClick={(e) => {e.stopPropagation(); handleReset(item.id, item.end_time)}} disabled = {isFuture}>Reset</button>
                         <MdEdit className = "edit-icon"
-                            onClick={() => {setEditStopwatch(true); setStopwatchTitle(item.title);
+                            onClick={() => {if (isFuture) return; setEditStopwatch(true); setStopwatchTitle(item.title);
                             setEditingStopwatchID(item.id);
-                        }} disabled = {isFuture}/>
+                        }}/>
                         <MdDelete className = "delete-icon"
-                         onClick = {(e) => {e.stopPropagation();deleteStopwatch(item.id)}} disabled = {isFuture}/>
+                         onClick = {(e) => {e.stopPropagation(); if (isFuture) return; deleteStopwatch(item.id)}}/>
                     </div>
                 </div>
             )

@@ -16,6 +16,7 @@ export function Habit() {
   const [editingHabitID, setEditingHabitID] = useState(null);
   const [today, setToday] = useState(() => (new Date()).toISOString().slice(0,10));
   const [selectedDate, setSelectedDate] = useState(today);
+  const isFuture = (new Date(selectedDate)) > (new Date(today))
 
   useEffect(() => {
     const now = new Date();
@@ -29,15 +30,20 @@ export function Habit() {
   },[today]);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/habits/${selectedDate}/`, {
+    let dateToFetch = selectedDate;
+            if (isFuture){
+                dateToFetch = today;
+            }
+    fetch(`http://localhost:5000/habits/${dateToFetch}/`, {
       method: "GET"
     })
     .then( response => response.json())
     .then(data => setHabits(data.habits))
     .catch(error => console.error(error))
-  }, [today, selectedDate]);
+  }, [today, selectedDate, isFuture]);
 
   const handleAddHabit = () => {
+    if (isFuture){return;}
     const newHabit = {
       description: newDescription,
       done: false,
@@ -60,6 +66,7 @@ export function Habit() {
   };
 
   const handleDeleteHabit = (index) => {
+    if (isFuture){return;}
     fetch(`http://localhost:5000/habits/${index}/`, {
       method: "DELETE"
     })
@@ -71,6 +78,7 @@ export function Habit() {
   }
 
   const handleEditHabit = () => {
+    if (isFuture){return;}
     if (editingHabitID === null) return;
 
     const newHabit = {
@@ -98,6 +106,7 @@ export function Habit() {
   }
 
   const handleToggleHabit = (index, currStatus) => {
+    if (isFuture){return;}
     const newHabit = {
       done: !currStatus
     }
@@ -131,7 +140,7 @@ export function Habit() {
       <h1>My Habits</h1>
       <div className="habit-wrapper">
         <button type = 'button' className = 'primaryBtn'
-            onClick={() => setaddHabit(true)}>
+            onClick={() => setaddHabit(true)} disabled = {isFuture}>
             <FaPlus className = "plus-icon" />
         </button>
         {addHabit && (
@@ -181,14 +190,14 @@ export function Habit() {
         <div className = "habit-list">
           {allHabits.map((item) =>{
              return (
-              <div className = {`habit-list-item ${item.done ? 'completed' : ''}`} 
+              <div className = {`habit-list-item ${isFuture ? 'disabled-habit' : ''} ${item.done ? 'completed' : ''}`} 
                   onClick={() => {setEditHabit(true); setNewDescription(item.description);
                   setEditingHabitID(item.id);
                   }}key = {item.id}>
                 <div className = "left-section">
                   <div
                     className={`custom-checkbox ${item.done ? 'checked' : ''}`}
-                    onClick={(e) => {e.stopPropagation(); handleToggleHabit(item.id, item.done)}}
+                    onClick={(e) => {e.stopPropagation(); if (isFuture) return; handleToggleHabit(item.id, item.done)}}
                   >
                     {item.done && <FaCheck className="check-icon" />}
                   </div>
@@ -198,11 +207,11 @@ export function Habit() {
                 </div>
                 <div className = "icon-bar">
                   <MdEdit className = "edit-icon"
-                   onClick={() => {setEditHabit(true); setNewDescription(item.description);
+                   onClick={() => {if (isFuture) return;setEditHabit(true); setNewDescription(item.description);
                     setEditingHabitID(item.id);
                    }}/>
                   <MdDelete className = "delete-icon"
-                   onClick={(e) => {e.stopPropagation();handleDeleteHabit(item.id)}}/>
+                   onClick={(e) => {e.stopPropagation();if (isFuture) return;handleDeleteHabit(item.id)}}/>
                 </div>
               </div>
              )
