@@ -17,6 +17,7 @@ def create_stopwatch_for_date(requested_date, title, start_time):
         # creating total time stopwatch
         total_stopwatch = Stopwatch(title = "Total Time", start_time = datetime.now(), date = requested_date, isTotal = True)
         db.session.add(total_stopwatch)
+        db.session.commit()
         stopwatches.append(total_stopwatch.serialize())
     else:
         stopwatches.append(None)
