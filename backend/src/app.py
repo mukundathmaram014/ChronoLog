@@ -5,6 +5,7 @@ from flask import Flask, request
 from flask_cors import CORS
 from routes.habits import habit_routes
 from routes.stopwatch import stopwatch_routes
+from routes.statistics import statistic_routes
 from datetime import datetime
 
 # define db filename
@@ -25,6 +26,7 @@ with app.app_context():
 
 app.register_blueprint(habit_routes)
 app.register_blueprint(stopwatch_routes)
+app.register_blueprint(statistic_routes)
 
 
 
