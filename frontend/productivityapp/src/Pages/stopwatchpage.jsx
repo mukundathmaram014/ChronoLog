@@ -104,7 +104,6 @@ export function Stopwatch() {
         })
         .then(response => response.json())
         .then(data => {
-            console.log(data.stopwatches[0]);
             if (data.stopwatches[0] === null){
                 setStopwatches(allStopwatches => [...allStopwatches, data.stopwatches[1]]);
             } else {

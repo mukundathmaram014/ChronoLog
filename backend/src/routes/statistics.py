@@ -66,7 +66,7 @@ def get_habits_stats(date_string, time_period):
     else:
         return failure_response("Invalid time period")
     
-    percentage_done = (completed_habits / total_habits) * 100
+    percentage_done = ((completed_habits / total_habits) * 100) if (total_habits > 0) else 0
 
     return success_response({"total_habits" : total_habits, "completed_habits" : completed_habits, "percentage" : percentage_done})
     

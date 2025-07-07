@@ -13,6 +13,9 @@ export function Navbar() {
             <Link to="/stopwatchpage">
                 <button>Stopwatch</button>
             </Link>
+            <Link to="/statisticspage">
+                <button>Statistics</button>
+            </Link>
             </div>
         )
 }
