@@ -1,0 +1,164 @@
+body {
+  background-color: #1f1e1e;
+  color: white;
+  margin: 0;
+  font-family: 'Roboto', Arial, sans-serif;
+}
+
+.statistics-wrapper {
+  background: #353434;
+  padding: 2.5%;
+  width: 60%;
+  margin: 3% auto 0 auto;
+  border-radius: 10px;
+  box-shadow: 0px 5px 7px rgb(27,27,27);
+  min-height: 300px;
+}
+
+h1 {
+  text-align: center;
+  color: #fff;
+  margin-bottom: 24px;
+}
+
+.stats-select-bar {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.stats-select-bar select {
+  background: #232323;
+  color: #fff;
+  border: 1.5px solid #444;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 1rem;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.stats-select-bar select:focus {
+  border: 1.5px solid rgb(0,230,122);
+  box-shadow: 0 0 0 2px rgba(0,230,122,0.2);
+}
+
+.date-slider-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 24px 0 18px 0;
+}
+
+.date-slider-container label {
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+.date-slider-container input[type="date"] {
+  background: #232323;
+  color: #fff;
+  border: 1.5px solid #444;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 1rem;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.date-slider-container input[type="date"]:focus {
+  border: 1.5px solid rgb(0,230,122);
+  box-shadow: 0 0 0 2px rgba(0,230,122,0.2);
+}
+
+.habitstatistics, .stopwatchstatistics {
+  background: #232323;
+  border-radius: 8px;
+  padding: 28px 32px;
+  margin: 32px auto 0 auto;
+  width: 80%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.habitstatistics div,
+.stopwatchstatistics div {
+  font-size: 1.2rem;
+  color: #fff;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.habitstatistics .Completion {
+  color: rgb(0,230,122);
+  font-weight: bold;
+}
+
+.stopwatchstatistics .total-time-worked,
+.stopwatchstatistics .average-time-worked {
+  color: rgb(0,230,122);
+  font-weight: bold;
+}
+
+.milliseconds {
+  font-size: 0.8em;
+  opacity: 0.7;
+  vertical-align: baseline;
+}
+
+@media (max-width: 900px) {
+  .statistics-wrapper {
+    width: 95%;
+    padding: 3%;
+  }
+  .habitstatistics, .stopwatchstatistics {
+    width: 98%;
+    padding: 18px 6px;
+  }
+}
+
+.time-period-select-bar {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.time-period-select-bar select {
+  background: #232323;
+  color: #fff;
+  border: 1.5px solid #444;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 1rem;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.time-period-select-bar select:focus {
+  border: 1.5px solid rgb(0,230,122);
+  box-shadow: 0 0 0 2px rgba(0,230,122,0.2);
+}
+
+.selection-bar {
+  display: flex;
+  flex-direction: row;      /* This is default, but explicit is good */
+  align-items: center;
+  justify-content: flex-start; /* Or center, if you want them centered */
+  gap: 24px;                /* Adjust spacing as needed */
+  margin-bottom: 18px;
+}
+
+.Completion svg {
+  display: block;
+  margin: 0 auto;
+}

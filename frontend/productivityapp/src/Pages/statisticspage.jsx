@@ -34,6 +34,47 @@ export function Statistics() {
             </>);
     };
 
+    function CircularProgress({ percentage, size = 180, strokeWidth = 30, color = "rgb(0,230,122)", bgColor = "#444" }) {
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - (percentage / 100) * circumference;
+
+        return (
+            <svg width={size} height={size}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={bgColor}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="butt"
+                    style={{ transition: "stroke-dashoffset 0.5s" }}
+                />
+                <text
+                    x="50%"
+                    y="50%"
+                    textAnchor="middle"
+                    dy=".3em"
+                    fontSize="1.2em"
+                    fill="#fff"
+                >
+                    {percentage?.toFixed(2)}%
+                </text>
+            </svg>
+        );
+    }
+
     const renderStats = () => {
         switch(selectedStatistics){
             case "habits": 
@@ -47,8 +88,9 @@ export function Statistics() {
                                 <div className = "completed-habits">
                                     Completed Habits: {statsData.completed_habits}
                                 </div>
-                                <div className = "Completion">
-                                    Completion: {statsData.percentage}
+                                <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px" }}>
+                                    <CircularProgress percentage={statsData.percentage ?? 0} />
+                                    <div style={{ marginTop: "8px", color: "#aaa" }}>Completion</div>
                                 </div>
                             </>
                         )}
@@ -79,18 +121,7 @@ export function Statistics() {
     }
 
     return (
-        <>
-            <h1>Statistics</h1>
-            <select value = {selectedStatistics} onChange = {e => setSelectedStatistics(e.target.value)}>
-                <option value= "habits">Habits</option>
-                <option value = "stopwatches">Stopwatches</option>
-            </select>
-            <select value={selectedTimePeriod} onChange={e => setSelectedTimePeriod(e.target.value)}>
-                <option value="day">Day</option>
-                <option value="week">Week</option>
-                <option value="month">Month</option>
-                <option value="year">Year</option>
-            </select>
+        <div className = "App">
             <div className="date-slider-container">
             <label htmlFor="date-slider">Select Date: </label>
             <input
@@ -100,9 +131,29 @@ export function Statistics() {
                 onChange={e => setSelectedDate(e.target.value)}
             />
             </div>
+            <h1>Statistics</h1>
+            <div className = "statistics-wrapper">
+                <div className = "selection-bar">
+                    <div className = "stats-select-bar">
+                    <select value = {selectedStatistics} onChange = {e => setSelectedStatistics(e.target.value)}>
+                    <option value= "habits">Habits</option>
+                    <option value = "stopwatches">Stopwatches</option>
+                    </select>
+                    </div>
+                    <div className = "time-period-select-bar">
+                    <select value={selectedTimePeriod} onChange={e => setSelectedTimePeriod(e.target.value)}>
+                    <option value="day">Day</option>
+                    <option value="week">Week</option>
+                    <option value="month">Month</option>
+                    <option value="year">Year</option>
+                    </select>
+                    </div>
+                </div>
 
             {renderStats()}
-        </>
+            </div>
+
+        </div>
     )
 
 }
