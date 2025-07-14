@@ -87,3 +87,20 @@ class Stopwatch(db.Model):
     #     else:
     #         return (datetime.now() - self.interval_start).total_seconds() + self.curr_duration
 
+
+class DeletedDay(db.Model):
+    __tablename__ = "deleted-days"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    date = db.Column(db.Date, nullable = False)
+    type = db.Column(db.String, nullable = False) # "habit" or "stopwatch"
+
+    def serialize(self):
+        """
+        Serializing a stopwatch to be returned
+        """
+
+        return {
+            "id": self.id,
+            "date": self.date.isoformat(),
+            "type": self.type
+        }

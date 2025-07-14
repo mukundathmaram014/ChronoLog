@@ -3,8 +3,9 @@ from utils import success_response, failure_response, process_date
 import json
 from db import db
 from flask import Flask, request
-from db import Stopwatch
+from db import Stopwatch, DeletedDay
 from datetime import datetime, date, timedelta
+from sqlalchemy import func
 
 
 stopwatch_routes = Blueprint('stopwatch', __name__)
@@ -43,20 +44,31 @@ def get_stopwatches(date_string):
         stopwatches.append(stopwatch.serialize())
     
     # gets previous days stopwatches if empty and date is today
-    if not stopwatches and (requested_date == date.today()):
-        prev_date = requested_date - timedelta(days=1)
-        new_stopwatches = []
+    if not stopwatches:
+        deleted_marker = DeletedDay.query.filter_by(date=requested_date, type = "stopwatch").first()
+        #dosent repopulate if user intentionally deleted everything
+        if not deleted_marker:
+            earliest_date = db.session.query(func.min(Stopwatch.date)).scalar()
+            prev_date = requested_date - timedelta(days=1)
+            prev_stopwatches = []
+            # keeps going back until finds day with non empty stopwatches list
+            if earliest_date:
+                while (len(prev_stopwatches) <= 1) and (prev_date >= earliest_date):
+                    prev_stopwatches = Stopwatch.query.filter_by(date=prev_date).all()
+                    prev_date = prev_date - timedelta(days=1)
 
-        for prev_stopwatch in Stopwatch.query.filter_by(date=prev_date).all():
-            if not prev_stopwatch.isTotal:
-                stopwatches = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time)
+            new_stopwatches = []
 
-                if stopwatches[0] is not None:
-                    new_stopwatches.append(stopwatches[0])
-                new_stopwatches.append(stopwatches[1])
-        
-        db.session.commit()
-        stopwatches = new_stopwatches
+            for prev_stopwatch in prev_stopwatches:
+                if not prev_stopwatch.isTotal:
+                    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time)
+
+                    if stopwatches[0] is not None:
+                        new_stopwatches.append(stopwatches[0])
+                    new_stopwatches.append(stopwatches[1])
+            
+            db.session.commit()
+            stopwatches = new_stopwatches
 
 
     
@@ -122,6 +134,15 @@ def delete_stopwatch(stopwatch_id):
     total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
     db.session.delete(stopwatch)
     db.session.commit()
+
+    # checks if day is a deleted day (intentionally made empty)
+    remaining_stopwatches = Stopwatch.query.filter_by(date=requested_date).all()
+    # only total stopwatch remains
+    if (len(remaining_stopwatches) == 1):
+        deleted_marker = DeletedDay(date=requested_date, type = "stopwatch")
+        db.session.add(deleted_marker)
+        db.session.commit()
+    
     stopwatches = []
     stopwatches.append(total_stopwatch.serialize())
     stopwatches.append(stopwatch.serialize())

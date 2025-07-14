@@ -1,12 +1,13 @@
 import json
 
-from db import db, Stopwatch
+from db import db, Stopwatch, DeletedDay
 from flask import Flask, request
 from flask_cors import CORS
 from routes.habits import habit_routes
 from routes.stopwatch import stopwatch_routes
 from routes.statistics import statistic_routes
 from datetime import datetime
+from utils import success_response
 
 # define db filename
 db_filename = "productivity.db"
@@ -27,6 +28,16 @@ with app.app_context():
 app.register_blueprint(habit_routes)
 app.register_blueprint(stopwatch_routes)
 app.register_blueprint(statistic_routes)
+
+# gets all deleted days
+@app.route("/deletedday")
+def get_deleted_day():
+
+    deleteddays = []
+    for day in DeletedDay.query.all():
+        deleteddays.append(day.serialize())
+    
+    return success_response({"deleted days": deleteddays})
 
 
 
