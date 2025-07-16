@@ -209,7 +209,7 @@ h1{
 }
 
 .edit-icon {
-  font-size: 25px;   /* Change size here */
+  font-size: 32px;   /* Change size here */
   cursor: pointer;
   margin-right: 10px;
   top: 1px; /* nudges the check icon down slightly */
@@ -228,7 +228,7 @@ h1{
 }
 
 .delete-icon {
-  font-size: 25px;   /* Change size here */
+  font-size: 32px;   /* Change size here */
   cursor: pointer;
   margin-right: 10px;
   top: 1px; /* nudges the check icon down slightly */

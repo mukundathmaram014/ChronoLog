@@ -428,9 +428,6 @@ export function Stopwatch() {
                     <div className = "stopwatch-title">
                         <p>{item.title}</p>
                     </div>
-                    <div className="time-display">
-                        {formatTime(getElapsed(item))}
-                    </div>
                     <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px" }}>
                                 <CircularProgress time ={getElapsed(item)}/> 
                     </div>
@@ -438,11 +435,11 @@ export function Stopwatch() {
                         <button onClick={(e) => {e.stopPropagation(); handleStart(item.id, item.end_time)}} disabled = {isFuture}>Start</button>
                         <button onClick={(e) => {e.stopPropagation(); handleStop(item.id, item.end_time)}} disabled = {isFuture}>Pause</button>
                         <button onClick={(e) => {e.stopPropagation(); handleReset(item.id, item.end_time)}} disabled = {isFuture}>Reset</button>
-                        <MdEdit className = "edit-icon"
+                        <MdEdit className = "stopwatch-edit-icon"
                             onClick={() => {if (isFuture) return; setEditStopwatch(true); setStopwatchTitle(item.title);
                             setEditingStopwatchID(item.id);
                         }}/>
-                        <MdDelete className = "delete-icon"
+                        <MdDelete className = "stopwatch-delete-icon"
                          onClick = {(e) => {e.stopPropagation(); if (isFuture) return; deleteStopwatch(item.id)}}/>
                     </div>
                 </div>
