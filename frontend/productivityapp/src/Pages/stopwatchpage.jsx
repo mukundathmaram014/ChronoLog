@@ -17,6 +17,8 @@ export function Stopwatch() {
     const [editingStopwatchID, setEditingStopwatchID] = useState(null);
     const [today, setToday] = useState(() => (new Date()).toISOString().slice(0,10));
     const [selectedDate, setSelectedDate] = useState(today);
+    const [inputHours, setInputHours] = useState(1);
+    const [inputMinutes, setInputMinutes] = useState(0);
     const isFuture = (new Date(selectedDate)) > (new Date(today));
     const intervalRef = useRef(null);
     
@@ -93,9 +95,16 @@ export function Stopwatch() {
         if (isFuture){
             return;
         }
+
+        // Clamp values
+        const safeHours = Math.max(0, Math.min(23, Number(inputHours)));
+        const safeMinutes = Math.max(0, Math.min(59, Number(inputMinutes)));
+
+        const inputTimeString = `${String(safeHours).padStart(2, '0')}:${String(safeMinutes).padStart(2, '0')}`
         const newStopwatch = {
             title : stopwatchTitle,
-            date : selectedDate
+            date : selectedDate,
+            goal_time : inputTimeString
         }
         setIsAdding(true);
         fetch(`http://localhost:5000/stopwatches/`, {
@@ -108,10 +117,11 @@ export function Stopwatch() {
                 setStopwatches(allStopwatches => [...allStopwatches, data.stopwatches[1]]);
             } else {
                 setStopwatches(allStopwatches => [data.stopwatches[0], data.stopwatches[1]])
-                console.log(allStopwatches)
             }
             setStopwatchTitle("");
             setAddingStopwatch(false);
+            setInputHours(1);
+            setInputMinutes(0);
         })
         .catch(error => console.error(error))
         .finally(() => setIsAdding(false));
@@ -225,10 +235,17 @@ export function Stopwatch() {
             return;
         }
 
+        // Clamp values
+        const safeHours = Math.max(0, Math.min(23, Number(inputHours)));
+        const safeMinutes = Math.max(0, Math.min(59, Number(inputMinutes)));
+
         if (editingStopwatchID === null) return;
 
+        const inputTimeString = `${String(safeHours).padStart(2, '0')}:${String(safeMinutes).padStart(2, '0')}`
+
         const newStopwatch = {
-            title: stopwatchTitle
+            title: stopwatchTitle,
+            goal_time: inputTimeString
         }
 
         setIsAdding(true);
@@ -243,6 +260,8 @@ export function Stopwatch() {
                     (stopwatch.id === data.id) ? data : stopwatch
             ));
             setStopwatchTitle("");
+            setInputHours(1);
+            setInputMinutes(0);
             setEditStopwatch(false);
             setEditingStopwatchID(null);
         })
@@ -283,8 +302,15 @@ export function Stopwatch() {
         }
     }
 
-    function CircularProgress({time, size = 330, strokeWidth = 50, bgColor = "#444" }) {
-        const percentage = (time / 3600000) * 100 ?? 0 /*3600000 milliseconds is one hour */
+    const convertMillisecondsToHoursAndMinutes = (milliseconds) => {
+        const hours = Math.floor(milliseconds / 3600000)
+        const remainingMs = milliseconds % 3600000
+        const minutes = Math.floor(remainingMs / 60000)
+        return [hours, minutes]
+    }
+
+    function CircularProgress({time, goal_time, size = 330, strokeWidth = 50, bgColor = "#444" }) {
+        const percentage = (time / goal_time) * 100 ?? 0 
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - ((percentage % 100) / 100) * circumference;
@@ -346,6 +372,71 @@ export function Stopwatch() {
         );
     }
 
+    function CircularProgressTotal({time, goal_time, size = 600, strokeWidth = 50, bgColor = "#444" }) {
+        const percentage = (time / goal_time) * 100 ?? 0 
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - ((percentage % 100) / 100) * circumference;
+        const r = 0
+        const g = 230
+        const b = 122
+        const colorOffset = Math.floor(percentage / 100)
+        console.log(colorOffset)
+        const color = `rgb(${r}, ${g - (50 * colorOffset)}, ${b - (50 * colorOffset) })`
+        const color2 = (colorOffset >= 1 ? `rgb(${r}, ${g - (50 * (colorOffset - 1) )}, ${b - (50 * (colorOffset-1)) })` : bgColor)
+        console.log(color)
+        console.log(color2)
+
+        return (
+            <svg width={size} height={size}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color2}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="butt"
+                    style={{ transition: "stroke-dashoffset 0.5s" }}
+                />
+                <text
+                    x="50%"
+                    y="50%"
+                    textAnchor="middle"
+                    dy=".3em"
+                    fontSize="5rem"                // Match .total-time-display font-size
+                    fontWeight="bold"              // Match .total-time-display font-weight
+                    fontFamily="'Roboto Mono', monospace"
+                    fill="white"                   // Match .total-time-display color
+                    letterSpacing="2px"
+                    style={{ marginBottom: "8px" }}
+                >
+                    {
+                        (() => {
+                            const { hours, minutes, seconds, milliseconds } = formatTimeString(time);
+                            return (
+                                <>
+                                    {hours}:{minutes}:{seconds}
+                                    <tspan fontSize="0.7em" opacity="0.7">:{milliseconds}</tspan>
+                                </>
+                            );
+                        })()
+                    }
+                </text>
+            </svg>
+        );
+    }
+
 
     return (
     <div className = "App">
@@ -380,6 +471,33 @@ export function Stopwatch() {
                         }
                       }}
                       placeholder="What's the stopwatch for"/>
+                      <label>Goal Time:</label>
+                      <label htmlFor="goal-hours">Goal Hours:</label>
+                      <input
+                        type="number"
+                        id = "goal-hours"
+                        min = "0"
+                        max = "23"
+                        value={inputHours}
+                        onChange={e => setInputHours(e.target.value)}
+                        onKeyDown={(e) => {
+                        if (e.key === "Enter"){
+                          handleEditStopwatch();
+                        }
+                        }}
+                      />
+                      <label htmlFor="goal-minutes">Goal Minutes:</label>
+                        <input
+                        type="number"
+                        id="goal-minutes"
+                        min="0"
+                        max="59"
+                        value={inputMinutes}
+                        onChange={e => setInputMinutes(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === "Enter") handleEditStopwatch();
+                        }}
+                      />
                       <button type = 'button' className = 'editStopwatchButton'
                         onClick={handleEditStopwatch}
                         disabled = {isAdding}
@@ -402,6 +520,35 @@ export function Stopwatch() {
                         }
                       }}
                       placeholder="What's the stopwatch for"/>
+                      <label>Goal Time:</label>
+                      <label htmlFor="goal-hours">Goal Hours:</label>
+                      <input
+                        type="number"
+                        id = "goal-hours"
+                        min = "0"
+                        max = "23"
+                        value={inputHours}
+                        onChange={e => setInputHours(e.target.value)}
+                        onKeyDown={(e) => {
+                        if (e.key === "Enter"){
+                          addStopwatch();
+                        }
+                        }}
+                      />
+                      <label htmlFor="goal-minutes">Goal Minutes:</label>
+                        <input
+                        type="number"
+                        id="goal-minutes"
+                        min="0"
+                        max="59"
+                        value={inputMinutes}
+                        onChange={e => setInputMinutes(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === "Enter"){
+                                addStopwatch();
+                            } 
+                        }}
+                      />
                       <button type = 'button' className = 'addStopwatchButton'
                         onClick={addStopwatch}
                         disabled = {isAdding}
@@ -414,22 +561,30 @@ export function Stopwatch() {
                 return (
                     <div className = "total-stopwatch-item" key = {item.id}>
                         <p>Total Time Worked: </p>
-                        <div className = "total-time-display">
-                            {formatTime(getElapsed(item))}
-                        </div>
+                        <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px" }}>
+                                <CircularProgressTotal time ={getElapsed(item)} goal_time = {item.goal_time}/> 
+                        </div>  
                     </div>
                 )
             } else {
                 return (
                 <div className = {`stopwatch-item ${isFuture ? "disabled-stopwatch" : ""} ${((runningId !== null) ? ((runningId !== item.id) ? "not-focused-stopwatch" : "focused-stopwatch")  : "")}`}
                      onClick={() => {setEditStopwatch(true); setStopwatchTitle(item.title);
-                            setEditingStopwatchID(item.id);
+                            setEditingStopwatchID(item.id); const [hours, minutes] = convertMillisecondsToHoursAndMinutes(item.goal_time);
+                            setInputHours(hours);
+                            setInputMinutes(minutes);
                         }} disabled = {isFuture} key = {item.id}>
                     <div className = "stopwatch-title">
                         <p>{item.title}</p>
                     </div>
                     <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px" }}>
-                                <CircularProgress time ={getElapsed(item)}/> 
+                                <CircularProgress time ={getElapsed(item)} goal_time = {item.goal_time}/> 
+                    </div>  
+                    <div className="goal-time">
+                        {(() => {
+                            const [goalHours, goalMinutes] = convertMillisecondsToHoursAndMinutes(item.goal_time);
+                            return <>Goal: {goalHours}h {goalMinutes}m</>;
+                        })()}
                     </div>
                     <div className="controls">
                         <button onClick={(e) => {e.stopPropagation(); handleStart(item.id, item.end_time)}} disabled = {isFuture}>Start</button>
@@ -437,7 +592,9 @@ export function Stopwatch() {
                         <button onClick={(e) => {e.stopPropagation(); handleReset(item.id, item.end_time)}} disabled = {isFuture}>Reset</button>
                         <MdEdit className = "stopwatch-edit-icon"
                             onClick={() => {if (isFuture) return; setEditStopwatch(true); setStopwatchTitle(item.title);
-                            setEditingStopwatchID(item.id);
+                            setEditingStopwatchID(item.id); const [hours, minutes] = convertMillisecondsToHoursAndMinutes(item.goal_time);
+                            setInputHours(hours);
+                            setInputMinutes(minutes);;
                         }}/>
                         <MdDelete className = "stopwatch-delete-icon"
                          onClick = {(e) => {e.stopPropagation(); if (isFuture) return; deleteStopwatch(item.id)}}/>

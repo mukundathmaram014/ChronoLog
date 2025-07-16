@@ -48,6 +48,7 @@ class Stopwatch(db.Model):
     curr_duration = db.Column(db.Float, nullable = False)
     date = db.Column(db.Date, nullable = False)
     isTotal = db.Column(db.Boolean, nullable = False)
+    goal_time = db.Column(db.Float, nullable = False)
 
     def __init__(self, **kwargs):
         """
@@ -61,6 +62,7 @@ class Stopwatch(db.Model):
         self.curr_duration = 0.0
         self.date = kwargs.get("date", date.today())
         self.isTotal = kwargs.get("isTotal", False)
+        self.goal_time = kwargs.get("goal_time", 3600000) # defaults to one hour
 
     def serialize(self):
         """
@@ -75,7 +77,8 @@ class Stopwatch(db.Model):
             "end_time": self.end_time.isoformat() if (self.end_time != None) else None,
             "curr_duration": self.curr_duration,
             "date": self.date.isoformat(),
-            "isTotal": self.isTotal
+            "isTotal": self.isTotal,
+            "goal_time": self.goal_time
         }
     
     # def get_duration(self):

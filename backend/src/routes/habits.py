@@ -68,7 +68,7 @@ def create_habit():
     body = json.loads(request.data)
     requested_date = process_date(request)
     new_habit = create_habit_for_date(requested_date=requested_date, done = body.get("done", False), description= body.get("description",""))
-    return success_response(new_habit.serialize(), 201)
+    return success_response(new_habit, 201)
 
 @habit_routes.route("/habits/<int:habit_id>/")
 def get_habit(habit_id):
