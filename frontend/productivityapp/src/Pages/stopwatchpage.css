@@ -235,6 +235,7 @@ h1{
   flex-wrap: wrap;         /* Allow wrapping if needed */
   width: 100%;             /* Make controls take full width of parent */
   box-sizing: border-box;
+  margin-top: 50px;
 }
 
 .controls button {

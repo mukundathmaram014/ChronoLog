@@ -262,6 +262,16 @@ export function Stopwatch() {
             </>);
     };
 
+    const formatTimeString = (totalMilliSeconds) => {
+        const hours = String(Math.floor(totalMilliSeconds / 3600000)).padStart(2, '0');
+        const minutes = String(Math.floor((totalMilliSeconds % 3600000) / 60000)).padStart(2, '0');
+        const seconds = String(Math.floor((totalMilliSeconds % 60000) / 1000)).padStart(2, '0');
+        const milliseconds = String(Math.floor((totalMilliSeconds % 1000) / 10)).padStart(2,'0');
+        return {hours, minutes, seconds, milliseconds};
+            
+          
+    };
+
     const getElapsed = (stopwatch) => {
         if (isFuture) {
             return 0;
@@ -272,6 +282,70 @@ export function Stopwatch() {
             return stopwatch.curr_duration + (Date.now() - new Date(stopwatch.interval_start));
         }
     }
+
+    function CircularProgress({time, size = 330, strokeWidth = 50, bgColor = "#444" }) {
+        const percentage = (time / 3600000) * 100 ?? 0 /*3600000 milliseconds is one hour */
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - ((percentage % 100) / 100) * circumference;
+        const r = 0
+        const g = 230
+        const b = 122
+        const colorOffset = Math.floor(percentage / 100)
+        console.log(colorOffset)
+        const color = `rgb(${r}, ${g - (50 * colorOffset)}, ${b - (50 * colorOffset) })`
+        const color2 = (colorOffset >= 1 ? `rgb(${r}, ${g - (50 * (colorOffset - 1) )}, ${b - (50 * (colorOffset-1)) })` : bgColor)
+        console.log(color)
+        console.log(color2)
+
+        return (
+            <svg width={size} height={size}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color2}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="butt"
+                    style={{ transition: "stroke-dashoffset 0.5s" }}
+                />
+                <text
+                    x="50%"
+                    y="50%"
+                    textAnchor="middle"
+                    dy=".3em"
+                    fontSize="2.2rem"
+                    fontFamily="'Roboto Mono', monospace"
+                    fill="rgb(0,230,122)"
+                    letterSpacing="2px"
+                >
+                    {
+                        (() => {
+                            const { hours, minutes, seconds, milliseconds } = formatTimeString(time);
+                            return (
+                                <>
+                                    {hours}:{minutes}:{seconds}
+                                    <tspan fontSize="0.7em" opacity="0.7">:{milliseconds}</tspan>
+                                </>
+                            );
+                        })()
+                    }
+                </text>
+            </svg>
+        );
+    }
+
 
     return (
     <div className = "App">
@@ -356,6 +430,9 @@ export function Stopwatch() {
                     </div>
                     <div className="time-display">
                         {formatTime(getElapsed(item))}
+                    </div>
+                    <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px" }}>
+                                <CircularProgress time ={getElapsed(item)}/> 
                     </div>
                     <div className="controls">
                         <button onClick={(e) => {e.stopPropagation(); handleStart(item.id, item.end_time)}} disabled = {isFuture}>Start</button>
