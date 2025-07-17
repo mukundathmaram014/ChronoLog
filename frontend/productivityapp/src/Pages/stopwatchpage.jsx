@@ -113,10 +113,15 @@ export function Stopwatch() {
         })
         .then(response => response.json())
         .then(data => {
-            if (data.stopwatches[0] === null){
-                setStopwatches(allStopwatches => [...allStopwatches, data.stopwatches[1]]);
+            // adds total stopwatch if first creation for this day otherwise updates total stopwatch
+            if (allStopwatches.length === 0){
+                setStopwatches([data.stopwatches[0], data.stopwatches[1]])
             } else {
-                setStopwatches(allStopwatches => [data.stopwatches[0], data.stopwatches[1]])
+                // updates total stopwatch and adds new stopwatch
+                setStopwatches(allStopwatches => {
+                    const updated = allStopwatches.map(stopwatch => stopwatch.isTotal ? data.stopwatches[0] : stopwatch);
+                    return ([...updated, data.stopwatches[1]]);
+                });
             }
             setStopwatchTitle("");
             setAddingStopwatch(false);
@@ -255,10 +260,10 @@ export function Stopwatch() {
         })
         .then(response => response.json())
         .then(data => {
-            setStopwatches(allStopwatches =>
-                allStopwatches.map(stopwatch =>
-                    (stopwatch.id === data.id) ? data : stopwatch
-            ));
+            setStopwatches(allStopwatches => 
+                    allStopwatches.map(stopwatch => 
+                        (stopwatch.isTotal) ? data.stopwatches[0] : 
+                     (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that was edited
             setStopwatchTitle("");
             setInputHours(1);
             setInputMinutes(0);
@@ -372,7 +377,7 @@ export function Stopwatch() {
         );
     }
 
-    function CircularProgressTotal({time, goal_time, size = 600, strokeWidth = 50, bgColor = "#444" }) {
+    function CircularProgressTotal({time, goal_time, size = 550, strokeWidth = 80, bgColor = "#444" }) {
         const percentage = (time / goal_time) * 100 ?? 0 
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
@@ -414,7 +419,7 @@ export function Stopwatch() {
                     y="50%"
                     textAnchor="middle"
                     dy=".3em"
-                    fontSize="5rem"                // Match .total-time-display font-size
+                    fontSize="4rem"                // Match .total-time-display font-size
                     fontWeight="bold"              // Match .total-time-display font-weight
                     fontFamily="'Roboto Mono', monospace"
                     fill="white"                   // Match .total-time-display color
@@ -471,33 +476,35 @@ export function Stopwatch() {
                         }
                       }}
                       placeholder="What's the stopwatch for"/>
-                      <label>Goal Time:</label>
-                      <label htmlFor="goal-hours">Goal Hours:</label>
-                      <input
-                        type="number"
-                        id = "goal-hours"
-                        min = "0"
-                        max = "23"
-                        value={inputHours}
-                        onChange={e => setInputHours(e.target.value)}
-                        onKeyDown={(e) => {
-                        if (e.key === "Enter"){
-                          handleEditStopwatch();
-                        }
-                        }}
-                      />
-                      <label htmlFor="goal-minutes">Goal Minutes:</label>
+                      <label style={{ marginTop: "18px", display: "block" }}>Goal Time:</label>
+                      <div className = "goal-time-inputs">
+                        <label htmlFor="goal-hours">Hours:</label>
                         <input
-                        type="number"
-                        id="goal-minutes"
-                        min="0"
-                        max="59"
-                        value={inputMinutes}
-                        onChange={e => setInputMinutes(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === "Enter") handleEditStopwatch();
-                        }}
-                      />
+                            type="number"
+                            id = "goal-hours"
+                            min = "0"
+                            max = "23"
+                            value={inputHours}
+                            onChange={e => setInputHours(e.target.value)}
+                            onKeyDown={(e) => {
+                            if (e.key === "Enter"){
+                                handleEditStopwatch();
+                            }
+                            }}
+                        />
+                        <label htmlFor="goal-minutes">Minutes:</label>
+                            <input
+                            type="number"
+                            id="goal-minutes"
+                            min="0"
+                            max="59"
+                            value={inputMinutes}
+                            onChange={e => setInputMinutes(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === "Enter") handleEditStopwatch();
+                            }}
+                        />
+                      </div>
                       <button type = 'button' className = 'editStopwatchButton'
                         onClick={handleEditStopwatch}
                         disabled = {isAdding}
@@ -520,35 +527,37 @@ export function Stopwatch() {
                         }
                       }}
                       placeholder="What's the stopwatch for"/>
-                      <label>Goal Time:</label>
-                      <label htmlFor="goal-hours">Goal Hours:</label>
-                      <input
-                        type="number"
-                        id = "goal-hours"
-                        min = "0"
-                        max = "23"
-                        value={inputHours}
-                        onChange={e => setInputHours(e.target.value)}
-                        onKeyDown={(e) => {
-                        if (e.key === "Enter"){
-                          addStopwatch();
-                        }
-                        }}
-                      />
-                      <label htmlFor="goal-minutes">Goal Minutes:</label>
+                      <label style={{ marginTop: "18px", display: "block" }}>Goal Time:</label>
+                      <div className = "goal-time-inputs">
+                        <label htmlFor="goal-hours">Hours:</label>
                         <input
-                        type="number"
-                        id="goal-minutes"
-                        min="0"
-                        max="59"
-                        value={inputMinutes}
-                        onChange={e => setInputMinutes(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === "Enter"){
-                                addStopwatch();
-                            } 
-                        }}
-                      />
+                            type="number"
+                            id = "goal-hours"
+                            min = "0"
+                            max = "23"
+                            value={inputHours}
+                            onChange={e => setInputHours(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter"){
+                                    addStopwatch();
+                                }
+                            }}
+                        />
+                        <label htmlFor="goal-minutes">Minutes:</label>
+                            <input
+                            type="number"
+                            id="goal-minutes"
+                            min="0"
+                            max="59"
+                            value={inputMinutes}
+                            onChange={e => setInputMinutes(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === "Enter"){
+                                    addStopwatch();
+                                } 
+                            }}
+                        />
+                      </div> 
                       <button type = 'button' className = 'addStopwatchButton'
                         onClick={addStopwatch}
                         disabled = {isAdding}
@@ -561,7 +570,7 @@ export function Stopwatch() {
                 return (
                     <div className = "total-stopwatch-item" key = {item.id}>
                         <p>Total Time Worked: </p>
-                        <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px" }}>
+                        <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "50px" }}>
                                 <CircularProgressTotal time ={getElapsed(item)} goal_time = {item.goal_time}/> 
                         </div>  
                     </div>

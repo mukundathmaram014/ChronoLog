@@ -175,7 +175,7 @@ h1{
 }
 
 .total-stopwatch-item p {
-  font-size: 1.5rem;
+  font-size: 3rem;
   font-weight: bold;
   margin: 0 0 6px 0;
   color: rgb(0,230,122);
@@ -234,7 +234,8 @@ h1{
   flex-wrap: wrap;         /* Allow wrapping if needed */
   width: 100%;             /* Make controls take full width of parent */
   box-sizing: border-box;
-  margin-top: 50px;
+  margin-top: 30px;
+  margin-bottom: 20px;
 }
 
 .controls button {
@@ -367,4 +368,30 @@ h1{
 .date-slider-container input[type="date"]:focus {
   border: 1.5px solid rgb(0,230,122);
   box-shadow: 0 0 0 2px rgba(0,230,122,0.2);
+}
+
+.goal-time {
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: #aaffc3;
+  background: rgba(34, 34, 34, 0.85);
+  border-radius: 8px;
+  padding: 6px 16px;
+  margin-top: 50px;
+  display: inline-block;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.goal-time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.goal-time-inputs label {
+  margin: 0 4px 0 0;
+}
+.goal-time-inputs input[type="number"] {
+  width: 60px;
 }

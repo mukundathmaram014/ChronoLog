@@ -19,9 +19,7 @@ def create_stopwatch_for_date(requested_date, title, start_time, goal_time):
         total_stopwatch = Stopwatch(title = "Total Time", start_time = datetime.now(), date = requested_date, isTotal = True, goal_time = goal_time)
         db.session.add(total_stopwatch)
         db.session.commit()
-        stopwatches.append(total_stopwatch.serialize())
     else:
-        stopwatches.append(None)
         # adds to total stopwatch's goal time if already exists
         total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
         total_stopwatch.goal_time = total_stopwatch.goal_time + goal_time
@@ -29,6 +27,7 @@ def create_stopwatch_for_date(requested_date, title, start_time, goal_time):
 
     db.session.add(new_stopwatch)
     db.session.commit()
+    stopwatches.append(total_stopwatch.serialize())
     stopwatches.append(new_stopwatch.serialize())
     return stopwatches
 
@@ -71,9 +70,11 @@ def get_stopwatches(date_string):
             for prev_stopwatch in prev_stopwatches:
                 if not prev_stopwatch.isTotal:
                     stopwatches = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time)
-
-                    if stopwatches[0] is not None:
+         
+                    #only adds total stopwatch once
+                    if not total_added:
                         new_stopwatches.append(stopwatches[0])
+                        total_added = True
                     new_stopwatches.append(stopwatches[1])
             
             db.session.commit()
@@ -144,7 +145,9 @@ def update_stopwatch(stopwatch_id):
     total_stopwatch.curr_duration = total_stopwatch.curr_duration + change_in_duration
     total_stopwatch.goal_time = total_stopwatch.goal_time + change_in_goal_time
     db.session.commit()
-    return success_response(stopwatch.serialize())
+    
+    stopwatches = [total_stopwatch.serialize(), stopwatch.serialize()]
+    return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/<int:stopwatch_id>/", methods = ["DELETE"])
 def delete_stopwatch(stopwatch_id):
