@@ -173,7 +173,7 @@ export function Stopwatch() {
         .catch(error => console.error(error));
     }
 
-    const handleStart = (index, end_time) => {
+    const handleStart = async (index, end_time) => {
 
         if (isFuture) {
             return;
@@ -186,17 +186,19 @@ export function Stopwatch() {
                 setTick(tick => tick + 1);
             }, 10);  
             
-            fetch(`http://localhost:5000/stopwatches/start/${index}/`, {
+            try {
+                const response = await fetch(`http://localhost:5000/stopwatches/start/${index}/`, {
                 method: "PATCH",
-            })
-            .then(response => response.json())
-            .then(data => {
+                })
+                const data = await response.json();
                 setStopwatches(allStopwatches => 
                     allStopwatches.map(stopwatch => 
                         (stopwatch.isTotal) ? data.stopwatches[0] : 
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that started
-            })
-            .catch(error => console.error(error))
+                     
+            } catch(error){
+                console.error(error);
+            }
         }
     }
 
@@ -228,7 +230,7 @@ export function Stopwatch() {
         }
     }
 
-    const handleReset = (index, end_time) =>{
+    const handleReset = async (index, end_time) =>{
 
         if (isFuture) {
             return;
@@ -237,22 +239,23 @@ export function Stopwatch() {
         const update = {
             state : end_time // if stopwatch is currently running or not
         }
-        fetch(`http://localhost:5000/stopwatches/reset/${index}/`, {
+        try {
+            const response = await fetch(`http://localhost:5000/stopwatches/reset/${index}/`, {
             method: "PATCH",
             body: JSON.stringify(update)
-        })
-        .then(response => response.json())
-        .then(data => {
-                setStopwatches(allStopwatches => 
+            })
+            const data = await response.json();
+            setStopwatches(allStopwatches => 
                     allStopwatches.map(stopwatch => 
                         (stopwatch.isTotal) ? data.stopwatches[0] : 
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that reset
-                if (runningId === index){
+            if (runningId === index){
                     clearInterval(intervalRef.current);
                     setRunningId(null);
                 }
-            })
-        .catch(error => console.error(error))
+        } catch (error){
+            console.error(error)
+        }
     }
 
     const handleEditStopwatch = () => {
