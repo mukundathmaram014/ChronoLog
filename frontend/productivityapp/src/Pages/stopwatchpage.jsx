@@ -261,7 +261,7 @@ export function Stopwatch() {
         }
     }
 
-    const handleEditStopwatch = () => {
+    const handleEditStopwatch = async () => {
 
         if (isFuture) {
             return;
@@ -288,12 +288,13 @@ export function Stopwatch() {
         }
 
         setIsAdding(true);
-        fetch(`http://localhost:5000/stopwatches/${editingStopwatchID}/`, {
-            method: 'PUT',
-            body: JSON.stringify(newStopwatch)
-        })
-        .then(response => response.json())
-        .then(data => {
+
+        try {
+            const response = await fetch(`http://localhost:5000/stopwatches/${editingStopwatchID}/`, {
+                method: 'PUT',
+                body: JSON.stringify(newStopwatch)
+            })
+            const data = await response.json();
             setStopwatches(allStopwatches => 
                     allStopwatches.map(stopwatch => 
                         (stopwatch.isTotal) ? data.stopwatches[0] : 
@@ -307,9 +308,11 @@ export function Stopwatch() {
             setCurrentCentiseconds(0);
             setEditStopwatch(false);
             setEditingStopwatchID(null);
-        })
-        .catch(error => console.log(error))
-        .finally(() => setIsAdding(false))
+        } catch (error){
+            console.error(error);
+        } finally {
+            setIsAdding(false);
+        }
     }
 
     // const formatTime = (totalMilliSeconds) => {
@@ -446,10 +449,10 @@ export function Stopwatch() {
                     y="50%"
                     textAnchor="middle"
                     dy=".3em"
-                    fontSize="4rem"                // Match .total-time-display font-size
-                    fontWeight="bold"              // Match .total-time-display font-weight
+                    fontSize="4rem"                
+                    fontWeight="bold"              
                     fontFamily="'Roboto Mono', monospace"
-                    fill="white"                   // Match .total-time-display color
+                    fill="white"                  
                     letterSpacing="2px"
                     style={{ marginBottom: "8px" }}
                 >
