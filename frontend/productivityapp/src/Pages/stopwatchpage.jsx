@@ -109,7 +109,7 @@ export function Stopwatch() {
         }
     },[editingStopwatchID, allStopwatches])
 
-    const addStopwatch = () => {
+    const addStopwatch = async () => {
         if (isFuture){
             return;
         }
@@ -125,12 +125,13 @@ export function Stopwatch() {
             goal_time : inputTimeString
         }
         setIsAdding(true);
-        fetch(`http://localhost:5000/stopwatches/`, {
-            method: "POST",
-            body: JSON.stringify(newStopwatch)
-        })
-        .then(response => response.json())
-        .then(data => {
+
+        try{
+            const response = await fetch(`http://localhost:5000/stopwatches/`, {
+                method: "POST",
+                body: JSON.stringify(newStopwatch)
+            })
+            const data = await response.json();
             // adds total stopwatch if first creation for this day otherwise updates total stopwatch
             if (allStopwatches.length === 0){
                 setStopwatches([data.stopwatches[0], data.stopwatches[1]])
@@ -145,9 +146,11 @@ export function Stopwatch() {
             setAddingStopwatch(false);
             setInputHours(1);
             setInputMinutes(0);
-        })
-        .catch(error => console.error(error))
-        .finally(() => setIsAdding(false));
+        } catch (error) {
+            console.error(error);
+        }  finally {
+            setIsAdding(false);
+        }
     }
 
     const deleteStopwatch = async (index) => {
