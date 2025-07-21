@@ -150,15 +150,15 @@ export function Stopwatch() {
         .finally(() => setIsAdding(false));
     }
 
-    const deleteStopwatch = (index) => {
+    const deleteStopwatch = async (index) => {
         if (isFuture) {
             return;
         }
-        fetch(`http://localhost:5000/stopwatches/${index}/`, {
+        try{
+            const response = await fetch(`http://localhost:5000/stopwatches/${index}/`, {
             method: "DELETE"
-        })
-        .then(response => response.json())
-        .then(data =>{
+            })
+            const data = await response.json();
             setStopwatches(allStopwatches => 
                 allStopwatches.filter(stopwatch => (stopwatch.id !== data.stopwatches[1].id)) // remove deleted stopwatch
             );
@@ -168,9 +168,9 @@ export function Stopwatch() {
                 clearInterval(intervalRef.current);
                 setRunningId(null);
             }
+        } catch (error) {
+            console.error(error);
         }
-        )
-        .catch(error => console.error(error));
     }
 
     const handleStart = async (index, end_time) => {
@@ -195,7 +195,7 @@ export function Stopwatch() {
                     allStopwatches.map(stopwatch => 
                         (stopwatch.isTotal) ? data.stopwatches[0] : 
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that started
-                     
+
             } catch(error){
                 console.error(error);
             }
