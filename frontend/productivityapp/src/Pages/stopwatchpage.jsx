@@ -6,6 +6,15 @@ import { IoMdClose } from "react-icons/io";
 import { FaPlus } from "react-icons/fa";
 
 export function Stopwatch() {
+
+    const DatetoISOString = (Date) => {
+        const year = Date.getFullYear();
+        const month = String(Date.getMonth() + 1).padStart(2, '0');
+        const day = String(Date.getDate()).padStart(2,'0');
+        const isoString = year + "-" + month + "-" + day;
+        return isoString;
+    }
+
     const [allStopwatches, setStopwatches] = useState([]);
     const allStopwatchesRef = useRef(allStopwatches); // so we dont need to pass allStopwatches as dependency to second useEffect
     const [stopwatchTitle, setStopwatchTitle] = useState("");
@@ -15,7 +24,7 @@ export function Stopwatch() {
     const [tick, setTick] = useState(0);
     const [editStopwatch, setEditStopwatch] = useState(false);
     const [editingStopwatchID, setEditingStopwatchID] = useState(null);
-    const [today, setToday] = useState(() => (new Date()).toISOString().slice(0,10));
+    const [today, setToday] = useState(() => (DatetoISOString(new Date())));
     const [selectedDate, setSelectedDate] = useState(today);
     const [inputHours, setInputHours] = useState(1);
     const [inputMinutes, setInputMinutes] = useState(0);
@@ -27,12 +36,12 @@ export function Stopwatch() {
     const intervalRef = useRef(null);
     
 
-    // goes to next day
+    // updates state variable today but not selecteday
     useEffect(() => {
         const now = new Date();
-        const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now//midnight next day
+        const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now //midnight next day
         const timeout = setTimeout(() => {
-            setToday(new Date().toISOString().slice(0,10));
+            setToday(DatetoISOString(new Date()));
         }, msUntilMidnight);
 
         return () => clearTimeout(timeout);
@@ -109,6 +118,7 @@ export function Stopwatch() {
         }
     },[editingStopwatchID, allStopwatches])
 
+    
     const addStopwatch = async () => {
         if (isFuture){
             return;
@@ -663,7 +673,7 @@ export function Stopwatch() {
                 <div className = {`stopwatch-item ${isFuture ? "disabled-stopwatch" : ""} ${((runningId !== null) ? ((runningId !== item.id) ? "not-focused-stopwatch" : "focused-stopwatch")  : "")}`}
                      onClick={async () => {if (isFuture) return;
                             if (item.end_time === null){
-                                    await handleStop(item.id, item.end_time)
+                                    await handleStop(item.id, item.end_time);
                                 }
                             setEditStopwatch(true); setStopwatchTitle(item.title);
                             setEditingStopwatchID(item.id); const [hours, minutes] = formatTimeString(item.goal_time);

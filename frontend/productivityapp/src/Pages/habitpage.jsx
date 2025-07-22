@@ -18,6 +18,7 @@ export function Habit() {
   const [selectedDate, setSelectedDate] = useState(today);
   const isFuture = (new Date(selectedDate)) > (new Date(today))
 
+  // updates state variable today but not selecteday
   useEffect(() => {
     const now = new Date();
     const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDay() + 1, 0, 0, 0, 0) //midnight next day
