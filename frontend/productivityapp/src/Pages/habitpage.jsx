@@ -1,10 +1,8 @@
-import { MdDelete } from "react-icons/md";
-import { FaCheck } from "react-icons/fa";
 import { FaPlus } from "react-icons/fa";
 import { IoMdClose } from "react-icons/io";
-import { MdEdit } from "react-icons/md";
 import { useState, useEffect } from 'react';
 import './habitpage.css';
+import {HabitItem} from "../Components/HabitItem";
 
 
 export function Habit() {
@@ -189,34 +187,16 @@ export function Habit() {
           </div>
          )}
         <div className = "habit-list">
-          {allHabits.map((item) =>{
-             return (
-              <div className = {`habit-list-item ${isFuture ? 'disabled-habit' : ''} ${item.done ? 'completed' : ''}`} 
-                  onClick={() => {setEditHabit(true); setNewDescription(item.description);
-                  setEditingHabitID(item.id);
-                  }}key = {item.id}>
-                <div className = "left-section">
-                  <div
-                    className={`custom-checkbox ${item.done ? 'checked' : ''}`}
-                    onClick={(e) => {e.stopPropagation(); if (isFuture) return; handleToggleHabit(item.id, item.done)}}
-                  >
-                    {item.done && <FaCheck className="check-icon" />}
-                  </div>
-                  <div className = "habit-text">
-                    <p>{item.description}</p>
-                  </div>
-                </div>
-                <div className = "icon-bar">
-                  <MdEdit className = "edit-icon"
-                   onClick={() => {if (isFuture) return;setEditHabit(true); setNewDescription(item.description);
-                    setEditingHabitID(item.id);
-                   }}/>
-                  <MdDelete className = "delete-icon"
-                   onClick={(e) => {e.stopPropagation();if (isFuture) return;handleDeleteHabit(item.id)}}/>
-                </div>
-              </div>
-             )
-            })}
+          {allHabits.map((item) =>(
+              <HabitItem
+                key={item.id}
+                item={item}
+                isFuture={isFuture}
+                onEdit={item => { setEditHabit(true); setNewDescription(item.description); setEditingHabitID(item.id); }}
+                onDelete={handleDeleteHabit}
+                onToggle={handleToggleHabit}
+              />
+            ))}
         
         </div>
       </div>
