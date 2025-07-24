@@ -2,7 +2,7 @@ import { FaPlus } from "react-icons/fa";
 import { IoMdClose } from "react-icons/io";
 import { useState, useEffect } from 'react';
 import './habitpage.css';
-import {SortableItem} from "../Components/SortableItem";
+import {SortableHabitItem} from "../Components/SortableHabitItem";
 import {HabitItem} from "../Components/HabitItem"
 import {
   DndContext, 
@@ -237,7 +237,7 @@ export function Habit() {
           <SortableContext items={allHabits.map(habit => habit.id)} strategy={verticalListSortingStrategy}>
             <div className = "habit-list">
             {allHabits.map((item) =>(
-                <SortableItem
+                <SortableHabitItem
                   key={item.id}
                   item={item}
                   isFuture={isFuture}

@@ -2,7 +2,7 @@ import {useSortable} from '@dnd-kit/sortable';
 import {CSS} from '@dnd-kit/utilities';
 import {HabitItem} from "./HabitItem";
 
-export function SortableItem({item, isFuture, onEdit, onDelete, onToggle, activeId}){
+export function SortableHabitItem({item, isFuture, onEdit, onDelete, onToggle, activeId}){
     
      const {
         attributes,
@@ -19,7 +19,7 @@ export function SortableItem({item, isFuture, onEdit, onDelete, onToggle, active
     };
     
     return (
-        <div ref={setNodeRef} style={style} {...attributes}>
+      <div ref={setNodeRef} style={style} {...attributes}>
           <HabitItem
             item={item}
             isFuture={isFuture}

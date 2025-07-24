@@ -316,14 +316,18 @@ h1{
   box-shadow: 0 0 0 2px rgba(0,230,122,0.2);
 }
 
-.drag-handle {
+.drag-handle-habit {
   cursor: grab;
-  padding: 0 8px;
-  margin-left: 0;     /* Remove left margin */
+  padding: 0 2px;
   display: flex;
   align-items: center;
 }
-.drag-icon {
+.drag-icon-habit {
   font-size: 1.2rem;
   opacity: 1;
+}
+
+.drag-handle-habit:hover .drag-icon-habit {
+  color: rgb(0,230,122);
+  transform: scale(1.1);
 }

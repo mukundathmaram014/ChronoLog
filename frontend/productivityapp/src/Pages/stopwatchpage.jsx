@@ -1,9 +1,24 @@
 import { useState, useRef, useEffect} from 'react';
 import './stopwatchpage.css';
-import { MdDelete } from "react-icons/md";
-import { MdEdit } from "react-icons/md";
 import { IoMdClose } from "react-icons/io";
 import { FaPlus } from "react-icons/fa";
+import {
+  DndContext, 
+  closestCenter,
+  KeyboardSensor,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { SortableStopwatchItem } from '../Components/SortableStopwatchItem.jsx';
+import {StopwatchItem} from '../Components/StopwatchItem.jsx';
 
 export function Stopwatch() {
 
@@ -15,6 +30,7 @@ export function Stopwatch() {
         return isoString;
     }
 
+    const [activeId, setActiveId] = useState(null);
     const [allStopwatches, setStopwatches] = useState([]);
     const allStopwatchesRef = useRef(allStopwatches); // so we dont need to pass allStopwatches as dependency to second useEffect
     const [stopwatchTitle, setStopwatchTitle] = useState("");
@@ -34,6 +50,13 @@ export function Stopwatch() {
     const [currentCentiseconds, setCurrentCentiseconds] = useState(0);
     const isFuture = (new Date(selectedDate)) > (new Date(today));
     const intervalRef = useRef(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+        coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
     
 
     // updates state variable today but not selecteday
@@ -482,9 +505,32 @@ export function Stopwatch() {
         );
     }
 
+    function handleDragStart(event) {
+        const {active} = event;
+        
+        setActiveId(active.id);
+    }
+  
+    function handleDragEnd(event) {
+        const {active, over} = event;
+        
+        if (active.id !== over.id) {
+        setStopwatches((prevStopwatches) => {
+            const oldIndex = prevStopwatches.findIndex(stopwatch => stopwatch.id === active.id);
+            const newIndex = prevStopwatches.findIndex(stopwatch => stopwatch.id === over.id);
+            
+            return arrayMove(prevStopwatches, oldIndex, newIndex);
+        });
+        }
+        
+        setActiveId(null);
+    }
+
 
     return (
-    <div className = "App">
+    <DndContext sensors={sensors} collisionDetection={closestCenter}
+                onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className = "App">
         <div className="date-slider-container">
             <label htmlFor="date-slider">Select Date: </label>
             <input
@@ -498,14 +544,14 @@ export function Stopwatch() {
         <div className="stopwatches">
         <div className = "header">
             <button className = "primaryBtn" onClick = {() => setAddingStopwatch(true)} disabled = {isFuture}>
-            <FaPlus className = "plus-icon" />
-        </button>
+                <FaPlus className = "plus-icon" />
+            </button>
         </div>
         {editStopwatch && (
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-edit-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setEditStopwatch(false); setStopwatchTitle("")}}/>
+                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0);}}/>
                       <h3>Edit Stopwatch</h3>
                       <label>Title: </label>
                       <input type= "text" value = {stopwatchTitle} 
@@ -658,54 +704,57 @@ export function Stopwatch() {
                     </div>
                   </div>
                 )}
-        {allStopwatches.map((item) => {
-            if (item.isTotal === true){
-                return (
-                    <div className = "total-stopwatch-item" key = {item.id}>
-                        <p>Total Time Worked: </p>
-                        <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "50px" }}>
-                                <CircularProgressTotal time ={getElapsed(item)} goal_time = {item.goal_time}/> 
-                        </div>  
-                    </div>
-                )
-            } else {
-                return (
-                <div className = {`stopwatch-item ${isFuture ? "disabled-stopwatch" : ""} ${((runningId !== null) ? ((runningId !== item.id) ? "not-focused-stopwatch" : "focused-stopwatch")  : "")}`}
-                     onClick={async () => {if (isFuture) return;
-                            if (item.end_time === null){
-                                    await handleStop(item.id, item.end_time);
-                                }
-                            setEditStopwatch(true); setStopwatchTitle(item.title);
-                            setEditingStopwatchID(item.id); const [hours, minutes] = formatTimeString(item.goal_time);
-                            setInputHours(Number(hours));
-                            setInputMinutes(Number(minutes));
-                        }} disabled = {isFuture} key = {item.id}>
-                    <div className = "stopwatch-title">
-                        <p>{item.title}</p>
-                    </div>
-                    <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px" }}>
-                                <CircularProgress time ={getElapsed(item)} goal_time = {item.goal_time}/> 
-                    </div>  
-                    <div className="goal-time">
-                        {(() => {
-                            const [goalHours, goalMinutes] = formatTimeString(item.goal_time);
-                            return <>Goal: {goalHours}h {goalMinutes}m</>;
-                        })()}
-                    </div>
-                    <div className="controls">
-                        <button onClick={(e) => {e.stopPropagation(); handleStart(item.id, item.end_time)}} disabled = {isFuture}>Start</button>
-                        <button onClick={(e) => {e.stopPropagation(); handleStop(item.id, item.end_time)}} disabled = {isFuture}>Pause</button>
-                        <button onClick={(e) => {e.stopPropagation(); handleReset(item.id, item.end_time)}} disabled = {isFuture}>Reset</button>
-                        <MdEdit className = "stopwatch-edit-icon"/>
-                        <MdDelete className = "stopwatch-delete-icon"
-                         onClick = {(e) => {e.stopPropagation(); if (isFuture) return; deleteStopwatch(item.id)}}/>
-                    </div>
-                </div>
-            )
-            }
-        })}
+        <SortableContext items={allStopwatches.map(stopwatch => stopwatch.id)} strategy={rectSortingStrategy}>
+            {allStopwatches.map((item) => (
+            <SortableStopwatchItem
+                key={item.id}
+                item={item}
+                isFuture={isFuture}
+                onEdit={async item => {if (item.end_time === null){
+                                                await handleStop(item.id, item.end_time);
+                                            }
+                                        setEditStopwatch(true); setStopwatchTitle(item.title);
+                                        setEditingStopwatchID(item.id); const [hours, minutes] = formatTimeString(item.goal_time);
+                                        setInputHours(Number(hours));
+                                        setInputMinutes(Number(minutes)); }}
+                onStart = {handleStart}
+                onStop = {handleStop}
+                onReset = {handleReset}
+                onDelete={deleteStopwatch}
+                activeId= {activeId}
+                runningId = {runningId}
+                getElapsed = {getElapsed}
+                formatTimeString = {formatTimeString}
+                CircularProgress = {CircularProgress}
+                CircularProgressTotal = {CircularProgressTotal}
+            />
+            ))}
+        </SortableContext>
     </div>
 
     </div>
+    <DragOverlay>
+            {activeId ? <StopwatchItem 
+                item={allStopwatches.find(s => s.id === activeId)}
+                isFuture={isFuture}
+                onEdit={async item => {if (item.end_time === null){
+                                                await handleStop(item.id, item.end_time);
+                                            }
+                                        setEditStopwatch(true); setStopwatchTitle(item.title);
+                                        setEditingStopwatchID(item.id); const [hours, minutes] = formatTimeString(item.goal_time);
+                                        setInputHours(Number(hours));
+                                        setInputMinutes(Number(minutes)); }}
+                onStart = {handleStart}
+                onStop = {handleStop}
+                onReset = {handleReset}
+                onDelete={deleteStopwatch} 
+                runningId = {runningId}
+                getElapsed = {getElapsed}
+                formatTimeString = {formatTimeString}
+                CircularProgress = {CircularProgress}
+                CircularProgressTotal = {CircularProgressTotal}/> : null}
+    </DragOverlay>
+    </DndContext>
+    
     );
 }

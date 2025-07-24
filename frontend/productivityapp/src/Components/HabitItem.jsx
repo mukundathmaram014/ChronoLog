@@ -6,10 +6,10 @@ import { RxDragHandleDots2 } from "react-icons/rx";
 export const HabitItem = forwardRef(({item, isFuture, onEdit, onDelete, onToggle, listeners}, ref) => {
     return (
             <div className = {`habit-list-item ${isFuture ? 'disabled-habit' : ''} ${item.done ? 'completed' : ''}`} 
-                  onClick={() => onEdit(item)} ref = {ref}>
+                  onClick={() => {if (isFuture) return; onEdit(item)}} ref = {ref}>
                 <div className = "left-section">
-                    <div className="drag-handle" {...listeners}>
-                        <RxDragHandleDots2 className="drag-icon" />
+                    <div className="drag-handle-habit" {...listeners}>
+                        <RxDragHandleDots2 className="drag-icon-habit" />
                     </div>
                   <div
                     className={`custom-checkbox ${item.done ? 'checked' : ''}`}
