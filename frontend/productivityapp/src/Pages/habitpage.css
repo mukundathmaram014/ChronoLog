@@ -162,7 +162,7 @@ h1{
   display: flex;
   justify-content: space-between;
   align-items: center; /* Vertically center everything */
-  padding: 15px 20px;
+  padding: 15px 10px;
   margin-bottom: 10px;
   border-radius: 5px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
@@ -314,4 +314,16 @@ h1{
 .date-slider-container input[type="date"]:focus {
   border: 1.5px solid rgb(0,230,122);
   box-shadow: 0 0 0 2px rgba(0,230,122,0.2);
+}
+
+.drag-handle {
+  cursor: grab;
+  padding: 0 8px;
+  margin-left: 0;     /* Remove left margin */
+  display: flex;
+  align-items: center;
+}
+.drag-icon {
+  font-size: 1.2rem;
+  opacity: 1;
 }

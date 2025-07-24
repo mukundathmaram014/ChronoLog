@@ -1,12 +1,16 @@
 import { MdEdit, MdDelete } from "react-icons/md";
 import { FaCheck } from "react-icons/fa";
+import {forwardRef} from 'react';
+import { RxDragHandleDots2 } from "react-icons/rx";
 
-export function HabitItem({item, isFuture, onEdit, onDelete, onToggle}){
+export const HabitItem = forwardRef(({item, isFuture, onEdit, onDelete, onToggle, listeners}, ref) => {
     return (
-
-        <div className = {`habit-list-item ${isFuture ? 'disabled-habit' : ''} ${item.done ? 'completed' : ''}`} 
-                  onClick={() => onEdit(item)}>
+            <div className = {`habit-list-item ${isFuture ? 'disabled-habit' : ''} ${item.done ? 'completed' : ''}`} 
+                  onClick={() => onEdit(item)} ref = {ref}>
                 <div className = "left-section">
+                    <div className="drag-handle" {...listeners}>
+                        <RxDragHandleDots2 className="drag-icon" />
+                    </div>
                   <div
                     className={`custom-checkbox ${item.done ? 'checked' : ''}`}
                     onClick={(e) => {e.stopPropagation(); if (isFuture) return; onToggle(item.id, item.done)}}
@@ -26,5 +30,6 @@ export function HabitItem({item, isFuture, onEdit, onDelete, onToggle}){
                 </div>
               </div>
 
-    );
-}
+
+    )
+});
