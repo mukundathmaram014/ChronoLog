@@ -11,6 +11,10 @@ from sqlalchemy import func
 stopwatch_routes = Blueprint('stopwatch', __name__)
 
 def create_stopwatch_for_date(requested_date, title, start_time, goal_time):
+
+    duplicate = Stopwatch.query.filter_by(title = title, date = requested_date).first()
+    if duplicate is not None:
+        return failure_response("Stopwatch already exists for this day", 409)
     stopwatches = []
     new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time)
 
@@ -101,6 +105,9 @@ def create_stopwatch():
 
     stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now()), goal_time= goal_time_milli) 
     
+    # If result is a failure response, return it directly
+    if isinstance(stopwatches, tuple):
+        return stopwatches
     return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/<int:stopwatch_id>/")
@@ -124,7 +131,15 @@ def update_stopwatch(stopwatch_id):
     stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
-    stopwatch.title = body.get("title", stopwatch.title)
+    
+    # dosent allow a duplicate stopwatch to be created
+    new_title = body.get("title", stopwatch.title)
+    if new_title != stopwatch.title:
+        duplicate = Stopwatch.query.filter_by(title = new_title, date = stopwatch.date).first()
+        if duplicate is not None:
+            return failure_response("Stopwatch already exists for this day", 409)
+    stopwatch.title = new_title
+    
     stopwatch.start_time = body.get("start_time", stopwatch.start_time)
     stopwatch.interval_start = body.get("interval_start", stopwatch.interval_start)
     stopwatch.end_time = body.get("end_time", stopwatch.end_time)

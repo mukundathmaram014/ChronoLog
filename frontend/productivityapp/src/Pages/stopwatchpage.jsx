@@ -50,6 +50,7 @@ export function Stopwatch() {
     const [currentCentiseconds, setCurrentCentiseconds] = useState(0);
     const isFuture = (new Date(selectedDate)) > (new Date(today));
     const intervalRef = useRef(null);
+    const [stopwatchError, setStopwatchError] = useState("");
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -146,6 +147,7 @@ export function Stopwatch() {
         if (isFuture){
             return;
         }
+        setStopwatchError(""); // clear previous errors
 
         // Clamp values
         const safeHours = Math.max(0, Math.min(23, Number(inputHours)));
@@ -163,7 +165,13 @@ export function Stopwatch() {
             const response = await fetch(`http://localhost:5000/stopwatches/`, {
                 method: "POST",
                 body: JSON.stringify(newStopwatch)
-            })
+            });
+
+            if (response.status === 409) {
+                setStopwatchError("A stopwatch with this title already exists.");
+                throw new Error("Duplicate stopwatch");
+            }
+
             const data = await response.json();
             // adds total stopwatch if first creation for this day otherwise updates total stopwatch
             if (allStopwatches.length === 0){
@@ -300,6 +308,8 @@ export function Stopwatch() {
             return;
         }
 
+        setStopwatchError(""); // Clear previous errors
+
         // Clamp values
         const safeGoalHours = Math.max(0, Math.min(23, Number(inputHours)));
         const safeGoalMinutes = Math.max(0, Math.min(59, Number(inputMinutes)));
@@ -327,6 +337,12 @@ export function Stopwatch() {
                 method: 'PUT',
                 body: JSON.stringify(newStopwatch)
             })
+
+            if (response.status === 409) {
+                setStopwatchError("A stopwatch with this title already exists.");
+                throw new Error("Duplicate stopwatch");
+            }
+
             const data = await response.json();
             setStopwatches(allStopwatches => 
                     allStopwatches.map(stopwatch => 
@@ -552,7 +568,7 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-edit-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0);}}/>
+                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setStopwatchError("");}}/>
                       <h3>Edit Stopwatch</h3>
                       <label>Title: </label>
                       <input type= "text" value = {stopwatchTitle} 
@@ -649,6 +665,9 @@ export function Stopwatch() {
                         onClick={handleEditStopwatch}
                         disabled = {isAdding}
                         > {isAdding ? "Editing..." : "Done"}</button>
+                      {stopwatchError && (
+                        <div style={{ color: "red", marginBottom: "10px" }}>{stopwatchError}</div>
+                        )}
                     </div>
                   </div>
                 )}
@@ -656,7 +675,7 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-input-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => setAddingStopwatch(false)}/>
+                        onClick={() => {setAddingStopwatch(false); setStopwatchError("")}}/>
                       <h3>Add a New Stopwatch</h3>
                       <label>Title: </label>
                       <input type= "text" value = {stopwatchTitle} 
@@ -702,6 +721,9 @@ export function Stopwatch() {
                         onClick={addStopwatch}
                         disabled = {isAdding}
                         > {isAdding ? "Adding..." : "Add Stopwatch"}</button>
+                        {stopwatchError && (
+                        <div style={{ color: "red", marginBottom: "10px" }}>{stopwatchError}</div>
+                        )}
                     </div>
                   </div>
                 )}

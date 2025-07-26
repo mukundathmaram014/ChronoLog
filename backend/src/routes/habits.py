@@ -97,12 +97,15 @@ def update_habit(habit_id):
     habit = Habit.query.filter_by(id=habit_id).first()
     if habit is None:
         return failure_response("Habit not found")
+    
+    # dosent allow a duplicate habit to be created
     new_description = body.get("description", habit.description)
     if new_description != habit.description:
         duplicate = Habit.query.filter_by(description = new_description, date = habit.date).first()
         if duplicate is not None:
             return failure_response("Habit already exists for this day", 409)
     habit.description = new_description
+    
     habit.done = body.get("done", habit.done)
     habit.date = body.get("date", habit.date)
     db.session.commit()
