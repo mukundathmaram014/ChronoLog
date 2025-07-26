@@ -33,6 +33,7 @@ export function Habit() {
   const [today, setToday] = useState(() => (new Date()).toISOString().slice(0,10));
   const [selectedDate, setSelectedDate] = useState(today);
   const isFuture = (new Date(selectedDate)) > (new Date(today));
+  const [habitError, setHabitError] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -68,6 +69,7 @@ export function Habit() {
 
   const handleAddHabit = () => {
     if (isFuture){return;}
+    setHabitError(""); // Clear previous errors
     const newHabit = {
       description: newDescription,
       done: false,
@@ -78,7 +80,13 @@ export function Habit() {
       method: "POST",
       body: JSON.stringify(newHabit)
     })
-    .then(response => response.json())
+    .then(async response => {
+      if (response.status === 409) {
+        setHabitError("A habit with this description already exists.");
+        throw new Error("Duplicate habit");
+      }
+      return response.json();
+    })
     .then( data => {
       setHabits(allHabits => [...allHabits, data]);
       setNewDescription("");
@@ -104,6 +112,7 @@ export function Habit() {
   const handleEditHabit = () => {
     if (isFuture){return;}
     if (editingHabitID === null) return;
+    setHabitError(""); // Clear previous errors
 
     const newHabit = {
       description: newDescription
@@ -114,7 +123,13 @@ export function Habit() {
       method: 'PUT',
       body: JSON.stringify(newHabit)
     })
-    .then(response => response.json())
+    .then(async response => {
+      if (response.status === 409) {
+        setHabitError("A habit with this description already exists.");
+        throw new Error("Duplicate habit");
+      }
+      return response.json();
+    })
     .then(data => {
       setHabits(allHabits =>
         allHabits.map(habit =>
@@ -194,7 +209,7 @@ export function Habit() {
             <div className = "habit-input">
               <div className = "habit-input-item">
                 <IoMdClose className = "close-icon"
-                  onClick={() => setaddHabit(false)}/>
+                  onClick={() => {setaddHabit(false); setHabitError("");}}/>
                 <h3>Add a New Habit</h3>
                 <label>Description</label>
                 <input type= "text" value = {newDescription} 
@@ -209,6 +224,9 @@ export function Habit() {
                   onClick={handleAddHabit}
                   disabled = {isAdding}
                   > {isAdding ? "Adding..." : "Add Habit"}</button>
+                {habitError && (
+                  <div style={{ color: "red", marginBottom: "10px" }}>{habitError}</div>
+                )}
               </div>
             </div>
           )}
@@ -216,7 +234,7 @@ export function Habit() {
             <div className = "habit-input">
               <div className = "habit-edit-item">
                 <IoMdClose className = "close-icon"
-                  onClick={() => {setEditHabit(false); setNewDescription("")}}/>
+                  onClick={() => {setEditHabit(false); setNewDescription(""); setHabitError("")}}/>
                 <h3>Edit habit</h3>
                 <label>Description</label>
                 <input type= "text" value = {newDescription} 
@@ -231,6 +249,9 @@ export function Habit() {
                   onClick={handleEditHabit}
                   disabled = {isAdding}
                   > {isAdding ? "Editing..." : "Done"}</button>
+                {habitError && (
+                <div style={{ color: "red", marginBottom: "10px" }}>{habitError}</div>
+                )}
               </div>
             </div>
           )}

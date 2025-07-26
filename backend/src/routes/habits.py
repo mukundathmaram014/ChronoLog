@@ -16,6 +16,11 @@ def test():
     return success_response("hello world")
 
 def create_habit_for_date(requested_date, done, description):
+
+    duplicate = Habit.query.filter_by(description = description, date = requested_date).first()
+    if duplicate is not None:
+        return failure_response("Habit already exists for this day", 409)
+    
     new_habit = Habit(description = description, done = done, date = requested_date)
 
     db.session.add(new_habit)
@@ -68,6 +73,9 @@ def create_habit():
     body = json.loads(request.data)
     requested_date = process_date(request)
     new_habit = create_habit_for_date(requested_date=requested_date, done = body.get("done", False), description= body.get("description",""))
+    # If result is a failure response, return it directly
+    if isinstance(new_habit, tuple):
+        return new_habit
     return success_response(new_habit, 201)
 
 @habit_routes.route("/habits/<int:habit_id>/")
@@ -89,7 +97,12 @@ def update_habit(habit_id):
     habit = Habit.query.filter_by(id=habit_id).first()
     if habit is None:
         return failure_response("Habit not found")
-    habit.description = body.get("description", habit.description)
+    new_description = body.get("description", habit.description)
+    if new_description != habit.description:
+        duplicate = Habit.query.filter_by(description = new_description, date = habit.date).first()
+        if duplicate is not None:
+            return failure_response("Habit already exists for this day", 409)
+    habit.description = new_description
     habit.done = body.get("done", habit.done)
     habit.date = body.get("date", habit.date)
     db.session.commit()
