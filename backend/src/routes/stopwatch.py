@@ -245,6 +245,8 @@ def reset_stopwatch(stopwatch_id):
     total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
     if (state == None):
         total_stopwatch.end_time = stopwatch.end_time = datetime.now()
+    # we dont need to update the current duration of the stopwatch when we stop it as if is running, total stopwatch is running
+    # as well so differences between the two curr durations will be the same.
     total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
     stopwatch.curr_duration = 0.0
     db.session.commit()

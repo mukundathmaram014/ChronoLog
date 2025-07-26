@@ -83,6 +83,7 @@ def get_stopwatchs_stats(date_string, time_period):
     requested_date = date.fromisoformat(date_string)
     total_time_worked = 0
     average_time_worked_per_day = 0
+    days_with_data = 0
 
     if (time_period == "day"):
         total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
@@ -92,21 +93,26 @@ def get_stopwatchs_stats(date_string, time_period):
         start_of_week = requested_date - timedelta(days = requested_date.weekday())
         current_day_in_week = start_of_week
         days_in_week = 7
+
         for i in range(days_in_week):
+            if current_day_in_week > date.today():
+                break
             total_stopwatch = Stopwatch.query.filter_by(date = current_day_in_week, isTotal = True).first()
             total_time_worked += total_stopwatch.curr_duration if total_stopwatch else 0
             current_day_in_week += timedelta(days=1)
-        average_time_worked_per_day = total_time_worked / days_in_week
+            days_with_data += 1
     elif (time_period == "month"):
         start_of_month = requested_date.replace(day = 1)
         current_day_in_month = start_of_month
         days_in_month = calendar.monthrange(requested_date.year, requested_date.month)[1]
 
         for i in range(days_in_month):
+            if current_day_in_month > date.today():
+                break
             total_stopwatch = Stopwatch.query.filter_by(date = current_day_in_month, isTotal = True).first()
             total_time_worked += total_stopwatch.curr_duration if total_stopwatch else 0
             current_day_in_month += timedelta(days=1)
-        average_time_worked_per_day = total_time_worked / days_in_month
+            days_with_data += 1
         
     elif (time_period == "year"):
         start_of_year = requested_date.replace(month = 1, day = 1)
@@ -114,14 +120,16 @@ def get_stopwatchs_stats(date_string, time_period):
         days_in_year = 366 if calendar.isleap(requested_date.year) else 365
 
         for i in range(days_in_year):
+            if current_day_in_year > date.today():
+                break
             total_stopwatch = Stopwatch.query.filter_by(date = current_day_in_year, isTotal = True).first()
             total_time_worked += total_stopwatch.curr_duration if total_stopwatch else 0
             current_day_in_year += timedelta(days=1)
-        average_time_worked_per_day = total_time_worked / days_in_year
+            days_with_data += 1
     else:
         return failure_response("Invalid time period")
     
-
+    average_time_worked_per_day = total_time_worked / days_with_data if days_with_data > 0 else total_time_worked
     return success_response({"total_time_worked" : total_time_worked, "average_time_worked_per_day" : average_time_worked_per_day})
 
 

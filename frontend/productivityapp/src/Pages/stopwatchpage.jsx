@@ -361,6 +361,7 @@ export function Stopwatch() {
     // };
 
     const formatTimeString = (totalMilliSeconds) => {
+        if (totalMilliSeconds < 0) totalMilliSeconds = 0;
         const hours = String(Math.floor(totalMilliSeconds / 3600000)).padStart(2, '0');
         const minutes = String(Math.floor((totalMilliSeconds % 3600000) / 60000)).padStart(2, '0');
         const seconds = String(Math.floor((totalMilliSeconds % 60000) / 1000)).padStart(2, '0');
