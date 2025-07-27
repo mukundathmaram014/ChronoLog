@@ -24,9 +24,13 @@ def get_habits_stats(date_string, time_period):
     requested_date = date.fromisoformat(date_string)
     total_habits = 0
     completed_habits = 0
+    description = request.args.get("description")
 
     if (time_period == "day"):
-        for habit in Habit.query.filter_by(date=requested_date).all():
+        query = Habit.query.filter_by(date=requested_date)
+        if description:
+            query = query.filter_by(description = description)
+        for habit in query.all():
             total_habits += 1
             if (habit.done):
                 completed_habits += 1
@@ -34,8 +38,12 @@ def get_habits_stats(date_string, time_period):
         start_of_week = requested_date - timedelta(days = requested_date.weekday())
         current_day_in_week = start_of_week
         days_in_week = 7
+
         for i in range(days_in_week):
-            for habit in Habit.query.filter_by(date=current_day_in_week).all():
+            query = Habit.query.filter_by(date=current_day_in_week)
+            if description:
+                query = query.filter_by(description = description)
+            for habit in query.all():
                 total_habits += 1
                 if (habit.done):
                     completed_habits += 1
@@ -46,7 +54,10 @@ def get_habits_stats(date_string, time_period):
         days_in_month = calendar.monthrange(requested_date.year, requested_date.month)[1]
 
         for i in range(days_in_month):
-            for habit in Habit.query.filter_by(date=current_day_in_month).all():
+            query = Habit.query.filter_by(date=current_day_in_month)
+            if description:
+                query = query.filter_by(description = description)
+            for habit in query.all():
                 total_habits += 1
                 if (habit.done):
                     completed_habits += 1
@@ -58,7 +69,10 @@ def get_habits_stats(date_string, time_period):
         days_in_year = 366 if calendar.isleap(requested_date.year) else 365
 
         for i in range(days_in_year):
-            for habit in Habit.query.filter_by(date=current_day_in_year).all():
+            query = Habit.query.filter_by(date=current_day_in_year)
+            if description:
+                query = query.filter_by(description = description)
+            for habit in query.all():
                 total_habits += 1
                 if (habit.done):
                     completed_habits += 1
@@ -84,10 +98,14 @@ def get_stopwatchs_stats(date_string, time_period):
     total_time_worked = 0
     average_time_worked_per_day = 0
     days_with_data = 0
+    title = request.args.get("title")
 
     if (time_period == "day"):
-        total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
-        total_time_worked = total_stopwatch.curr_duration if total_stopwatch else 0
+        if title:
+            stopwatch = Stopwatch.query.filter_by(date = requested_date, title = title).first()
+        else:
+            stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
+        total_time_worked = stopwatch.curr_duration if stopwatch else 0
         average_time_worked_per_day = total_time_worked
     elif (time_period == "week"):
         start_of_week = requested_date - timedelta(days = requested_date.weekday())
@@ -97,10 +115,15 @@ def get_stopwatchs_stats(date_string, time_period):
         for i in range(days_in_week):
             if current_day_in_week > date.today():
                 break
-            total_stopwatch = Stopwatch.query.filter_by(date = current_day_in_week, isTotal = True).first()
-            total_time_worked += total_stopwatch.curr_duration if total_stopwatch else 0
+            if title:
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_week, title = title).first()
+            else:
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_week, isTotal = True).first()
+            if stopwatch:
+                total_time_worked += stopwatch.curr_duration
+                days_with_data += 1
             current_day_in_week += timedelta(days=1)
-            days_with_data += 1
+
     elif (time_period == "month"):
         start_of_month = requested_date.replace(day = 1)
         current_day_in_month = start_of_month
@@ -109,10 +132,14 @@ def get_stopwatchs_stats(date_string, time_period):
         for i in range(days_in_month):
             if current_day_in_month > date.today():
                 break
-            total_stopwatch = Stopwatch.query.filter_by(date = current_day_in_month, isTotal = True).first()
-            total_time_worked += total_stopwatch.curr_duration if total_stopwatch else 0
+            if title:
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_month, title = title).first()
+            else:
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_month, isTotal = True).first()
+            if stopwatch:
+                total_time_worked += stopwatch.curr_duration if stopwatch else 0
+                days_with_data += 1
             current_day_in_month += timedelta(days=1)
-            days_with_data += 1
         
     elif (time_period == "year"):
         start_of_year = requested_date.replace(month = 1, day = 1)
@@ -122,10 +149,15 @@ def get_stopwatchs_stats(date_string, time_period):
         for i in range(days_in_year):
             if current_day_in_year > date.today():
                 break
-            total_stopwatch = Stopwatch.query.filter_by(date = current_day_in_year, isTotal = True).first()
-            total_time_worked += total_stopwatch.curr_duration if total_stopwatch else 0
+            if title:
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_year, title = title).first()
+            else:
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_year, isTotal = True).first()
+            if stopwatch:
+                total_time_worked += stopwatch.curr_duration 
+                days_with_data += 1
             current_day_in_year += timedelta(days=1)
-            days_with_data += 1
+                
     else:
         return failure_response("Invalid time period")
     
