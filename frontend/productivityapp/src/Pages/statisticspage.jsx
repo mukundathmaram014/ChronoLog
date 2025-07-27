@@ -9,9 +9,45 @@ export function Statistics() {
     // const [today, setToday] = useState(() => (new Date()).toISOString().slice(0,10));
     const [selectedDate, setSelectedDate] = useState(() => (new Date()).toISOString().slice(0,10));
     const [statsData, setStatsData] = useState(null);
+    const [habits, setHabits] = useState([]);
+    const [stopwatches, setStopwatches] = useState([]);
+    const [selectedHabit, setSelectedHabit] = useState("");
+    const [selectedStopwatch, setSelectedStopwatch] = useState("");
+
+    // fetches habits
+    useEffect(() => {
+        fetch(`http://localhost:5000/habits/${selectedDate}/`, {
+        method: "GET"
+        })
+        .then( response => response.json())
+        .then(data => setHabits(data.habits))
+        .catch(error => console.error(error))
+    }, [selectedDate]);
+
+    //fetches stopwatches
+    useEffect(() => {
+
+        fetch(`http://localhost:5000/stopwatches/${selectedDate}/`, {
+                method: "GET",
+                })
+        .then(response => response.json())
+        .then(data => {
+                setStopwatches((data.stopwatches));
+            })
+        .catch(error => console.error(error));
+
+    }, [selectedDate]); 
 
     useEffect(() => {
-            fetch(`http://localhost:5000/stats/${selectedStatistics}/${selectedDate}/${selectedTimePeriod}/`, {
+            
+            let query = "";
+            if (selectedStatistics === "habits" && selectedHabit) {
+                query = `?description=${encodeURIComponent(selectedHabit)}`;
+            } else if (selectedStatistics === "stopwatches" && selectedStopwatch) {
+                query = `?title=${encodeURIComponent(selectedStopwatch)}`;
+            }
+
+            fetch(`http://localhost:5000/stats/${selectedStatistics}/${selectedDate}/${selectedTimePeriod}/${query}`, {
                 method: "GET",
                 })
             .then(response => response.json())
@@ -20,7 +56,7 @@ export function Statistics() {
             })
             .catch(error => console.error(error))
 
-    }, [selectedTimePeriod, selectedStatistics, selectedDate])
+    }, [selectedTimePeriod, selectedStatistics, selectedDate, selectedHabit, selectedStopwatch])
 
     const formatTime = (totalMilliSeconds) => {
         const hours = String(Math.floor(totalMilliSeconds / 3600000)).padStart(2, '0');
@@ -146,6 +182,24 @@ export function Statistics() {
                     <option value="week">Week</option>
                     <option value="month">Month</option>
                     <option value="year">Year</option>
+                    </select>
+                    </div>
+                    <div className = "habits-or-stopwatches-select-bar">
+                    <select value = {selectedStatistics === "habits" ? selectedHabit : selectedStopwatch}
+                     onChange = {e => {if (selectedStatistics === "habits"){ setSelectedHabit(e.target.value)}
+                                       else {setSelectedStopwatch(e.target.value)}}}>
+                    {selectedStatistics === "habits" && (
+                        <option value="">All Habits</option>
+                    )} 
+                    {(selectedStatistics === "habits" ? habits : stopwatches).map(item => (
+                        // For stopwatches, use the title as the value, but for the "Total Time" stopwatch, use an empty string ("").
+                        // This ensures selecting "Total Time" or "All Habits" results in no query parameter being sent to the backend.
+                        <option 
+                            key={item.id} 
+                            value={selectedStatistics === "habits" ? item.description : (item.title === "Total Time" ? "" : item.title)}> 
+                            {selectedStatistics === "habits" ? item.description : item.title}
+                        </option>
+                    ))}   
                     </select>
                     </div>
                 </div>
