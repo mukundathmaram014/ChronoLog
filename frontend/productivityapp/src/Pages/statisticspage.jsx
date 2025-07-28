@@ -118,10 +118,10 @@ export function Statistics() {
                     <div className = "habitstatistics">
                         {statsData && (
                             <>
-                                <div className = "total-habits">
+                                <div className = "total-habits-statistics">
                                     Total Habits: {statsData.total_habits}
                                 </div>
-                                <div className = "completed-habits">
+                                <div className = "completed-habits-statistics">
                                     Completed Habits: {statsData.completed_habits}
                                 </div>
                                 <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px" }}>
