@@ -4,15 +4,23 @@ import './statisticspage.css';
 
 export function Statistics() {
 
+    const DatetoISOString = (Date) => {
+        const year = Date.getFullYear();
+        const month = String(Date.getMonth() + 1).padStart(2, '0');
+        const day = String(Date.getDate()).padStart(2,'0');
+        const isoString = year + "-" + month + "-" + day;
+        return isoString;
+    }
+
     const [selectedStatistics, setSelectedStatistics] = useState("habits")
     const [selectedTimePeriod, setSelectedTimePeriod] = useState("day");
-    // const [today, setToday] = useState(() => (new Date()).toISOString().slice(0,10));
-    const [selectedDate, setSelectedDate] = useState(() => (new Date()).toISOString().slice(0,10));
+    const [selectedDate, setSelectedDate] = useState(() => (DatetoISOString(new Date())));
     const [statsData, setStatsData] = useState(null);
     const [habits, setHabits] = useState([]);
     const [stopwatches, setStopwatches] = useState([]);
     const [selectedHabit, setSelectedHabit] = useState("");
     const [selectedStopwatch, setSelectedStopwatch] = useState("");
+
 
     // fetches habits
     useEffect(() => {
@@ -52,7 +60,7 @@ export function Statistics() {
                 })
             .then(response => response.json())
             .then(data => {
-                setStatsData(statsData => data);
+                setStatsData(data);
             })
             .catch(error => console.error(error))
 

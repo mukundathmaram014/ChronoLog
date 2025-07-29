@@ -23,6 +23,15 @@ import {
 
 
 export function Habit() {
+
+  const DatetoISOString = (Date) => {
+        const year = Date.getFullYear();
+        const month = String(Date.getMonth() + 1).padStart(2, '0');
+        const day = String(Date.getDate()).padStart(2,'0');
+        const isoString = year + "-" + month + "-" + day;
+        return isoString;
+    }
+
   const [activeId, setActiveId] = useState(null);
   const [addHabit, setaddHabit] = useState(false);
   const [editHabit, setEditHabit] = useState(false);
@@ -30,7 +39,7 @@ export function Habit() {
   const [newDescription, setNewDescription] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [editingHabitID, setEditingHabitID] = useState(null);
-  const [today, setToday] = useState(() => (new Date()).toISOString().slice(0,10));
+  const [today, setToday] = useState(() => (DatetoISOString(new Date())));
   const [selectedDate, setSelectedDate] = useState(today);
   const isFuture = (new Date(selectedDate)) > (new Date(today));
   const [habitError, setHabitError] = useState("");
@@ -48,7 +57,7 @@ export function Habit() {
     const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDay() + 1, 0, 0, 0, 0) //midnight next day
 
     const timeout = setTimeout(() => {
-      setToday((new Date()).toISOString().slice(0,10));
+      setToday(DatetoISOString(new Date()));
     }, msUntilMidnight);
 
     return () => clearTimeout(timeout);
