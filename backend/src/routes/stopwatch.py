@@ -55,19 +55,25 @@ def get_stopwatches(date_string):
     for stopwatch in Stopwatch.query.filter_by(date=requested_date).all():
         stopwatches.append(stopwatch.serialize())
     
-    # gets previous days stopwatches if empty and date is today
+    # gets previous days stopwatches if empty
     if not stopwatches:
         deleted_marker = DeletedDay.query.filter_by(date=requested_date, type = "stopwatch").first()
         #dosent repopulate if user intentionally deleted everything
         if not deleted_marker:
             earliest_date = db.session.query(func.min(Stopwatch.date)).scalar()
-            prev_date = requested_date - timedelta(days=1)
+            prev_date = requested_date
             prev_stopwatches = []
-            # keeps going back until finds day with non empty stopwatches list
+            # keeps going back until finds day with non empty stopwatches list or a deleted day
             if earliest_date:
                 while (len(prev_stopwatches) <= 1) and (prev_date >= earliest_date):
-                    prev_stopwatches = Stopwatch.query.filter_by(date=prev_date).all()
                     prev_date = prev_date - timedelta(days=1)
+                    # Stop if a deleted day is found
+                    prev_deleted = DeletedDay.query.filter_by(date=prev_date, type="stopwatch").first()
+                    if prev_deleted:
+                        prev_stopwatches = []
+                        break
+                    prev_stopwatches = Stopwatch.query.filter_by(date=prev_date).all()
+                    
 
             new_stopwatches = []
 
@@ -75,6 +81,13 @@ def get_stopwatches(date_string):
             total_added = False
             for prev_stopwatch in prev_stopwatches:
                 if not prev_stopwatch.isTotal:
+                    
+                    # repopulates days in between
+                    temp_date = prev_date
+                    while (temp_date < (requested_date - timedelta(days=1))):
+                        temp_date += timedelta(days=1)
+                        create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time)
+                      
                     stopwatches = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time)
          
                     #only adds total stopwatch once

@@ -44,18 +44,30 @@ def get_habits(date_string):
         #dosent repopulate if user intentionally deleted everything
         if not deleted_marker:
             earliest_date = db.session.query(func.min(Habit.date)).scalar()
-            prev_date = requested_date - timedelta(days=1)
+            prev_date = requested_date
             prev_habits = []
 
-            # keeps going back until finds day with non empty habits list
+            # keeps going back until finds day with non empty habits list or a deleted day
             if earliest_date:
                 while (not prev_habits) and (prev_date >= earliest_date):
-                    prev_habits = Habit.query.filter_by(date=prev_date).all()
                     prev_date = prev_date - timedelta(days=1)
+                    # Stop if a deleted day is found
+                    prev_deleted = DeletedDay.query.filter_by(date=prev_date, type="habit").first()
+                    if prev_deleted:
+                        prev_habits = []
+                        break
+                    prev_habits = Habit.query.filter_by(date=prev_date).all()
+                    
 
             new_habits = []
 
             for prev_habit in prev_habits:
+                # repopulates days in between
+                temp_date = prev_date
+                while (temp_date < (requested_date - timedelta(days=1))):
+                    temp_date += timedelta(days=1)
+                    create_habit_for_date(requested_date=temp_date, done = False, description=prev_habit.description)
+
                 new_habit = create_habit_for_date(requested_date=requested_date, done = False, description = prev_habit.description)
                 new_habits.append(new_habit)
 
