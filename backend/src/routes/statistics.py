@@ -97,6 +97,7 @@ def get_stopwatchs_stats(date_string, time_period):
     requested_date = date.fromisoformat(date_string)
     total_time_worked = 0
     average_time_worked_per_day = 0
+    total_goal_time = 0
     days_with_data = 0
     title = request.args.get("title")
 
@@ -105,8 +106,9 @@ def get_stopwatchs_stats(date_string, time_period):
             stopwatch = Stopwatch.query.filter_by(date = requested_date, title = title).first()
         else:
             stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
-        total_time_worked = stopwatch.curr_duration if stopwatch else 0
-        average_time_worked_per_day = total_time_worked
+        if stopwatch:
+            total_time_worked = stopwatch.curr_duration
+            total_goal_time = stopwatch.goal_time
     elif (time_period == "week"):
         start_of_week = requested_date - timedelta(days = requested_date.weekday())
         current_day_in_week = start_of_week
@@ -121,6 +123,7 @@ def get_stopwatchs_stats(date_string, time_period):
                 stopwatch = Stopwatch.query.filter_by(date = current_day_in_week, isTotal = True).first()
             if stopwatch:
                 total_time_worked += stopwatch.curr_duration
+                total_goal_time += stopwatch.goal_time
                 days_with_data += 1
             current_day_in_week += timedelta(days=1)
 
@@ -137,7 +140,8 @@ def get_stopwatchs_stats(date_string, time_period):
             else:
                 stopwatch = Stopwatch.query.filter_by(date = current_day_in_month, isTotal = True).first()
             if stopwatch:
-                total_time_worked += stopwatch.curr_duration if stopwatch else 0
+                total_time_worked += stopwatch.curr_duration
+                total_goal_time += stopwatch.goal_time
                 days_with_data += 1
             current_day_in_month += timedelta(days=1)
         
@@ -155,6 +159,7 @@ def get_stopwatchs_stats(date_string, time_period):
                 stopwatch = Stopwatch.query.filter_by(date = current_day_in_year, isTotal = True).first()
             if stopwatch:
                 total_time_worked += stopwatch.curr_duration 
+                total_goal_time += stopwatch.goal_time
                 days_with_data += 1
             current_day_in_year += timedelta(days=1)
                 
@@ -162,7 +167,7 @@ def get_stopwatchs_stats(date_string, time_period):
         return failure_response("Invalid time period")
     
     average_time_worked_per_day = total_time_worked / days_with_data if days_with_data > 0 else total_time_worked
-    return success_response({"total_time_worked" : total_time_worked, "average_time_worked_per_day" : average_time_worked_per_day})
+    return success_response({"total_time_worked" : total_time_worked, "average_time_worked_per_day" : average_time_worked_per_day, "total_goal_time" : total_goal_time})
 
 
 

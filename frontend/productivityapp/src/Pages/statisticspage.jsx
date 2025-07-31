@@ -78,6 +78,17 @@ export function Statistics() {
             </>);
     };
 
+    const formatTimeString = (totalMilliSeconds) => {
+        if (totalMilliSeconds < 0) totalMilliSeconds = 0;
+        const hours = String(Math.floor(totalMilliSeconds / 3600000)).padStart(2, '0');
+        const minutes = String(Math.floor((totalMilliSeconds % 3600000) / 60000)).padStart(2, '0');
+        const seconds = String(Math.floor((totalMilliSeconds % 60000) / 1000)).padStart(2, '0');
+        const centiseconds = String(Math.floor((totalMilliSeconds % 1000) / 10)).padStart(2,'0');
+        return [hours, minutes, seconds, centiseconds];
+            
+          
+    };
+
     function CircularProgress({ percentage, size = 180, strokeWidth = 30, color = "rgb(0,230,122)", bgColor = "#444" }) {
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
@@ -119,6 +130,69 @@ export function Statistics() {
         );
     }
 
+    function CircularProgressTotal({time, goal_time, size = 550, strokeWidth = 80, bgColor = "#444" }) {
+        const percentage = (time / goal_time) * 100 ?? 0 
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - ((percentage % 100) / 100) * circumference;
+        const r = 0
+        const g = 230
+        const b = 122
+        const colorOffset = Math.floor(percentage / 100)
+        const color = `rgb(${r}, ${g - (50 * colorOffset)}, ${b - (50 * colorOffset) })`
+        const color2 = (colorOffset >= 1 ? `rgb(${r}, ${g - (50 * (colorOffset - 1) )}, ${b - (50 * (colorOffset-1)) })` : bgColor)
+
+
+        return (
+            <svg width={size} height={size}>
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color2}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                />
+                <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="butt"
+                    style={{ transition: "stroke-dashoffset 0.5s" }}
+                />
+                <text
+                    x="50%"
+                    y="50%"
+                    textAnchor="middle"
+                    dy=".3em"
+                    fontSize="4rem"                
+                    fontWeight="bold"              
+                    fontFamily="'Roboto Mono', monospace"
+                    fill="white"                  
+                    letterSpacing="2px"
+                    style={{ marginBottom: "8px" }}
+                >
+                    {
+                        (() => {
+                            const [ hours, minutes, seconds, centiseconds ] = formatTimeString(time);
+                            return (
+                                <>
+                                    {hours}:{minutes}:{seconds}
+                                    <tspan fontSize="0.7em" opacity="0.7">:{centiseconds}</tspan>
+                                </>
+                            );
+                        })()
+                    }
+                </text>
+            </svg>
+        );
+    }
+
     const renderStats = () => {
         switch(selectedStatistics){
             case "habits": 
@@ -147,7 +221,16 @@ export function Statistics() {
                         {statsData && (
                             <>
                                 <div className = "total-time-worked">
-                                    Total Time Worked: {formatTime(statsData.total_time_worked)}
+                                    <p>Total Time Worked: </p>
+                                    <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "50px" }}>
+                                            <CircularProgressTotal time ={statsData.total_time_worked} goal_time = {statsData.total_goal_time}/> 
+                                    </div>
+                                    <div className="goal-time">
+                                        {(() => {
+                                            const [goalHours, goalMinutes] = formatTimeString(statsData.total_goal_time);
+                                            return <>Goal: {goalHours}h {goalMinutes}m</>;
+                                        })()}
+                                    </div>  
                                 </div>
                                 <div className = "average-time-worked">
                                     Average Time Worked Per Day: {formatTime(statsData.average_time_worked_per_day)}

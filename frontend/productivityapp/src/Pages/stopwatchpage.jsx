@@ -643,7 +643,7 @@ export function Stopwatch() {
                             min="0"
                             max="59"
                             value={currentSeconds}
-                            onChange={e => setCurrentMinutes(e.target.value)}
+                            onChange={e => setCurrentSeconds(e.target.value)}
                             onKeyDown={e => {
                                 if (e.key === "Enter") handleEditStopwatch();
                             }}
