@@ -19,6 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { SortableStopwatchItem } from '../Components/SortableStopwatchItem.jsx';
 import {StopwatchItem} from '../Components/StopwatchItem.jsx';
+import { useLocation } from "react-router-dom";
 
 export function Stopwatch() {
 
@@ -51,6 +52,8 @@ export function Stopwatch() {
     const isFuture = (new Date(selectedDate)) > (new Date(today));
     const intervalRef = useRef(null);
     const [stopwatchError, setStopwatchError] = useState("");
+    const location = useLocation();
+    
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -127,6 +130,18 @@ export function Stopwatch() {
         window.addEventListener('pagehide', handleUnload)
         return () => window.removeEventListener('pagehide', handleUnload);
     }, [])
+
+    //stops running stopwatches when user navigates to different page
+    useEffect(() => {
+        return () => {
+            allStopwatchesRef.current.forEach(stopwatch => {
+            if ((stopwatch.end_time === null) && !stopwatch.isTotal){
+                navigator.sendBeacon(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`);
+            }
+            });
+            setRunningId(null);
+        };
+    }, [location.pathname]);
 
     // updates displayed time
     useEffect (() => {

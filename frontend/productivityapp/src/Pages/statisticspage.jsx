@@ -170,7 +170,7 @@ export function Statistics() {
                     y="50%"
                     textAnchor="middle"
                     dy=".3em"
-                    fontSize="4rem"                
+                    fontSize="3.7rem"                
                     fontWeight="bold"              
                     fontFamily="'Roboto Mono', monospace"
                     fill="white"                  
@@ -225,10 +225,10 @@ export function Statistics() {
                                     <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "50px" }}>
                                             <CircularProgressTotal time ={statsData.total_time_worked} goal_time = {statsData.total_goal_time}/> 
                                     </div>
-                                    <div className="goal-time">
+                                    <div className="statistics-goal-time">
                                         {(() => {
                                             const [goalHours, goalMinutes] = formatTimeString(statsData.total_goal_time);
-                                            return <>Goal: {goalHours}h {goalMinutes}m</>;
+                                            return <>Total Goal Time: {goalHours}h {goalMinutes}m</>;
                                         })()}
                                     </div>  
                                 </div>

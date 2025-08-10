@@ -1,5 +1,6 @@
 import {useState, useEffect} from "react";
-import { Link } from "react-router-dom"
+import { Link } from "react-router-dom";
+import './homepage.css';
 
 export function Home() {
 
@@ -14,6 +15,7 @@ export function Home() {
     const [habitsData, setHabitsData] = useState(null);
     const [stopwatchesData, setStopwatchesData] = useState(null);
     const [today, setToday] = useState(() => (DatetoISOString(new Date())));
+    const [quote, setQuote] = useState(() => localStorage.getItem("dailyQuote") || "Daily Quote");
 
     // updates state variable today
     useEffect(() => {
@@ -55,6 +57,17 @@ export function Home() {
     
         }, [today])
 
+    // gets saved quote from local storage
+    useEffect(() => {
+        const savedQuote = localStorage.getItem("dailyQuote");
+        if (savedQuote) setQuote(savedQuote);
+    }, []);
+
+    // stores saved quote in local storage
+    useEffect(() => {
+        localStorage.setItem("dailyQuote", quote);
+    }, [quote]);
+
 
     const formatTimeString = (totalMilliSeconds) => {
         if (totalMilliSeconds < 0) totalMilliSeconds = 0;
@@ -67,7 +80,7 @@ export function Home() {
           
     };
 
-    function CircularProgressTotal({time, goal_time, size = 550, strokeWidth = 80, bgColor = "#444" }) {
+    function CircularProgressTotal({time, goal_time, size = 280, strokeWidth = 40, bgColor = "#444" }) {
         const percentage = (time / goal_time) * 100 ?? 0 
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
@@ -107,12 +120,12 @@ export function Home() {
                     y="50%"
                     textAnchor="middle"
                     dy=".3em"
-                    fontSize="4rem"                
+                    fontSize="1.7rem"                
                     fontWeight="bold"              
                     fontFamily="'Roboto Mono', monospace"
                     fill="white"                  
                     letterSpacing="2px"
-                    style={{ marginBottom: "8px" }}
+                    style={{ marginBottom: "18px" }}
                 >
                     {
                         (() => {
@@ -131,7 +144,7 @@ export function Home() {
     }
 
 
-    function CircularProgress({percentage, completed_habits, total_habits, size = 180, strokeWidth = 30, color = "rgb(0,230,122)", bgColor = "#444"}) {
+    function CircularProgress({percentage, completed_habits, total_habits, size = 280, strokeWidth = 40, color = "rgb(0,230,122)", bgColor = "#444"}) {
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - (percentage / 100) * circumference;
@@ -163,8 +176,10 @@ export function Home() {
                     y="50%"
                     textAnchor="middle"
                     dy=".3em"
-                    fontSize="1.2em"
+                    fontSize="2rem"
                     fill="#fff"
+                    letterSpacing="2px"
+                    style={{ marginBottom: "18px" }}
                 >
                     {completed_habits} / {total_habits}
                 </text>
@@ -179,29 +194,34 @@ export function Home() {
                 <h1>Welcome back</h1>
                 <h2>Here's how you're doing today</h2>
             </div>
-            <div className = "homepage-habitcard">
-                <h3>Habits</h3>
-                <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px" }}>
-                    <CircularProgress percentage={habitsData?.percentage ?? 0} completed_habits={habitsData?.completed_habits ?? 0} total_habits={habitsData?.total_habits ?? 0} />
-                    <div style={{ marginTop: "8px", color: "#aaa" }}>Completion</div>
+            <div className = "homepage-cards-grid">
+                <div className = "homepage-habitcard">
+                    <h3>Habits</h3>
+                    <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "28px"}}>
+                        <CircularProgress percentage={habitsData?.percentage ?? 0} completed_habits={habitsData?.completed_habits ?? 0} total_habits={habitsData?.total_habits ?? 0} />
+                    </div>
+                    <Link to="/habitpage">
+                        <button>Go to Habits</button>
+                    </Link>
                 </div>
-                <Link to="/habitpage">
-                    <button>Go to Habits</button>
-                </Link>
-            </div>
-            <div className = "homepage-stopwatchcard">
-                <h3>Stopwatches</h3>
-                <div className = "total-stopwatch-item">
-                        <p>Total Time Worked: </p>
-                        <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "50px" }}>
+                <div className = "homepage-stopwatchcard">
+                    <h3>Stopwatches</h3>
+                        <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "28px" }}>
                                 <CircularProgressTotal time ={stopwatchesData?.total_time_worked ?? 0} goal_time = {stopwatchesData?.total_goal_time ?? 0}/> 
                         </div>
+                    <Link to="/stopwatchpage">
+                        <button>Go to Stopwatches</button>
+                    </Link>
                 </div>
-                <Link to="/stopwatchpage">
-                    <button>Go to Stopwatches</button>
-                </Link>
-            </div>
-            <div className = "homepage-stopwatchcard">
+                <div className = "homepage-quotesection">
+                    <textarea
+                        value={quote}
+                        onChange={e => setQuote(e.target.value)}
+                        rows={2}
+                        className="homepage-quote-input"              
+                    />
+                </div>
+
             </div>
         </div>
     )
