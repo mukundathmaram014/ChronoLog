@@ -7,7 +7,7 @@ from db import Stopwatch
 from db import Habit
 from datetime import datetime, date, timedelta
 import calendar
-
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 statistic_routes = Blueprint('statistics', __name__)
 
@@ -16,18 +16,20 @@ def test():
     return success_response("hello worldww")
 
 @statistic_routes.route("/stats/habits/<string:date_string>/<string:time_period>/")
+@jwt_required()
 def get_habits_stats(date_string, time_period):
     """
     Endpoint for getting statistics on habits
     """
 
+    user_id = int(get_jwt_identity())
     requested_date = date.fromisoformat(date_string)
     total_habits = 0
     completed_habits = 0
     description = request.args.get("description")
 
     if (time_period == "day"):
-        query = Habit.query.filter_by(date=requested_date)
+        query = Habit.query.filter_by(date=requested_date, user_id = user_id)
         if description:
             query = query.filter_by(description = description)
         for habit in query.all():
@@ -40,7 +42,7 @@ def get_habits_stats(date_string, time_period):
         days_in_week = 7
 
         for i in range(days_in_week):
-            query = Habit.query.filter_by(date=current_day_in_week)
+            query = Habit.query.filter_by(date=current_day_in_week, user_id = user_id)
             if description:
                 query = query.filter_by(description = description)
             for habit in query.all():
@@ -54,7 +56,7 @@ def get_habits_stats(date_string, time_period):
         days_in_month = calendar.monthrange(requested_date.year, requested_date.month)[1]
 
         for i in range(days_in_month):
-            query = Habit.query.filter_by(date=current_day_in_month)
+            query = Habit.query.filter_by(date=current_day_in_month, user_id = user_id)
             if description:
                 query = query.filter_by(description = description)
             for habit in query.all():
@@ -69,7 +71,7 @@ def get_habits_stats(date_string, time_period):
         days_in_year = 366 if calendar.isleap(requested_date.year) else 365
 
         for i in range(days_in_year):
-            query = Habit.query.filter_by(date=current_day_in_year)
+            query = Habit.query.filter_by(date=current_day_in_year, user_id = user_id)
             if description:
                 query = query.filter_by(description = description)
             for habit in query.all():
@@ -89,11 +91,13 @@ def get_habits_stats(date_string, time_period):
 
 
 @statistic_routes.route("/stats/stopwatches/<string:date_string>/<string:time_period>/")
+@jwt_required()
 def get_stopwatchs_stats(date_string, time_period):
     """
     Endpoint for getting statistics on stopwatches. returns time in milliseconds.
     """
 
+    user_id = int(get_jwt_identity())
     requested_date = date.fromisoformat(date_string)
     total_time_worked = 0
     average_time_worked_per_day = 0
@@ -103,9 +107,9 @@ def get_stopwatchs_stats(date_string, time_period):
 
     if (time_period == "day"):
         if title:
-            stopwatch = Stopwatch.query.filter_by(date = requested_date, title = title).first()
+            stopwatch = Stopwatch.query.filter_by(date = requested_date, title = title, user_id = user_id).first()
         else:
-            stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
+            stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
         if stopwatch:
             total_time_worked = stopwatch.curr_duration
             total_goal_time = stopwatch.goal_time
@@ -118,9 +122,9 @@ def get_stopwatchs_stats(date_string, time_period):
             if current_day_in_week > date.today():
                 break
             if title:
-                stopwatch = Stopwatch.query.filter_by(date = current_day_in_week, title = title).first()
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_week, title = title, user_id = user_id).first()
             else:
-                stopwatch = Stopwatch.query.filter_by(date = current_day_in_week, isTotal = True).first()
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_week, isTotal = True, user_id = user_id).first()
             if stopwatch:
                 total_time_worked += stopwatch.curr_duration
                 total_goal_time += stopwatch.goal_time
@@ -136,9 +140,9 @@ def get_stopwatchs_stats(date_string, time_period):
             if current_day_in_month > date.today():
                 break
             if title:
-                stopwatch = Stopwatch.query.filter_by(date = current_day_in_month, title = title).first()
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_month, title = title, user_id = user_id).first()
             else:
-                stopwatch = Stopwatch.query.filter_by(date = current_day_in_month, isTotal = True).first()
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_month, isTotal = True, user_id = user_id).first()
             if stopwatch:
                 total_time_worked += stopwatch.curr_duration
                 total_goal_time += stopwatch.goal_time
@@ -154,9 +158,9 @@ def get_stopwatchs_stats(date_string, time_period):
             if current_day_in_year > date.today():
                 break
             if title:
-                stopwatch = Stopwatch.query.filter_by(date = current_day_in_year, title = title).first()
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_year, title = title, user_id = user_id).first()
             else:
-                stopwatch = Stopwatch.query.filter_by(date = current_day_in_year, isTotal = True).first()
+                stopwatch = Stopwatch.query.filter_by(date = current_day_in_year, isTotal = True, user_id = user_id).first()
             if stopwatch:
                 total_time_worked += stopwatch.curr_duration 
                 total_goal_time += stopwatch.goal_time

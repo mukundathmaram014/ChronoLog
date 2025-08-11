@@ -6,26 +6,27 @@ from flask import Flask, request
 from db import Stopwatch, DeletedDay
 from datetime import datetime, date, timedelta
 from sqlalchemy import func
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 
 stopwatch_routes = Blueprint('stopwatch', __name__)
 
-def create_stopwatch_for_date(requested_date, title, start_time, goal_time):
+def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user_id):
 
-    duplicate = Stopwatch.query.filter_by(title = title, date = requested_date).first()
+    duplicate = Stopwatch.query.filter_by(title = title, date = requested_date, user_id = user_id).first()
     if duplicate is not None:
         return failure_response("Stopwatch already exists for this day", 409)
     stopwatches = []
-    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time)
+    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time, user_id = user_id)
 
-    if Stopwatch.query.filter_by(date=requested_date).first() is None:
+    if Stopwatch.query.filter_by(date=requested_date, user_id = user_id).first() is None:
         # creating total time stopwatch
-        total_stopwatch = Stopwatch(title = "Total Time", start_time = datetime.now(), date = requested_date, isTotal = True, goal_time = goal_time)
+        total_stopwatch = Stopwatch(title = "Total Time", start_time = datetime.now(), date = requested_date, isTotal = True, goal_time = goal_time, user_id = user_id)
         db.session.add(total_stopwatch)
         db.session.commit()
     else:
         # adds to total stopwatch's goal time if already exists
-        total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
+        total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
         total_stopwatch.goal_time = total_stopwatch.goal_time + goal_time
         db.session.commit()
 
@@ -45,22 +46,24 @@ def test():
     return success_response("hello worldhh")
 
 @stopwatch_routes.route("/stopwatches/<string:date_string>/")
+@jwt_required()
 def get_stopwatches(date_string):
     """
     Endpoint for getting all stopwatches for a specified date
     """
+    user_id = int(get_jwt_identity())
     requested_date = date.fromisoformat(date_string)
     stopwatches = []
 
-    for stopwatch in Stopwatch.query.filter_by(date=requested_date).all():
+    for stopwatch in Stopwatch.query.filter_by(date=requested_date, user_id = user_id).all():
         stopwatches.append(stopwatch.serialize())
     
     # gets previous days stopwatches if empty
     if not stopwatches:
-        deleted_marker = DeletedDay.query.filter_by(date=requested_date, type = "stopwatch").first()
+        deleted_marker = DeletedDay.query.filter_by(date=requested_date, type = "stopwatch", user_id = user_id).first()
         #dosent repopulate if user intentionally deleted everything
         if not deleted_marker:
-            earliest_date = db.session.query(func.min(Stopwatch.date)).scalar()
+            earliest_date = db.session.query(func.min(Stopwatch.date)).filter(Stopwatch.user_id == user_id).scalar()
             prev_date = requested_date
             prev_stopwatches = []
             # keeps going back until finds day with non empty stopwatches list or a deleted day
@@ -68,11 +71,11 @@ def get_stopwatches(date_string):
                 while (len(prev_stopwatches) <= 1) and (prev_date >= earliest_date):
                     prev_date = prev_date - timedelta(days=1)
                     # Stop if a deleted day is found
-                    prev_deleted = DeletedDay.query.filter_by(date=prev_date, type="stopwatch").first()
+                    prev_deleted = DeletedDay.query.filter_by(date=prev_date, type="stopwatch", user_id = user_id).first()
                     if prev_deleted:
                         prev_stopwatches = []
                         break
-                    prev_stopwatches = Stopwatch.query.filter_by(date=prev_date).all()
+                    prev_stopwatches = Stopwatch.query.filter_by(date=prev_date, user_id = user_id).all()
                     
 
             new_stopwatches = []
@@ -86,9 +89,9 @@ def get_stopwatches(date_string):
                     temp_date = prev_date
                     while (temp_date < (requested_date - timedelta(days=1))):
                         temp_date += timedelta(days=1)
-                        create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time)
+                        create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id = user_id)
                       
-                    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time)
+                    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id= user_id)
          
                     #only adds total stopwatch once
                     if not total_added:
@@ -104,11 +107,12 @@ def get_stopwatches(date_string):
     return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/", methods = ["POST"])
+@jwt_required()
 def create_stopwatch():
     """
     Endpoint for creating a stopwatch
     """
-
+    user_id = int(get_jwt_identity())
     body = json.loads(request.data)
     requested_date = process_date(request)
     stopwatches = []
@@ -116,7 +120,7 @@ def create_stopwatch():
     goal_time_string = body.get("goal_time", "01:00") # goal time defaults to one hour
     goal_time_milli = convert_time_string_to_milliseconds(goal_time_string)
 
-    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now()), goal_time= goal_time_milli) 
+    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now()), goal_time= goal_time_milli, user_id=user_id) 
     
     # If result is a failure response, return it directly
     if isinstance(stopwatches, tuple):
@@ -124,31 +128,34 @@ def create_stopwatch():
     return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/<int:stopwatch_id>/")
+@jwt_required()
 def get_stopwatch(stopwatch_id):
     """
     Endpoint for getting a stopwatch by id
     """
 
-    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
+    user_id = int(get_jwt_identity())
+    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id, user_id = user_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
     return success_response(stopwatch.serialize())
 
 @stopwatch_routes.route("/stopwatches/<int:stopwatch_id>/", methods = ["PUT"])
+@jwt_required()
 def update_stopwatch(stopwatch_id):
     """
     Endpoint for updating a stopwatch by id
     """
-
+    user_id = int(get_jwt_identity())
     body = json.loads(request.data)
-    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
+    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id, user_id = user_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
     
     # dosent allow a duplicate stopwatch to be created
     new_title = body.get("title", stopwatch.title)
     if new_title != stopwatch.title:
-        duplicate = Stopwatch.query.filter_by(title = new_title, date = stopwatch.date).first()
+        duplicate = Stopwatch.query.filter_by(title = new_title, date = stopwatch.date, user_id = user_id).first()
         if duplicate is not None:
             return failure_response("Stopwatch already exists for this day", 409)
     stopwatch.title = new_title
@@ -171,7 +178,7 @@ def update_stopwatch(stopwatch_id):
 
     # updates total stopwatch with changes
     requested_date = stopwatch.date
-    total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
+    total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
     if total_stopwatch is None:
         return failure_response("Total stopwatch is not found")
     total_stopwatch.curr_duration = total_stopwatch.curr_duration + change_in_duration
@@ -182,15 +189,17 @@ def update_stopwatch(stopwatch_id):
     return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/<int:stopwatch_id>/", methods = ["DELETE"])
+@jwt_required()
 def delete_stopwatch(stopwatch_id):
     """
     Endpoint for deleting a stopwatch by id
     """
-    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
+    user_id = int(get_jwt_identity())
+    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id, user_id = user_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
     requested_date = stopwatch.date
-    total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
+    total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
     if (stopwatch.end_time is None):
         total_stopwatch.end_time = datetime.now() #stops total stopwatch if stopwatch being deleted was running
     total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
@@ -199,78 +208,79 @@ def delete_stopwatch(stopwatch_id):
     db.session.commit()
 
     # checks if day is a deleted day (intentionally made empty)
-    remaining_stopwatches = Stopwatch.query.filter_by(date=requested_date).all()
+    remaining_stopwatches = Stopwatch.query.filter_by(date=requested_date, user_id = user_id).all()
     # only total stopwatch remains
     if (len(remaining_stopwatches) == 1):
-        deleted_marker = DeletedDay(date=requested_date, type = "stopwatch")
+        deleted_marker = DeletedDay(date=requested_date, type = "stopwatch", user_id = user_id)
         db.session.add(deleted_marker)
         db.session.commit()
     
-    stopwatches = []
-    stopwatches.append(total_stopwatch.serialize())
-    stopwatches.append(stopwatch.serialize())
+    stopwatches = [total_stopwatch.serialize(), stopwatch.serialize()]
     
     
     return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/stop/<int:stopwatch_id>/", methods = ["PATCH", "POST"])
+@jwt_required()
 def stop_stopwatch(stopwatch_id):
     """
     Endpoint for stopping a stopwatch by id.
     """
 
-    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
+    user_id = int(get_jwt_identity())
+    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id, user_id = user_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
     requested_date = stopwatch.date
-    total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
+    total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
     total_stopwatch.end_time = stopwatch.end_time = datetime.now()
     increment = (stopwatch.end_time - stopwatch.interval_start).total_seconds() * 1000
     stopwatch.curr_duration = stopwatch.curr_duration + increment
     total_stopwatch.curr_duration = total_stopwatch.curr_duration + increment
     db.session.commit()
 
-    stopwatches = []
-    stopwatches.append(total_stopwatch.serialize())
-    stopwatches.append(stopwatch.serialize())
+    stopwatches = [total_stopwatch.serialize(), stopwatch.serialize()]
     
     
     return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/start/<int:stopwatch_id>/", methods = ["PATCH"])
+@jwt_required()
 def start_stopwatch(stopwatch_id):
     """
     Endpoint for starting a stopwatch by id.
     """
-    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
+
+    user_id = int(get_jwt_identity())
+    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id, user_id = user_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
     requested_date = stopwatch.date
-    total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
+    total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
     now = datetime.now()
     total_stopwatch.interval_start = stopwatch.interval_start = now
     total_stopwatch.end_time = stopwatch.end_time = None
     db.session.commit()
 
-    stopwatches = []
-    stopwatches.append(total_stopwatch.serialize())
-    stopwatches.append(stopwatch.serialize())
+    stopwatches = [total_stopwatch.serialize(), stopwatch.serialize()]
     
     
     return success_response({"stopwatches" : stopwatches})
 
 @stopwatch_routes.route("/stopwatches/reset/<int:stopwatch_id>/", methods = ["PATCH"])
+@jwt_required()
 def reset_stopwatch(stopwatch_id):
     """
     Endpoint for starting a stopwatch by id.
     """
+    user_id = int(get_jwt_identity())
     body = json.loads(request.data)
     state = body.get("state")
-    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id).first()
+    stopwatch = Stopwatch.query.filter_by(id=stopwatch_id, user_id = user_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
     requested_date = stopwatch.date
-    total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True).first()
+    total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
     if (state == None):
         total_stopwatch.end_time = stopwatch.end_time = datetime.now()
     # we dont need to update the current duration of the stopwatch when we stop it as if is running, total stopwatch is running
@@ -279,9 +289,7 @@ def reset_stopwatch(stopwatch_id):
     stopwatch.curr_duration = 0.0
     db.session.commit()
 
-    stopwatches = []
-    stopwatches.append(total_stopwatch.serialize())
-    stopwatches.append(stopwatch.serialize())
+    stopwatches = [total_stopwatch.serialize(), stopwatch.serialize()]
     
     
     return success_response({"stopwatches" : stopwatches})

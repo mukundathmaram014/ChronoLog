@@ -1,4 +1,5 @@
 import json
+from flask_jwt_extended import JWTManager
 
 from db import db, Stopwatch, DeletedDay
 from flask import Flask, request
@@ -6,11 +7,13 @@ from flask_cors import CORS
 from routes.habits import habit_routes
 from routes.stopwatch import stopwatch_routes
 from routes.statistics import statistic_routes
+from routes.users import user_routes
 from datetime import datetime
 from utils import success_response
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 # define db filename
-db_filename = "productivity.db"
+db_filename = "ChronoLog.db"
 app = Flask(__name__)
 CORS(app)
 
@@ -20,6 +23,9 @@ app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_filename}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ECHO"] = True
 
+app.config["JWT_SECRET_KEY"] = "your-secret-key"  # change
+jwt = JWTManager(app)
+
 # initialize app
 db.init_app(app)
 with app.app_context():
@@ -28,13 +34,16 @@ with app.app_context():
 app.register_blueprint(habit_routes)
 app.register_blueprint(stopwatch_routes)
 app.register_blueprint(statistic_routes)
+app.register_blueprint(user_routes)
 
-# gets all deleted days
+# gets all deleted days for a user
 @app.route("/deletedday")
+@jwt_required()
 def get_deleted_day():
 
+    user_id = int(get_jwt_identity())
     deleteddays = []
-    for day in DeletedDay.query.all():
+    for day in DeletedDay.query.filter_by(user_id=user_id).all():
         deleteddays.append(day.serialize())
     
     return success_response({"deleted days": deleteddays})

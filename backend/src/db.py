@@ -2,6 +2,26 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date
 db = SQLAlchemy()
 
+
+#User model
+class User(db.Model):
+    """
+    User model
+    """
+    __tablename__ = "users"
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String, nullable = False)
+    email = db.Column(db.String, nullable = False)
+    password_hash = db.Column(db.String, nullable = False)
+
+    def serialize(self):
+        """
+        Serializing a user to be returned
+        """
+
+        return {"id": self.id, "username": self.username, "email": self.email}
+
+
 # Habit model
 class Habit(db.Model):
     """
@@ -13,6 +33,7 @@ class Habit(db.Model):
     description = db.Column(db.String, nullable = False)
     done = db.Column(db.Boolean, nullable=False)
     date = db.Column(db.Date, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def __init__(self, **kwargs):
         """
@@ -22,6 +43,7 @@ class Habit(db.Model):
         self.description = kwargs.get("description", "")
         self.done = kwargs.get("done", False)
         self.date = kwargs.get("date", date.today())
+        self.user_id = kwargs.get("user_id")
 
     def serialize(self):
         """
@@ -31,7 +53,8 @@ class Habit(db.Model):
             "id": self.id,
             "description" : self.description,
             "done" : self.done,
-            "date": self.date.isoformat()
+            "date": self.date.isoformat(),
+            "user_id": self.user_id 
         }
     
 #stopwatch model
@@ -49,6 +72,7 @@ class Stopwatch(db.Model):
     date = db.Column(db.Date, nullable = False)
     isTotal = db.Column(db.Boolean, nullable = False)
     goal_time = db.Column(db.Float, nullable = False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def __init__(self, **kwargs):
         """
@@ -63,6 +87,7 @@ class Stopwatch(db.Model):
         self.date = kwargs.get("date", date.today())
         self.isTotal = kwargs.get("isTotal", False)
         self.goal_time = kwargs.get("goal_time", 3600000) # defaults to one hour
+        self.user_id = kwargs.get("user_id")
 
     def serialize(self):
         """
@@ -78,7 +103,8 @@ class Stopwatch(db.Model):
             "curr_duration": self.curr_duration,
             "date": self.date.isoformat(),
             "isTotal": self.isTotal,
-            "goal_time": self.goal_time
+            "goal_time": self.goal_time,
+            "user_id": self.user_id 
         }
     
     # def get_duration(self):
@@ -96,6 +122,7 @@ class DeletedDay(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     date = db.Column(db.Date, nullable = False)
     type = db.Column(db.String, nullable = False) # "habit" or "stopwatch"
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def serialize(self):
         """
@@ -105,5 +132,6 @@ class DeletedDay(db.Model):
         return {
             "id": self.id,
             "date": self.date.isoformat(),
-            "type": self.type
+            "type": self.type,
+            "user_id": self.user_id 
         }
