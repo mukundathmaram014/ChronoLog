@@ -4,7 +4,7 @@ import './Navbar.css';
 export function Navbar() {
     return (
         <div className = "navbar">
-            <Link to="/">
+            <Link to="/homepage">
                 <button>Home</button>
             </Link>
             <Link to="/habitpage">
