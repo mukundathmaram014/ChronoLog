@@ -19,7 +19,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<SignupPage />}/>
-        <Route path= "/loginpage" element= {<LoginPage onLogin = {() => setIsLoggedIn(true)}/>}/>
+        <Route path= "/loginpage" element= {<LoginPage/>}/>
         <Route element = {<Layout/>}>
           <Route path="/homepage" element = {isLoggedIn ? <Home/> : <SignupPage />}/>
           <Route path="/habitpage" element = {isLoggedIn ? <Habit/> : <SignupPage />}/>
