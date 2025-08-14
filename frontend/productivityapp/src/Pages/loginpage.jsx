@@ -49,7 +49,11 @@ export function LoginPage(){
             setAuth({username, password, access_token})
             setUsername('');
             setPassword('');
-            navigate(from, {replace : true});
+            if (from === "/"){
+                navigate("/homepage", {replace : true});
+            } else {
+                navigate(from, {replace : true});
+            }
         }
         else {
             setErrMsg(data.error);

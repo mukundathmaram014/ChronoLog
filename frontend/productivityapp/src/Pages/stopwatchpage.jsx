@@ -130,16 +130,13 @@ export function Stopwatch() {
         const handleUnload = () => {
             allStopwatchesRef.current.forEach(stopwatch => {
                 if ((stopwatch.end_time === null) && !stopwatch.isTotal){
-                    // Create a blob with the headers
-                    const headers = {
-                        'Authorization': `Bearer ${auth.access_token}`,
-                    };
-
-                    const blob = new Blob([JSON.stringify()], headers);
-            
-                    navigator.sendBeacon(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`,
-                        blob
-                    );
+                    fetch(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`, {
+                        keepalive : true,
+                        method : "PATCH",
+                        headers: {
+                            'Authorization': `Bearer ${auth.access_token}`
+                        }
+                    });
                 };
                 setRunningId(null);
             });
@@ -153,16 +150,14 @@ export function Stopwatch() {
         return () => {
             allStopwatchesRef.current.forEach(stopwatch => {
             if ((stopwatch.end_time === null) && !stopwatch.isTotal){
-                // Create a blob with the headers
-                const headers = {
-                    'Authorization': `Bearer ${auth.access_token}`,
-                };
 
-                const blob = new Blob([JSON.stringify()], headers);
-
-                navigator.sendBeacon(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`,
-                    blob
-                );
+                fetch(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`, {
+                    keepalive : true,
+                    method : "PATCH",
+                    headers: {
+                        'Authorization': `Bearer ${auth.access_token}`
+                    }
+                });
             }
             });
             setRunningId(null);
