@@ -1,17 +1,22 @@
-import {useState, useEffect, useRef, useContext} from "react";
-import { Link } from "react-router-dom";
-import AuthContext from "../context/AuthProvider";
+import {useState, useEffect, useRef} from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import useAuth from "../hooks/useAuth";
 
 export function LoginPage(){
 
-    const {setAuth} = useContext(AuthContext);
+    const {setAuth} = useAuth();
+
+    const navigate = useNavigate();
+    const location = useLocation();
+    const from = location.state?.from?.pathname || "/";
+
+
     const userRef = useRef();
     const errRef = useRef();
 
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [errMsg, setErrMsg] = useState('');
-    const [success, setSuccess] = useState(false);
 
     useEffect(() => {
         userRef.current.focus();
@@ -39,11 +44,12 @@ export function LoginPage(){
         const data = await response.json();
         console.log(data);
         const access_token = data.access_token
+        console.log(access_token);
         if (access_token){
             setAuth({username, password, access_token})
             setUsername('');
             setPassword('');
-            setSuccess(true);
+            navigate(from, {replace : true});
         }
         else {
             setErrMsg(data.error);
@@ -58,16 +64,6 @@ export function LoginPage(){
 
     
     return (
-      <>
-        {success ? (
-            <section>
-                <h1>You are logged in!</h1>
-                <br />
-                <p>
-                    <a href="#">Go to Home</a>
-                </p>
-            </section>
-        ) : (
             <div className="Login-box">
                 <p ref={errRef} className={errMsg ? "errmsg" : "offscreen"} aria-live="assertive">{errMsg}</p>
                 <h1>Login</h1>
@@ -104,7 +100,5 @@ export function LoginPage(){
                     </span>
                 </p>
             </div>
-      )}
-    </>
     );
   }

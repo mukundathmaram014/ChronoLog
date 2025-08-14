@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect} from 'react';
+import { useState, useRef, useEffect, useContext} from 'react';
 import './stopwatchpage.css';
 import { IoMdClose } from "react-icons/io";
 import { FaPlus } from "react-icons/fa";
@@ -20,8 +20,11 @@ import {
 import { SortableStopwatchItem } from '../Components/SortableStopwatchItem.jsx';
 import {StopwatchItem} from '../Components/StopwatchItem.jsx';
 import { useLocation } from "react-router-dom";
+import AuthContext from '../context/AuthProvider.js';
 
 export function Stopwatch() {
+
+    const {auth} = useContext(AuthContext);
 
     const DatetoISOString = (Date) => {
         const year = Date.getFullYear();
@@ -83,6 +86,9 @@ export function Stopwatch() {
             if (running) {
                 await fetch(`http://localhost:5000/stopwatches/stop/${running.id}/`, {
                 method: "PATCH",
+                headers: {
+                    'Authorization': `Bearer ${auth.access_token}`
+                }
             });
             setRunningId(null);
             }
@@ -96,6 +102,9 @@ export function Stopwatch() {
             }
             fetch(`http://localhost:5000/stopwatches/${dateToFetch}/`, {
                 method: "GET",
+                headers: {
+                    'Authorization': `Bearer ${auth.access_token}`
+                }
                 })
             .then(response => response.json())
             .then(data => {
@@ -108,7 +117,7 @@ export function Stopwatch() {
         return () => {
             clearInterval(intervalRef.current);
         }
-    }, [selectedDate, today, isFuture]); 
+    }, [selectedDate, today, isFuture, auth.access_token]); 
 
     // updates reference whenever allStopwatch updated.
     useEffect ( () => {
@@ -121,7 +130,15 @@ export function Stopwatch() {
         const handleUnload = () => {
             allStopwatchesRef.current.forEach(stopwatch => {
                 if ((stopwatch.end_time === null) && !stopwatch.isTotal){
-                    navigator.sendBeacon(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`
+                    // Create a blob with the headers
+                    const headers = {
+                        'Authorization': `Bearer ${auth.access_token}`,
+                    };
+
+                    const blob = new Blob([JSON.stringify()], headers);
+            
+                    navigator.sendBeacon(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`,
+                        blob
                     );
                 };
                 setRunningId(null);
@@ -129,19 +146,28 @@ export function Stopwatch() {
         }
         window.addEventListener('pagehide', handleUnload)
         return () => window.removeEventListener('pagehide', handleUnload);
-    }, [])
+    }, [auth.access_token])
 
     //stops running stopwatches when user navigates to different page
     useEffect(() => {
         return () => {
             allStopwatchesRef.current.forEach(stopwatch => {
             if ((stopwatch.end_time === null) && !stopwatch.isTotal){
-                navigator.sendBeacon(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`);
+                // Create a blob with the headers
+                const headers = {
+                    'Authorization': `Bearer ${auth.access_token}`,
+                };
+
+                const blob = new Blob([JSON.stringify()], headers);
+
+                navigator.sendBeacon(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`,
+                    blob
+                );
             }
             });
             setRunningId(null);
         };
-    }, [location.pathname]);
+    }, [location.pathname, auth.access_token]);
 
     // updates displayed time
     useEffect (() => {
@@ -179,6 +205,9 @@ export function Stopwatch() {
         try{
             const response = await fetch(`http://localhost:5000/stopwatches/`, {
                 method: "POST",
+                headers: {
+                    'Authorization': `Bearer ${auth.access_token}`
+                },
                 body: JSON.stringify(newStopwatch)
             });
 
@@ -215,7 +244,10 @@ export function Stopwatch() {
         }
         try{
             const response = await fetch(`http://localhost:5000/stopwatches/${index}/`, {
-            method: "DELETE"
+            method: "DELETE",
+            headers: {
+                    'Authorization': `Bearer ${auth.access_token}`
+                }
             })
             const data = await response.json();
             setStopwatches(allStopwatches => 
@@ -248,6 +280,9 @@ export function Stopwatch() {
             try {
                 const response = await fetch(`http://localhost:5000/stopwatches/start/${index}/`, {
                 method: "PATCH",
+                headers: {
+                    'Authorization': `Bearer ${auth.access_token}`
+                }
                 })
                 const data = await response.json();
                 setStopwatches(allStopwatches => 
@@ -272,6 +307,9 @@ export function Stopwatch() {
              try{
                 const response = await fetch(`http://localhost:5000/stopwatches/stop/${index}/`, {
                 method: "PATCH",
+                headers: {
+                    'Authorization': `Bearer ${auth.access_token}`
+                }
             })
                 const data = await response.json();
                 setStopwatches(allStopwatches => 
@@ -301,6 +339,9 @@ export function Stopwatch() {
         try {
             const response = await fetch(`http://localhost:5000/stopwatches/reset/${index}/`, {
             method: "PATCH",
+            headers: {
+                    'Authorization': `Bearer ${auth.access_token}`
+                },
             body: JSON.stringify(update)
             })
             const data = await response.json();
@@ -350,6 +391,9 @@ export function Stopwatch() {
         try {
             const response = await fetch(`http://localhost:5000/stopwatches/${editingStopwatchID}/`, {
                 method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${auth.access_token}`
+                },
                 body: JSON.stringify(newStopwatch)
             })
 

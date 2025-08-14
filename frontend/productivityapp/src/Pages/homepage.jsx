@@ -1,9 +1,11 @@
-import {useState, useEffect} from "react";
+import {useState, useEffect, useContext} from "react";
 import { Link } from "react-router-dom";
 import './homepage.css';
+import AuthContext from "../context/AuthProvider";
 
 export function Home() {
 
+    const {auth} = useContext(AuthContext);
     const DatetoISOString = (Date) => {
         const year = Date.getFullYear();
         const month = String(Date.getMonth() + 1).padStart(2, '0');
@@ -34,6 +36,9 @@ export function Home() {
 
                 fetch(`http://localhost:5000/stats/habits/${today}/day/`, {
                     method: "GET",
+                    headers: {
+                        'Authorization': `Bearer ${auth.access_token}`
+                    }
                     })
                 .then(response => response.json())
                 .then(data => {
@@ -41,13 +46,16 @@ export function Home() {
                 })
                 .catch(error => console.error(error))
     
-        }, [today])
+        }, [today, auth.access_token])
 
     // fetches stopwatch data for today
     useEffect(() => {
 
                 fetch(`http://localhost:5000/stats/stopwatches/${today}/day/`, {
                     method: "GET",
+                    headers: {
+                        'Authorization': `Bearer ${auth.access_token}`
+                    }
                     })
                 .then(response => response.json())
                 .then(data => {
@@ -55,7 +63,7 @@ export function Home() {
                 })
                 .catch(error => console.error(error))
     
-        }, [today])
+        }, [today, auth.access_token])
 
     // gets saved quote from local storage
     useEffect(() => {

@@ -1,6 +1,6 @@
 import { FaPlus } from "react-icons/fa";
 import { IoMdClose } from "react-icons/io";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext} from 'react';
 import './habitpage.css';
 import {SortableHabitItem} from "../Components/SortableHabitItem";
 import {HabitItem} from "../Components/HabitItem"
@@ -19,10 +19,13 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import AuthContext from "../context/AuthProvider";
 
 
 
 export function Habit() {
+
+  const { auth } = useContext(AuthContext);
 
   const DatetoISOString = (Date) => {
         const year = Date.getFullYear();
@@ -69,12 +72,15 @@ export function Habit() {
                 dateToFetch = today;
             }
     fetch(`http://localhost:5000/habits/${dateToFetch}/`, {
-      method: "GET"
+      method: "GET",
+      headers: {
+        'Authorization': `Bearer ${auth.access_token}`
+      }
     })
     .then( response => response.json())
     .then(data => setHabits(data.habits))
     .catch(error => console.error(error))
-  }, [today, selectedDate, isFuture]);
+  }, [today, selectedDate, isFuture, auth.access_token]);
 
   const handleAddHabit = () => {
     if (isFuture){return;}
@@ -87,6 +93,9 @@ export function Habit() {
     setIsAdding(true);
     fetch("http://localhost:5000/habits/", {
       method: "POST",
+      headers: {
+        'Authorization': `Bearer ${auth.access_token}`
+      },
       body: JSON.stringify(newHabit)
     })
     .then(async response => {
@@ -109,7 +118,10 @@ export function Habit() {
   const handleDeleteHabit = (index) => {
     if (isFuture){return;}
     fetch(`http://localhost:5000/habits/${index}/`, {
-      method: "DELETE"
+      method: "DELETE",
+      headers: {
+        'Authorization': `Bearer ${auth.access_token}`
+      }
     })
     .then(response => response.json())
     .then(data =>
@@ -130,6 +142,9 @@ export function Habit() {
     setIsAdding(true);
     fetch(`http://localhost:5000/habits/${editingHabitID}/`,{
       method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${auth.access_token}`
+      },
       body: JSON.stringify(newHabit)
     })
     .then(async response => {
@@ -160,6 +175,9 @@ export function Habit() {
     }
     fetch(`http://localhost:5000/habits/${index}/`,{
       method: "PUT",
+      headers: {
+        'Authorization': `Bearer ${auth.access_token}`
+      },
       body: JSON.stringify(newHabit)
     })
     .then(response => response.json())

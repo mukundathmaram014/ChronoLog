@@ -1,8 +1,11 @@
-import {useState, useEffect} from "react";
+import {useState, useEffect, useContext} from "react";
 import './statisticspage.css';
+import AuthContext from "../context/AuthProvider";
 
 
 export function Statistics() {
+
+    const {auth} = useContext(AuthContext);
 
     const DatetoISOString = (Date) => {
         const year = Date.getFullYear();
@@ -25,18 +28,24 @@ export function Statistics() {
     // fetches habits
     useEffect(() => {
         fetch(`http://localhost:5000/habits/${selectedDate}/`, {
-        method: "GET"
+        method: "GET",
+        headers: {
+            'Authorization': `Bearer ${auth.access_token}`
+        }
         })
         .then( response => response.json())
         .then(data => setHabits(data.habits))
         .catch(error => console.error(error))
-    }, [selectedDate]);
+    }, [selectedDate, auth.access_token]);
 
     //fetches stopwatches
     useEffect(() => {
 
         fetch(`http://localhost:5000/stopwatches/${selectedDate}/`, {
                 method: "GET",
+                headers: {
+                    'Authorization': `Bearer ${auth.access_token}`
+                }
                 })
         .then(response => response.json())
         .then(data => {
@@ -44,7 +53,7 @@ export function Statistics() {
             })
         .catch(error => console.error(error));
 
-    }, [selectedDate]); 
+    }, [selectedDate, auth.access_token]); 
 
     useEffect(() => {
             
@@ -57,6 +66,9 @@ export function Statistics() {
 
             fetch(`http://localhost:5000/stats/${selectedStatistics}/${selectedDate}/${selectedTimePeriod}/${query}`, {
                 method: "GET",
+                headers: {
+                    'Authorization': `Bearer ${auth.access_token}`
+                }
                 })
             .then(response => response.json())
             .then(data => {
@@ -64,7 +76,7 @@ export function Statistics() {
             })
             .catch(error => console.error(error))
 
-    }, [selectedTimePeriod, selectedStatistics, selectedDate, selectedHabit, selectedStopwatch])
+    }, [selectedTimePeriod, selectedStatistics, selectedDate, selectedHabit, selectedStopwatch, auth.access_token])
 
     const formatTime = (totalMilliSeconds) => {
         const hours = String(Math.floor(totalMilliSeconds / 3600000)).padStart(2, '0');
