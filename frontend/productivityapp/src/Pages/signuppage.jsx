@@ -2,6 +2,7 @@ import {useState, useEffect, useRef} from "react";
 import { Link } from "react-router-dom";
 import {faCheck, faTimes, faInfoCircle} from "@fortawesome/free-solid-svg-icons";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
+import './signuppage.css';
 
 const USER_REGEX = /^[A-z][A-z0-9-_]{3,23}$/;
 const PWD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%]).{8,24}$/;
@@ -100,7 +101,7 @@ export function SignupPage(){
     return (
         <>
             {Success ? (
-                <section>
+                <section className = "signup-success">
                     <h1>Success!</h1>
                     <p>
                         <Link to="/loginpage">Log In</Link>
@@ -109,7 +110,7 @@ export function SignupPage(){
             ) : (
                 <div className="Signup-box">
                   <p ref={errRef} className={errMsg ? "errmsg" : "offscreen"} aria-live="assertive">{errMsg}</p>
-                  <h1>Register</h1>
+                  <h1>Sign Up</h1>
                   <form onSubmit={handleSubmit} className="Signup-form">
                     <label htmlFor = "username">
                       Username:
