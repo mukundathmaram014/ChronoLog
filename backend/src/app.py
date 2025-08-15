@@ -8,14 +8,18 @@ from routes.habits import habit_routes
 from routes.stopwatch import stopwatch_routes
 from routes.statistics import statistic_routes
 from routes.users import user_routes
-from datetime import datetime
+from datetime import datetime, timedelta
 from utils import success_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 # define db filename
 db_filename = "ChronoLog.db"
 app = Flask(__name__)
-CORS(app)
+CORS(app,
+     supports_credentials=True,
+    origins=["http://localhost:3000"],   # your frontend origin
+    allow_headers=["Content-Type", "X-CSRF-TOKEN", "Authorization"],
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],)
 
 
 # setup config
@@ -23,7 +27,14 @@ app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_filename}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ECHO"] = True
 
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(seconds = 15)
+app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(minutes=1)
 app.config["JWT_SECRET_KEY"] = "your-secret-key"  # change
+app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
+app.config["JWT_REFRESH_COOKIE_NAME"] = "refresh_token_cookie"
+app.config["JWT_COOKIE_SECURE"] = False   # True in production (HTTPS)
+app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # enables double-submit CSRF for cookies
+
 jwt = JWTManager(app)
 
 # initialize app
@@ -51,4 +62,4 @@ def get_deleted_day():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="localhost", port=5000, debug=True)

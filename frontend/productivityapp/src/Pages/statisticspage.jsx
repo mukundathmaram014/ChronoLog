@@ -1,11 +1,13 @@
 import {useState, useEffect, useContext} from "react";
 import './statisticspage.css';
 import AuthContext from "../context/AuthProvider";
+import useFetch from "../hooks/useFetch";
 
 
 export function Statistics() {
 
     const {auth} = useContext(AuthContext);
+    const fetchWithAuth = useFetch();
 
     const DatetoISOString = (Date) => {
         const year = Date.getFullYear();
@@ -27,11 +29,8 @@ export function Statistics() {
 
     // fetches habits
     useEffect(() => {
-        fetch(`http://localhost:5000/habits/${selectedDate}/`, {
-        method: "GET",
-        headers: {
-            'Authorization': `Bearer ${auth.access_token}`
-        }
+        fetchWithAuth(`/habits/${selectedDate}/`, {
+        method: "GET"
         })
         .then( response => response.json())
         .then(data => setHabits(data.habits))
@@ -41,11 +40,8 @@ export function Statistics() {
     //fetches stopwatches
     useEffect(() => {
 
-        fetch(`http://localhost:5000/stopwatches/${selectedDate}/`, {
-                method: "GET",
-                headers: {
-                    'Authorization': `Bearer ${auth.access_token}`
-                }
+        fetchWithAuth(`/stopwatches/${selectedDate}/`, {
+                method: "GET"
                 })
         .then(response => response.json())
         .then(data => {
@@ -64,11 +60,8 @@ export function Statistics() {
                 query = `?title=${encodeURIComponent(selectedStopwatch)}`;
             }
 
-            fetch(`http://localhost:5000/stats/${selectedStatistics}/${selectedDate}/${selectedTimePeriod}/${query}`, {
-                method: "GET",
-                headers: {
-                    'Authorization': `Bearer ${auth.access_token}`
-                }
+            fetchWithAuth(`/stats/${selectedStatistics}/${selectedDate}/${selectedTimePeriod}/${query}`, {
+                method: "GET"
                 })
             .then(response => response.json())
             .then(data => {

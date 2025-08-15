@@ -21,10 +21,12 @@ import { SortableStopwatchItem } from '../Components/SortableStopwatchItem.jsx';
 import {StopwatchItem} from '../Components/StopwatchItem.jsx';
 import { useLocation } from "react-router-dom";
 import AuthContext from '../context/AuthProvider.js';
+import useFetch from "../hooks/useFetch";
 
 export function Stopwatch() {
 
     const {auth} = useContext(AuthContext);
+    const fetchWithAuth = useFetch();
 
     const DatetoISOString = (Date) => {
         const year = Date.getFullYear();
@@ -84,11 +86,8 @@ export function Stopwatch() {
                 sw => sw.end_time === null && !sw.isTotal
             );
             if (running) {
-                await fetch(`http://localhost:5000/stopwatches/stop/${running.id}/`, {
-                method: "PATCH",
-                headers: {
-                    'Authorization': `Bearer ${auth.access_token}`
-                }
+                await fetchWithAuth(`/stopwatches/stop/${running.id}/`, {
+                method: "PATCH"
             });
             setRunningId(null);
             }
@@ -100,11 +99,8 @@ export function Stopwatch() {
             if (isFuture){
                 dateToFetch = today;
             }
-            fetch(`http://localhost:5000/stopwatches/${dateToFetch}/`, {
-                method: "GET",
-                headers: {
-                    'Authorization': `Bearer ${auth.access_token}`
-                }
+            fetchWithAuth(`/stopwatches/${dateToFetch}/`, {
+                method: "GET"
                 })
             .then(response => response.json())
             .then(data => {
@@ -130,12 +126,9 @@ export function Stopwatch() {
         const handleUnload = () => {
             allStopwatchesRef.current.forEach(stopwatch => {
                 if ((stopwatch.end_time === null) && !stopwatch.isTotal){
-                    fetch(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`, {
+                    fetchWithAuth(`/stopwatches/stop/${stopwatch.id}/`, {
                         keepalive : true,
-                        method : "PATCH",
-                        headers: {
-                            'Authorization': `Bearer ${auth.access_token}`
-                        }
+                        method : "PATCH"
                     });
                 };
                 setRunningId(null);
@@ -151,12 +144,9 @@ export function Stopwatch() {
             allStopwatchesRef.current.forEach(stopwatch => {
             if ((stopwatch.end_time === null) && !stopwatch.isTotal){
 
-                fetch(`http://localhost:5000/stopwatches/stop/${stopwatch.id}/`, {
+                fetchWithAuth(`/stopwatches/stop/${stopwatch.id}/`, {
                     keepalive : true,
-                    method : "PATCH",
-                    headers: {
-                        'Authorization': `Bearer ${auth.access_token}`
-                    }
+                    method : "PATCH"
                 });
             }
             });
@@ -198,11 +188,8 @@ export function Stopwatch() {
         setIsAdding(true);
 
         try{
-            const response = await fetch(`http://localhost:5000/stopwatches/`, {
+            const response = await fetchWithAuth(`/stopwatches/`, {
                 method: "POST",
-                headers: {
-                    'Authorization': `Bearer ${auth.access_token}`
-                },
                 body: JSON.stringify(newStopwatch)
             });
 
@@ -238,11 +225,8 @@ export function Stopwatch() {
             return;
         }
         try{
-            const response = await fetch(`http://localhost:5000/stopwatches/${index}/`, {
-            method: "DELETE",
-            headers: {
-                    'Authorization': `Bearer ${auth.access_token}`
-                }
+            const response = await fetchWithAuth(`/stopwatches/${index}/`, {
+                method: "DELETE"
             })
             const data = await response.json();
             setStopwatches(allStopwatches => 
@@ -273,11 +257,8 @@ export function Stopwatch() {
             }, 10);  
             
             try {
-                const response = await fetch(`http://localhost:5000/stopwatches/start/${index}/`, {
-                method: "PATCH",
-                headers: {
-                    'Authorization': `Bearer ${auth.access_token}`
-                }
+                const response = await fetchWithAuth(`/stopwatches/start/${index}/`, {
+                    method: "PATCH"
                 })
                 const data = await response.json();
                 setStopwatches(allStopwatches => 
@@ -300,11 +281,8 @@ export function Stopwatch() {
         if (end_time === null){
              setRunningId(null);
              try{
-                const response = await fetch(`http://localhost:5000/stopwatches/stop/${index}/`, {
-                method: "PATCH",
-                headers: {
-                    'Authorization': `Bearer ${auth.access_token}`
-                }
+                const response = await fetchWithAuth(`/stopwatches/stop/${index}/`, {
+                method: "PATCH"
             })
                 const data = await response.json();
                 setStopwatches(allStopwatches => 
@@ -332,12 +310,9 @@ export function Stopwatch() {
             state : end_time // if stopwatch is currently running or not
         }
         try {
-            const response = await fetch(`http://localhost:5000/stopwatches/reset/${index}/`, {
-            method: "PATCH",
-            headers: {
-                    'Authorization': `Bearer ${auth.access_token}`
-                },
-            body: JSON.stringify(update)
+            const response = await fetchWithAuth(`/stopwatches/reset/${index}/`, {
+                method: "PATCH",
+                body: JSON.stringify(update)
             })
             const data = await response.json();
             setStopwatches(allStopwatches => 
@@ -384,11 +359,8 @@ export function Stopwatch() {
         setIsAdding(true);
 
         try {
-            const response = await fetch(`http://localhost:5000/stopwatches/${editingStopwatchID}/`, {
+            const response = await fetchWithAuth(`/stopwatches/${editingStopwatchID}/`, {
                 method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${auth.access_token}`
-                },
                 body: JSON.stringify(newStopwatch)
             })
 
@@ -417,18 +389,6 @@ export function Stopwatch() {
             setIsAdding(false);
         }
     }
-
-    // const formatTime = (totalMilliSeconds) => {
-    //     const hours = String(Math.floor(totalMilliSeconds / 3600000)).padStart(2, '0');
-    //     const minutes = String(Math.floor((totalMilliSeconds % 3600000) / 60000)).padStart(2, '0');
-    //     const seconds = String(Math.floor((totalMilliSeconds % 60000) / 1000)).padStart(2, '0');
-    //     const centiseconds = String(Math.floor((totalMilliSeconds % 1000) / 10)).padStart(2,'0');
-    //     return (
-    //         <>
-    //             {hours}:{minutes}:{seconds}:<span className = "centiseconds">{centiseconds}</span>
-            
-    //         </>);
-    // };
 
     const formatTimeString = (totalMilliSeconds) => {
         if (totalMilliSeconds < 0) totalMilliSeconds = 0;

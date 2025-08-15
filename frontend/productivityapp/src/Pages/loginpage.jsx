@@ -36,9 +36,10 @@ export function LoginPage(){
     }
 
     try{
-        const response = await fetch(`http://127.0.0.1:5000/login`, {
+        const response = await fetch(`http://localhost:5000/login`, {
             method: "POST",
-            body: JSON.stringify(User)
+            body: JSON.stringify(User),
+            credentials: "include"
         });
 
         const data = await response.json();
@@ -46,7 +47,7 @@ export function LoginPage(){
         const access_token = data.access_token
         console.log(access_token);
         if (access_token){
-            setAuth({username, password, access_token})
+            setAuth({username, access_token})
             setUsername('');
             setPassword('');
             if (from === "/"){

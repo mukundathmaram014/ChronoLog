@@ -20,12 +20,14 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import AuthContext from "../context/AuthProvider";
+import useFetch from "../hooks/useFetch";
 
 
 
 export function Habit() {
 
   const { auth } = useContext(AuthContext);
+  const fetchWithAuth = useFetch();
 
   const DatetoISOString = (Date) => {
         const year = Date.getFullYear();
@@ -71,11 +73,8 @@ export function Habit() {
             if (isFuture){
                 dateToFetch = today;
             }
-    fetch(`http://localhost:5000/habits/${dateToFetch}/`, {
-      method: "GET",
-      headers: {
-        'Authorization': `Bearer ${auth.access_token}`
-      }
+    fetchWithAuth(`/habits/${dateToFetch}/`, {
+      method: "GET"
     })
     .then( response => response.json())
     .then(data => setHabits(data.habits))
@@ -91,11 +90,8 @@ export function Habit() {
       date: selectedDate
     }
     setIsAdding(true);
-    fetch("http://localhost:5000/habits/", {
+    fetchWithAuth("/habits/", {
       method: "POST",
-      headers: {
-        'Authorization': `Bearer ${auth.access_token}`
-      },
       body: JSON.stringify(newHabit)
     })
     .then(async response => {
@@ -117,11 +113,8 @@ export function Habit() {
 
   const handleDeleteHabit = (index) => {
     if (isFuture){return;}
-    fetch(`http://localhost:5000/habits/${index}/`, {
-      method: "DELETE",
-      headers: {
-        'Authorization': `Bearer ${auth.access_token}`
-      }
+    fetchWithAuth(`/habits/${index}/`, {
+      method: "DELETE"
     })
     .then(response => response.json())
     .then(data =>
@@ -140,11 +133,8 @@ export function Habit() {
     }
 
     setIsAdding(true);
-    fetch(`http://localhost:5000/habits/${editingHabitID}/`,{
+    fetchWithAuth(`/habits/${editingHabitID}/`,{
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${auth.access_token}`
-      },
       body: JSON.stringify(newHabit)
     })
     .then(async response => {
@@ -173,11 +163,8 @@ export function Habit() {
     const newHabit = {
       done: !currStatus
     }
-    fetch(`http://localhost:5000/habits/${index}/`,{
+    fetchWithAuth(`/habits/${index}/`,{
       method: "PUT",
-      headers: {
-        'Authorization': `Bearer ${auth.access_token}`
-      },
       body: JSON.stringify(newHabit)
     })
     .then(response => response.json())

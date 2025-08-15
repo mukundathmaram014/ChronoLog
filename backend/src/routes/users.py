@@ -5,7 +5,8 @@ from db import db, User
 from flask import Flask, request
 from sqlalchemy import func
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token, create_refresh_token
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, set_refresh_cookies
+from flask import make_response
 
 user_routes = Blueprint('user', __name__)
 
@@ -46,6 +47,20 @@ def login():
     if user and check_password_hash(user.password_hash, password):
         access_token = create_access_token(identity= str(user.id))
         refresh_token = create_refresh_token(identity = str(user.id))
-        return success_response({"user": user.serialize(), "access_token": access_token, "refresh_token" : refresh_token})
+        resp = make_response(success_response({"user": user.serialize(), "access_token": access_token}))
+        set_refresh_cookies(resp, refresh_token)  
+        return resp
     return failure_response("Invalid credentials", 401)
 
+@user_routes.route("/refresh", methods = ["POST"])
+@jwt_required(refresh=True)
+def refresh():
+    """
+    Refresh the access token using a valid refresh token.
+    """
+
+    user_id = int(get_jwt_identity())
+    user = User.query.filter_by(id=user_id).first()
+    username = user.username
+    new_access_token = create_access_token(identity= str(user_id))
+    return success_response({"access_token": new_access_token, "username": username})

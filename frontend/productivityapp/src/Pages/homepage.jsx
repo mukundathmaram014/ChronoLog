@@ -2,10 +2,13 @@ import {useState, useEffect, useContext} from "react";
 import { Link } from "react-router-dom";
 import './homepage.css';
 import AuthContext from "../context/AuthProvider";
+import useFetch from "../hooks/useFetch";
 
 export function Home() {
 
     const {auth} = useContext(AuthContext);
+    const fetchWithAuth = useFetch();
+
     const DatetoISOString = (Date) => {
         const year = Date.getFullYear();
         const month = String(Date.getMonth() + 1).padStart(2, '0');
@@ -34,11 +37,8 @@ export function Home() {
     // fetches habit data for today
     useEffect(() => {
 
-                fetch(`http://localhost:5000/stats/habits/${today}/day/`, {
-                    method: "GET",
-                    headers: {
-                        'Authorization': `Bearer ${auth.access_token}`
-                    }
+                fetchWithAuth(`/stats/habits/${today}/day/`, {
+                    method: "GET"
                     })
                 .then(response => response.json())
                 .then(data => {
@@ -51,11 +51,8 @@ export function Home() {
     // fetches stopwatch data for today
     useEffect(() => {
 
-                fetch(`http://localhost:5000/stats/stopwatches/${today}/day/`, {
-                    method: "GET",
-                    headers: {
-                        'Authorization': `Bearer ${auth.access_token}`
-                    }
+                fetchWithAuth(`/stats/stopwatches/${today}/day/`, {
+                    method: "GET"
                     })
                 .then(response => response.json())
                 .then(data => {
