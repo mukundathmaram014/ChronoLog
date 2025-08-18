@@ -1,13 +1,14 @@
 import { useContext } from 'react'
 import AuthContext from '../context/AuthProvider';
 import useAuth from './useAuth';
-import {useLocation, Navigate} from "react-router-dom";
+import {useLocation, useNavigate} from "react-router-dom";
 
 let useFetch = () => {
 
     let {auth} = useContext(AuthContext);
     let {setAuth} = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
 
     let baseURL = 'http://localhost:5000';
 
@@ -45,8 +46,8 @@ let useFetch = () => {
         } catch (error) {
             // refresh token expired
             setAuth({});
-            <Navigate to= "/loginpage" state = {{from : location}} replace/>
-            throw error;
+            navigate("/loginpage", { state: { from: location }, replace: true });
+            console.error(error);
         }
     }
 
@@ -68,6 +69,11 @@ let useFetch = () => {
             console.log(response)
             let new_access_token = await refreshToken()
             console.log("refreshed access token")
+
+             if (!new_access_token) {
+                // If refreshToken failed, do not retry, just return the original 401 response
+                return response;
+            }
 
             // Retry with new token
             const retryHeaders = {

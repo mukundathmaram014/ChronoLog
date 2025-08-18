@@ -1,6 +1,7 @@
 import {useState, useEffect, useRef} from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
+import './loginpage.css';
 
 export function LoginPage(){
 

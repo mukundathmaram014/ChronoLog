@@ -79,7 +79,7 @@ export function Habit() {
     .then( response => response.json())
     .then(data => setHabits(data.habits))
     .catch(error => console.error(error))
-  }, [today, selectedDate, isFuture, auth.access_token]);
+  }, [today, selectedDate, isFuture]);
 
   const handleAddHabit = () => {
     if (isFuture){return;}

@@ -20,12 +20,10 @@ import {
 import { SortableStopwatchItem } from '../Components/SortableStopwatchItem.jsx';
 import {StopwatchItem} from '../Components/StopwatchItem.jsx';
 import { useLocation } from "react-router-dom";
-import AuthContext from '../context/AuthProvider.js';
 import useFetch from "../hooks/useFetch";
 
 export function Stopwatch() {
 
-    const {auth} = useContext(AuthContext);
     const fetchWithAuth = useFetch();
 
     const DatetoISOString = (Date) => {
@@ -113,7 +111,7 @@ export function Stopwatch() {
         return () => {
             clearInterval(intervalRef.current);
         }
-    }, [selectedDate, today, isFuture, auth.access_token]); 
+    }, [selectedDate, today, isFuture]); 
 
     // updates reference whenever allStopwatch updated.
     useEffect ( () => {
@@ -136,7 +134,7 @@ export function Stopwatch() {
         }
         window.addEventListener('pagehide', handleUnload)
         return () => window.removeEventListener('pagehide', handleUnload);
-    }, [auth.access_token])
+    }, [])
 
     //stops running stopwatches when user navigates to different page
     useEffect(() => {
@@ -152,7 +150,7 @@ export function Stopwatch() {
             });
             setRunningId(null);
         };
-    }, [location.pathname, auth.access_token]);
+    }, [location.pathname]);
 
     // updates displayed time
     useEffect (() => {
@@ -250,6 +248,7 @@ export function Stopwatch() {
         }
       
         if (runningId === null && end_time !== null){
+
             setRunningId(index);
             clearInterval(intervalRef.current);
             intervalRef.current = setInterval(() => {
@@ -279,7 +278,8 @@ export function Stopwatch() {
         }
       
         if (end_time === null){
-             setRunningId(null);
+            setRunningId(null);
+
              try{
                 const response = await fetchWithAuth(`/stopwatches/stop/${index}/`, {
                 method: "PATCH"

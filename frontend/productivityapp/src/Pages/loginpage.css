@@ -1,0 +1,149 @@
+/* Match dark background and green accent */
+body {
+  background: #1f1e1e;
+  color: #fff;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Login box styling */
+.Login-box {
+  background: #232323;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(27, 27, 27, 0.18);
+  max-width: 400px;
+  margin: 158px auto;
+  padding: 32px 28px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.Login-box h1 {
+  color: #00e67a;
+  margin-bottom: 24px;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.Login-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.Login-form label {
+  color: #fff;
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.Login-form input {
+  padding: 10px 12px;
+  border: 1.5px solid #393e6e;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border 0.2s;
+  outline: none;
+  background: #353434;
+  color: #fff;
+}
+
+.Login-form input:focus {
+  border-color: #00e67a;
+  background: #232323;
+}
+
+.Login-form button {
+  margin-top: 10px;
+  padding: 12px 0;
+  background: #00e67a;
+  color: #232323;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.Login-form button:disabled {
+  background: #393e6e;
+  color: #b8c1ec;
+  cursor: not-allowed;
+}
+
+.errmsg {
+  color: #ef4444;
+  background: #2d1e1e;
+  border: 1px solid #fecaca;
+  padding: 8px 12px;
+  border-radius: 5px;
+  margin-bottom: 12px;
+  width: 100%;
+  text-align: center;
+  font-size: 0.98rem;
+}
+
+.offscreen {
+  display: none;
+}
+
+.line {
+  display: inline-block;
+  margin-top: 10px;
+}
+
+.line a {
+  color: #00e67a;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.line a:hover {
+  color: #00b86b;
+}
+
+/* Style for the "Need an Account?" block */
+.Login-box p {
+  color: #b8c1ec;
+  margin-top: 24px;
+  font-size: 1rem;
+  text-align: center;
+  letter-spacing: 0.2px;
+}
+
+.Login-box .line {
+  display: inline-block;
+  margin-top: 6px;
+}
+
+.Login-box .line a {
+  color: #00e67a;
+  text-decoration: underline;
+  font-weight: 600;
+  transition: color 0.2s;
+  padding-left: 4px;
+}
+
+.Login-box .line a:hover {
+  color: #00b86b;
+  text-decoration: none;
+}
+
+@media (max-width: 500px) {
+  .Login-box {
+    padding: 18px 6px 16px 6px;
+    max-width: 98vw;
+  }
+  .Login-form {
+    gap: 12px;
+  }
+}
