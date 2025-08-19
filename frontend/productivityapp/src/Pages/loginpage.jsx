@@ -15,7 +15,7 @@ export function LoginPage(){
     const userRef = useRef();
     const errRef = useRef();
 
-    const [username, setUsername] = useState("");
+    const [usernameOrEmail, setUsernameOrEmail] = useState("");
     const [password, setPassword] = useState("");
     const [errMsg, setErrMsg] = useState('');
 
@@ -25,14 +25,14 @@ export function LoginPage(){
 
     useEffect(() => {
         setErrMsg('');
-    }, [username, password])
+    }, [usernameOrEmail, password])
 
   
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const User = {
-        username: username,
+        usernameOrEmail: usernameOrEmail,
         password: password
     }
 
@@ -44,12 +44,11 @@ export function LoginPage(){
         });
 
         const data = await response.json();
-        console.log(data);
         const access_token = data.access_token
-        console.log(access_token);
+        let username = data.user.username
         if (access_token){
             setAuth({username, access_token})
-            setUsername('');
+            setUsernameOrEmail('');
             setPassword('');
             if (from === "/"){
                 navigate("/homepage", {replace : true});
@@ -74,15 +73,15 @@ export function LoginPage(){
                 <p ref={errRef} className={errMsg ? "errmsg" : "offscreen"} aria-live="assertive">{errMsg}</p>
                 <h1>Login</h1>
                 <form onSubmit={handleSubmit} className="Login-form">
-                <label htmlFor="username">Username:</label>
+                <label htmlFor="username">Username or Email:</label>
                 <input
                     type="text"
                     id="username"
                     className="Login-username"
                     ref={userRef}
                     autoComplete="off"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    value={usernameOrEmail}
+                    onChange={(e) => setUsernameOrEmail(e.target.value)}
                     required
                 />
 

@@ -39,11 +39,12 @@ def login():
     """
 
     body = json.loads(request.data)
-    username = body.get("username")
-    email = body.get("email")
+    username_or_email = body.get("usernameOrEmail")
     password = body.get("password")
 
-    user = User.query.filter_by(username = username).first()
+    user = User.query.filter_by(username = username_or_email).first()
+    if not user:
+        user = User.query.filter_by(email = username_or_email).first()
     if user and check_password_hash(user.password_hash, password):
         access_token = create_access_token(identity= str(user.id))
         refresh_token = create_refresh_token(identity = str(user.id))
