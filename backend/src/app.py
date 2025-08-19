@@ -1,5 +1,7 @@
 import json
 from flask_jwt_extended import JWTManager
+from dotenv import load_dotenv
+load_dotenv()
 
 from db import db, Stopwatch, DeletedDay
 from flask import Flask, request
@@ -11,6 +13,7 @@ from routes.users import user_routes
 from datetime import datetime, timedelta
 from utils import success_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
+import os
 
 # define db filename
 db_filename = "ChronoLog.db"
@@ -29,7 +32,7 @@ app.config["SQLALCHEMY_ECHO"] = True
 
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(seconds = 15)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(minutes=5)
-app.config["JWT_SECRET_KEY"] = "your-secret-key"  # change
+app.config["JWT_SECRET_KEY"] = os.environ['JWT_SECRET_KEY']
 app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
 app.config["JWT_REFRESH_COOKIE_NAME"] = "refresh_token_cookie"
 app.config["JWT_COOKIE_SECURE"] = False   # True in production (HTTPS)
