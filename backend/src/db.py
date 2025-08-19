@@ -135,3 +135,44 @@ class DeletedDay(db.Model):
             "type": self.type,
             "user_id": self.user_id 
         }
+    
+
+#revoked tokens
+class TokenBlocklist(db.Model):
+    __tablename__ = "token_blocklist"
+    id = db.Column(db.Integer , primary_key=True)
+    jti = db.Column(db.String , nullable = True)
+    created_at = db.Column(db.DateTime , nullable = False)
+    type = db.Column(db.String, nullable = False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    revoked    = db.Column(db.Boolean, nullable=False)
+    user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a TokenBlocklist object
+        """
+
+        self.jti = kwargs.get("jti", "")
+        self.type = kwargs.get("type")
+        self.created_at = kwargs.get("created_at", datetime.now())
+        self.expires_at = kwargs.get("expires_at")
+        self.revoked = kwargs.get("revoked")
+        self.user_id = kwargs.get("user_id")
+
+    def serialize(self):
+        """
+        Serializing a TokenBlocklist to be returned
+        """
+
+        return {
+            "id": self.id,
+            "jti": self.jti,
+            "type": self.type,
+            "created_at": self.created_at.isoformat(),
+            "expires_at": self.expires_at.isoformat(),
+            "revoked": self.revoked,
+            "user_id": self.user_id 
+        }
+
+

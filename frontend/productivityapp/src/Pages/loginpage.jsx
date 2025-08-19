@@ -46,8 +46,9 @@ export function LoginPage(){
         const data = await response.json();
         const access_token = data.access_token
         let username = data.user.username
+        let email = data.user.email
         if (access_token){
-            setAuth({username, access_token})
+            setAuth({username, email, access_token})
             setUsernameOrEmail('');
             setPassword('');
             if (from === "/"){

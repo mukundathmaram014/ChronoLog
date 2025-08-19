@@ -3,7 +3,7 @@ from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 load_dotenv()
 
-from db import db, Stopwatch, DeletedDay
+from db import db, Stopwatch, DeletedDay, TokenBlocklist
 from flask import Flask, request
 from flask_cors import CORS
 from routes.habits import habit_routes
@@ -30,7 +30,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_filename}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ECHO"] = True
 
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(seconds = 15)
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=3)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(minutes=5)
 app.config["JWT_SECRET_KEY"] = os.environ['JWT_SECRET_KEY']
 app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
@@ -62,6 +62,22 @@ def get_deleted_day():
     
     return success_response({"deleted days": deleteddays})
 
+# gets all blocked tokens for a user
+@app.route("/tokenblocklist")
+@jwt_required()
+def get_token_blocklist():
+    user_id = int(get_jwt_identity())
+    tokens = []
+    for token in TokenBlocklist.query.filter_by(user_id=user_id).all():
+        tokens.append(token.serialize())
+    
+    return success_response({"tokens": tokens})
+
+@jwt.token_in_blocklist_loader
+def token_revoked(jwt_header, jwt_data):
+    jti = jwt_data.get("jti")
+    entry = TokenBlocklist.query.filter_by(jti=jti).one_or_none()
+    return entry is not None and entry.revoked
 
 
 if __name__ == "__main__":

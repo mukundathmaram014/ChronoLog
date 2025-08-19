@@ -30,7 +30,8 @@ export const AuthProvider = ({ children}) => {
                     const data = await response.json();
                     let access_token = data.access_token
                     let username = data.username
-                    setAuth({username, access_token });
+                    let email = data.email
+                    setAuth({username, email,  access_token });
                 } else {
                     setAuth({});
                 }
