@@ -7,16 +7,10 @@ import { Layout } from './layout';
 import { Statistics } from './Pages/statisticspage';
 import { LoginPage } from './Pages/loginpage';
 import { SignupPage } from './Pages/signuppage';
-import {useContext} from "react";
-import AuthContext from "./context/AuthProvider";
 import RequireAuth from './Components/RequireAuth';
 
 
 function App() {
-
-  const { auth } = useContext(AuthContext);
-  const isLoggedIn = !!auth?.access_token;
-  console.log(isLoggedIn);
 
   return (
     <Routes>

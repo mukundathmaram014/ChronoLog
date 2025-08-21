@@ -1,12 +1,10 @@
-import {useState, useEffect, useContext} from "react";
+import {useState, useEffect} from "react";
 import { Link } from "react-router-dom";
 import './homepage.css';
-import AuthContext from "../context/AuthProvider";
 import useFetch from "../hooks/useFetch";
 
 export function Home() {
 
-    const {auth} = useContext(AuthContext);
     const fetchWithAuth = useFetch();
 
     const DatetoISOString = (Date) => {
@@ -46,7 +44,7 @@ export function Home() {
                 })
                 .catch(error => console.error(error))
     
-        }, [today, auth.access_token])
+        }, [today])
 
     // fetches stopwatch data for today
     useEffect(() => {
@@ -60,7 +58,7 @@ export function Home() {
                 })
                 .catch(error => console.error(error))
     
-        }, [today, auth.access_token])
+        }, [today])
 
     // gets saved quote from local storage
     useEffect(() => {

@@ -5,8 +5,8 @@ import {useLocation, useNavigate} from "react-router-dom";
 
 let useFetch = () => {
 
-    let {auth} = useContext(AuthContext);
-    let {setAuth} = useAuth();
+    const {auth} = useContext(AuthContext);
+    const {setAuth} = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
 

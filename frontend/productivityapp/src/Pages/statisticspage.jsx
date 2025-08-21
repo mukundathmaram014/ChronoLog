@@ -1,12 +1,10 @@
-import {useState, useEffect, useContext} from "react";
+import {useState, useEffect} from "react";
 import './statisticspage.css';
-import AuthContext from "../context/AuthProvider";
 import useFetch from "../hooks/useFetch";
 
 
 export function Statistics() {
 
-    const {auth} = useContext(AuthContext);
     const fetchWithAuth = useFetch();
 
     const DatetoISOString = (Date) => {
@@ -35,7 +33,7 @@ export function Statistics() {
         .then( response => response.json())
         .then(data => setHabits(data.habits))
         .catch(error => console.error(error))
-    }, [selectedDate, auth.access_token]);
+    }, [selectedDate]);
 
     //fetches stopwatches
     useEffect(() => {
@@ -49,7 +47,7 @@ export function Statistics() {
             })
         .catch(error => console.error(error));
 
-    }, [selectedDate, auth.access_token]); 
+    }, [selectedDate]); 
 
     useEffect(() => {
             
@@ -69,7 +67,7 @@ export function Statistics() {
             })
             .catch(error => console.error(error))
 
-    }, [selectedTimePeriod, selectedStatistics, selectedDate, selectedHabit, selectedStopwatch, auth.access_token])
+    }, [selectedTimePeriod, selectedStatistics, selectedDate, selectedHabit, selectedStopwatch])
 
     const formatTime = (totalMilliSeconds) => {
         const hours = String(Math.floor(totalMilliSeconds / 3600000)).padStart(2, '0');

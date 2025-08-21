@@ -1,14 +1,15 @@
 import { Link, useNavigate } from "react-router-dom"
 import './Navbar.css';
-import { useState, useContext, useRef} from "react";
+import { useState, useContext} from "react";
 import AuthContext from "../context/AuthProvider";
 import { IoMdClose } from "react-icons/io";
+import useAuth from "../hooks/useAuth";
 
 export function Navbar() {
-    const { auth, setAuth } = useContext(AuthContext);
+    const {auth} = useContext(AuthContext);
+    const {setAuth} = useAuth();
     const [showProfilePopup, setShowProfilePopup] = useState(false);
     const navigate = useNavigate();
-    const userMenuRef = useRef(null);
 
     const handleLogout = async () => {
     try {
@@ -32,29 +33,29 @@ export function Navbar() {
     return (
         <>
              <div className = "navbar">
-            <Link to="/homepage">
-                <button>Home</button>
-            </Link>
-            <Link to="/habitpage">
-                <button>Habits</button>
-            </Link>
-            <Link to="/stopwatchpage">
-                <button>Stopwatch</button>
-            </Link>
-            <Link to="/statisticspage">
-                <button>Statistics</button>
-            </Link>
+                <Link to="/homepage">
+                    <button>Home</button>
+                </Link>
+                <Link to="/habitpage">
+                    <button>Habits</button>
+                </Link>
+                <Link to="/stopwatchpage">
+                    <button>Stopwatch</button>
+                </Link>
+                <Link to="/statisticspage">
+                    <button>Statistics</button>
+                </Link>
 
-            <div className="user-section" ref={userMenuRef}>
-                <button 
-                    className="user-button"
-                    onClick={() => setShowProfilePopup(!showProfilePopup)}
-                >
-                    {"👤"}
-                </button>
-                
+                <div className="user-section">
+                    <button 
+                        className="user-button"
+                        onClick={() => setShowProfilePopup(!showProfilePopup)}
+                    >
+                        {"👤"}
+                    </button>
+                    
+                </div>
             </div>
-        </div>
 
         {/* Profile Popup Overlay */}
             {showProfilePopup && (
