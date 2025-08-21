@@ -14,9 +14,7 @@ let useFetch = () => {
 
     function getCookie(name) {
         const value = `; ${document.cookie}`;
-        console.log(value)
         const parts = value.split(`; ${name}=`);
-        console.log(parts)
         if (parts.length === 2) return parts.pop().split(';').shift();
     }
 
@@ -27,7 +25,6 @@ let useFetch = () => {
     }
 
     let refreshToken = async () => {
-        console.log(getCookie('csrf_refresh_token'))
         try {
             let response = await fetch(`${baseURL}/refresh`, {
             method:'POST',
