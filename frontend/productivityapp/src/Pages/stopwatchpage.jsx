@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useContext} from 'react';
+import { useState, useRef, useEffect} from 'react';
 import './stopwatchpage.css';
 import { IoMdClose } from "react-icons/io";
 import { FaPlus } from "react-icons/fa";
