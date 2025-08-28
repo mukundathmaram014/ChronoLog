@@ -44,10 +44,10 @@ export function LoginPage(){
         });
 
         const data = await response.json();
-        const access_token = data.access_token
-        let username = data.user.username
-        let email = data.user.email
-        if (access_token){
+        if (data.access_token){
+            const access_token = data.access_token
+            let username = data.user.username
+            let email = data.user.email
             setAuth({username, email, access_token})
             setUsernameOrEmail('');
             setPassword('');
