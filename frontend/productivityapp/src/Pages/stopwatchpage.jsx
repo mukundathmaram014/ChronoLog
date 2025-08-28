@@ -111,6 +111,7 @@ export function Stopwatch() {
         return () => {
             clearInterval(intervalRef.current);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedDate, today, isFuture]); 
 
     // updates reference whenever allStopwatch updated.
@@ -134,6 +135,7 @@ export function Stopwatch() {
         }
         window.addEventListener('pagehide', handleUnload)
         return () => window.removeEventListener('pagehide', handleUnload);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     //stops running stopwatches when user navigates to different page
@@ -150,6 +152,7 @@ export function Stopwatch() {
             });
             setRunningId(null);
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname]);
 
     // updates displayed time

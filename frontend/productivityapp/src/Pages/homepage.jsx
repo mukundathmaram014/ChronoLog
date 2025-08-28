@@ -43,9 +43,11 @@ export function Home() {
                     setHabitsData(data);
                 })
                 .catch(error => console.error(error))
-    
+                
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [today])
 
+    
     // fetches stopwatch data for today
     useEffect(() => {
 
@@ -57,7 +59,7 @@ export function Home() {
                     setStopwatchesData(data);
                 })
                 .catch(error => console.error(error))
-    
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [today])
 
     // gets saved quote from local storage

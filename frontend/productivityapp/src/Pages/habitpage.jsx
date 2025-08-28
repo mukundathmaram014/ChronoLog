@@ -77,6 +77,7 @@ export function Habit() {
     .then( response => response.json())
     .then(data => setHabits(data.habits))
     .catch(error => console.error(error))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today, selectedDate, isFuture]);
 
   const handleAddHabit = () => {

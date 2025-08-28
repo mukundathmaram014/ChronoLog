@@ -33,6 +33,7 @@ export function Statistics() {
         .then( response => response.json())
         .then(data => setHabits(data.habits))
         .catch(error => console.error(error))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedDate]);
 
     //fetches stopwatches
@@ -47,6 +48,7 @@ export function Statistics() {
             })
         .catch(error => console.error(error));
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedDate]); 
 
     useEffect(() => {
@@ -67,6 +69,7 @@ export function Statistics() {
             })
             .catch(error => console.error(error))
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedTimePeriod, selectedStatistics, selectedDate, selectedHabit, selectedStopwatch])
 
     const formatTime = (totalMilliSeconds) => {
