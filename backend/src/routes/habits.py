@@ -4,7 +4,7 @@ import json
 from db import db
 from flask import Flask, request
 from db import Habit, DeletedDay
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from sqlalchemy import func
 from flask_jwt_extended import jwt_required, get_jwt_identity
 

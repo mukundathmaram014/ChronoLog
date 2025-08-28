@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, date
+from datetime import datetime, date, timezone
+from utils import ensure_utc
 db = SQLAlchemy()
 
 
@@ -65,9 +66,9 @@ class Stopwatch(db.Model):
     __tablename__ = "stopwatches"
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     title = db.Column(db.String, nullable = False)
-    start_time = db.Column(db.DateTime, nullable = False)
-    interval_start = db.Column(db.DateTime, nullable = False)
-    end_time = db.Column(db.DateTime, nullable = True)
+    start_time = db.Column(db.DateTime(timezone=True), nullable = False)
+    interval_start = db.Column(db.DateTime(timezone=True), nullable = False)
+    end_time = db.Column(db.DateTime(timezone=True), nullable = True)
     curr_duration = db.Column(db.Float, nullable = False)
     date = db.Column(db.Date, nullable = False)
     isTotal = db.Column(db.Boolean, nullable = False)
@@ -80,8 +81,8 @@ class Stopwatch(db.Model):
         """
 
         self.title = kwargs.get("title", "")
-        self.start_time = kwargs.get("start_time", datetime.now())
-        self.interval_start = kwargs.get("interval_start", datetime.now())
+        self.start_time = kwargs.get("start_time", datetime.now(timezone.utc))
+        self.interval_start = kwargs.get("interval_start", datetime.now(timezone.utc))
         self.end_time = self.start_time
         self.curr_duration = 0.0
         self.date = kwargs.get("date", date.today())
@@ -97,9 +98,9 @@ class Stopwatch(db.Model):
         return {
             "id": self.id,
             "title": self.title,
-            "start_time": self.start_time.isoformat(),
-            "interval_start": self.interval_start.isoformat(),
-            "end_time": self.end_time.isoformat() if (self.end_time != None) else None,
+            "start_time": ensure_utc(self.start_time).isoformat(),
+            "interval_start": ensure_utc(self.interval_start).isoformat(),
+            "end_time": ensure_utc(self.end_time).isoformat() if (self.end_time != None) else None,
             "curr_duration": self.curr_duration,
             "date": self.date.isoformat(),
             "isTotal": self.isTotal,
@@ -107,15 +108,6 @@ class Stopwatch(db.Model):
             "user_id": self.user_id 
         }
     
-    # def get_duration(self):
-    #     """
-    #     Returns total duration stopwatch has been running
-    #     """
-    #     if (self.end_time != None):
-    #         return self.curr_duration
-    #     else:
-    #         return (datetime.now() - self.interval_start).total_seconds() + self.curr_duration
-
 
 class DeletedDay(db.Model):
     __tablename__ = "deleted-days"
@@ -142,9 +134,9 @@ class TokenBlocklist(db.Model):
     __tablename__ = "token_blocklist"
     id = db.Column(db.Integer , primary_key=True)
     jti = db.Column(db.String , nullable = True)
-    created_at = db.Column(db.DateTime , nullable = False)
+    created_at = db.Column(db.DateTime(timezone=True) , nullable = False)
     type = db.Column(db.String, nullable = False)
-    expires_at = db.Column(db.DateTime, nullable=False)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
     revoked    = db.Column(db.Boolean, nullable=False)
     user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
@@ -155,7 +147,7 @@ class TokenBlocklist(db.Model):
 
         self.jti = kwargs.get("jti", "")
         self.type = kwargs.get("type")
-        self.created_at = kwargs.get("created_at", datetime.now())
+        self.created_at = kwargs.get("created_at", datetime.now(timezone.utc))
         self.expires_at = kwargs.get("expires_at")
         self.revoked = kwargs.get("revoked")
         self.user_id = kwargs.get("user_id")
@@ -169,8 +161,8 @@ class TokenBlocklist(db.Model):
             "id": self.id,
             "jti": self.jti,
             "type": self.type,
-            "created_at": self.created_at.isoformat(),
-            "expires_at": self.expires_at.isoformat(),
+            "created_at": ensure_utc(self.created_at).isoformat(),
+            "expires_at": ensure_utc(self.expires_at).isoformat(),
             "revoked": self.revoked,
             "user_id": self.user_id 
         }

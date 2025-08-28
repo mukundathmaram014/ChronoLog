@@ -14,7 +14,7 @@ export function Navbar() {
     const handleLogout = async () => {
     try {
         // Call backend logout endpoint to invalidate refresh token
-        await fetch('http://localhost:5000/logout', {
+        await fetch('/api/logout', {
             method: 'POST',
             credentials: "include",
             headers: {

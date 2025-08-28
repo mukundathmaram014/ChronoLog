@@ -10,7 +10,7 @@ let useFetch = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    let baseURL = 'http://localhost:5000';
+    let baseURL = '/api';
 
     function getCookie(name) {
         const value = `; ${document.cookie}`;
@@ -63,9 +63,7 @@ let useFetch = () => {
         
 
         if (response.status=== 401){
-            console.log(response)
             let new_access_token = await refreshToken()
-            console.log("refreshed access token")
 
              if (!new_access_token) {
                 // If refreshToken failed, do not retry, just return the original 401 response

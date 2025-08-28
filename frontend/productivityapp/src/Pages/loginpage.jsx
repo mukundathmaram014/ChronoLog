@@ -37,7 +37,7 @@ export function LoginPage(){
     }
 
     try{
-        const response = await fetch(`http://localhost:5000/login`, {
+        const response = await fetch(`/api/login`, {
             method: "POST",
             body: JSON.stringify(User),
             credentials: "include"

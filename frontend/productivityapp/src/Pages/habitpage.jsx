@@ -1,6 +1,6 @@
 import { FaPlus } from "react-icons/fa";
 import { IoMdClose } from "react-icons/io";
-import { useState, useEffect, useContext} from 'react';
+import { useState, useEffect} from 'react';
 import './habitpage.css';
 import {SortableHabitItem} from "../Components/SortableHabitItem";
 import {HabitItem} from "../Components/HabitItem"
@@ -19,14 +19,12 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import AuthContext from "../context/AuthProvider";
 import useFetch from "../hooks/useFetch";
 
 
 
 export function Habit() {
 
-  const { auth } = useContext(AuthContext);
   const fetchWithAuth = useFetch();
 
   const DatetoISOString = (Date) => {

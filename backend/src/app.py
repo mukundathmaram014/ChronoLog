@@ -18,24 +18,33 @@ import os
 # define db filename
 db_filename = "ChronoLog.db"
 app = Flask(__name__)
-CORS(app,
-     supports_credentials=True,
-    origins=["http://localhost:3000"],   # your frontend origin
-    allow_headers=["Content-Type", "X-CSRF-TOKEN", "Authorization"],
-    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],)
+
+FRONTEND_ORIGINS = [
+    "http://localhost:3000",                 # dev
+    "https://<your-site>.netlify.app",       # prod - Netlify
+]
+
+CORS(
+    app,
+    resources={r"/api/*": {"origins": FRONTEND_ORIGINS}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-TOKEN"],
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+)
 
 
 # setup config
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_filename}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ECHO"] = True
+app.config["SQLALCHEMY_ECHO"] = False # set True only when you need SQL debugging
 
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=30)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 app.config["JWT_SECRET_KEY"] = os.environ['JWT_SECRET_KEY']
 app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
 app.config["JWT_REFRESH_COOKIE_NAME"] = "refresh_token_cookie"
-app.config["JWT_COOKIE_SECURE"] = False   # True in production (HTTPS)
+app.config["JWT_COOKIE_SECURE"] = True   # True in production (HTTPS)
+app.config["JWT_COOKIE_SAMESITE"] = "Lax"
 app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # enables double-submit CSRF for cookies
 
 jwt = JWTManager(app)
@@ -45,13 +54,13 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
-app.register_blueprint(habit_routes)
-app.register_blueprint(stopwatch_routes)
-app.register_blueprint(statistic_routes)
-app.register_blueprint(user_routes)
+app.register_blueprint(habit_routes,  url_prefix="/api")
+app.register_blueprint(stopwatch_routes,  url_prefix="/api")
+app.register_blueprint(statistic_routes,  url_prefix="/api")
+app.register_blueprint(user_routes,  url_prefix="/api")
 
 # gets all deleted days for a user
-@app.route("/deletedday")
+@app.route("/api/deletedday")
 @jwt_required()
 def get_deleted_day():
 
@@ -63,7 +72,7 @@ def get_deleted_day():
     return success_response({"deleted days": deleteddays})
 
 # gets all blocked tokens for a user
-@app.route("/tokenblocklist")
+@app.route("/api/tokenblocklist")
 @jwt_required()
 def get_token_blocklist():
     user_id = int(get_jwt_identity())
@@ -81,4 +90,4 @@ def token_revoked(jwt_header, jwt_data):
 
 
 if __name__ == "__main__":
-    app.run(host="localhost", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)

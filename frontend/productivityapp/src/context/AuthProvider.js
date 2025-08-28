@@ -9,9 +9,7 @@ export const AuthProvider = ({ children}) => {
 
     function getCookie(name) {
         const value = `; ${document.cookie}`;
-        console.log(value)
         const parts = value.split(`; ${name}=`);
-        console.log(parts)
         if (parts.length === 2) return parts.pop().split(';').shift();
     }
 
@@ -19,7 +17,7 @@ export const AuthProvider = ({ children}) => {
         // Try to refresh access token on mount
         const refresh = async () => {
             try {
-                const response = await fetch("http://localhost:5000/refresh", {
+                const response = await fetch("/api/refresh", {
                     method:'POST',
                     credentials: "include",
                     headers: {

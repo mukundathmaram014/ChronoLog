@@ -1,10 +1,10 @@
 from flask import Blueprint
-from utils import success_response, failure_response, process_date
+from utils import success_response, failure_response, process_date, ensure_utc
 import json
 from db import db
 from flask import Flask, request
 from db import Stopwatch, DeletedDay
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from sqlalchemy import func
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -21,7 +21,7 @@ def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user
 
     if Stopwatch.query.filter_by(date=requested_date, user_id = user_id).first() is None:
         # creating total time stopwatch
-        total_stopwatch = Stopwatch(title = "Total Time", start_time = datetime.now(), date = requested_date, isTotal = True, goal_time = goal_time, user_id = user_id)
+        total_stopwatch = Stopwatch(title = "Total Time", start_time = datetime.now(timezone.utc), date = requested_date, isTotal = True, goal_time = goal_time, user_id = user_id)
         db.session.add(total_stopwatch)
         db.session.commit()
     else:
@@ -120,7 +120,7 @@ def create_stopwatch():
     goal_time_string = body.get("goal_time", "01:00") # goal time defaults to one hour
     goal_time_milli = convert_time_string_to_milliseconds(goal_time_string)
 
-    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now()), goal_time= goal_time_milli, user_id=user_id) 
+    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now(timezone.utc)), goal_time= goal_time_milli, user_id=user_id) 
     
     # If result is a failure response, return it directly
     if isinstance(stopwatches, tuple):
@@ -201,7 +201,7 @@ def delete_stopwatch(stopwatch_id):
     requested_date = stopwatch.date
     total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
     if (stopwatch.end_time is None):
-        total_stopwatch.end_time = datetime.now() #stops total stopwatch if stopwatch being deleted was running
+        total_stopwatch.end_time = datetime.now(timezone.utc) #stops total stopwatch if stopwatch being deleted was running
     total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
     total_stopwatch.goal_time = total_stopwatch.goal_time - stopwatch.goal_time
     db.session.delete(stopwatch)
@@ -233,8 +233,8 @@ def stop_stopwatch(stopwatch_id):
         return failure_response("Stopwatch is not found")
     requested_date = stopwatch.date
     total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
-    total_stopwatch.end_time = stopwatch.end_time = datetime.now()
-    increment = (stopwatch.end_time - stopwatch.interval_start).total_seconds() * 1000
+    total_stopwatch.end_time = stopwatch.end_time = datetime.now(timezone.utc)
+    increment = (ensure_utc(stopwatch.end_time) - ensure_utc(stopwatch.interval_start)).total_seconds() * 1000
     stopwatch.curr_duration = stopwatch.curr_duration + increment
     total_stopwatch.curr_duration = total_stopwatch.curr_duration + increment
     db.session.commit()
@@ -257,7 +257,7 @@ def start_stopwatch(stopwatch_id):
         return failure_response("Stopwatch is not found")
     requested_date = stopwatch.date
     total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     total_stopwatch.interval_start = stopwatch.interval_start = now
     total_stopwatch.end_time = stopwatch.end_time = None
     db.session.commit()
@@ -282,7 +282,7 @@ def reset_stopwatch(stopwatch_id):
     requested_date = stopwatch.date
     total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
     if (state == None):
-        total_stopwatch.end_time = stopwatch.end_time = datetime.now()
+        total_stopwatch.end_time = stopwatch.end_time = datetime.now(timezone.utc)
     # we dont need to update the current duration of the stopwatch when we stop it as if is running, total stopwatch is running
     # as well so differences between the two curr durations will be the same.
     total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
