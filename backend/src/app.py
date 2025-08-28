@@ -21,7 +21,7 @@ app = Flask(__name__)
 
 FRONTEND_ORIGINS = [
     "http://localhost:3000",                 # dev
-    "https://<your-site>.netlify.app",       # prod - Netlify
+    "https://chronologtracker.com",       # prod - Netlify
 ]
 
 CORS(
