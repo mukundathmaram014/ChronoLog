@@ -10,14 +10,14 @@ ChronoLog is a productivity tracking application with a Flask backend and a Reac
 
 ## 📘 Documentation
 
-For in-depth explanations of the architecture, API structure, and design decisions, see the [**docs/**](./docs/) folder.
+For in-depth explanations of the architecture, authentication, deployment, and design decisions, see the [**docs/**](./docs/) folder.
 
 
 ## Features
 
 - User authentication (JWT-based)
 - Habit tracking (CRUD operations)
-- Stopwatch for time tracking
+- Time tracking with custom stopwatches
 - Productivity statistics and analytics
 - Responsive React frontend
 - RESTful API backend
@@ -25,7 +25,10 @@ For in-depth explanations of the architecture, API structure, and design decisio
 ## Project Structure
 
 ```
+
 ChronoLog/
+├── assets/
+│   └── favicon.png
 ├── backend/
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -40,6 +43,11 @@ ChronoLog/
 │           ├── statistics.py
 │           ├── stopwatch.py
 │           └── users.py
+├── docs/
+│   ├── architecture.md
+│   ├── authentication.md
+│   ├── deployment.md
+│   └── implementation_details.md
 ├── frontend/
 │   └── productivityapp/
 │       ├── package.json
@@ -47,6 +55,7 @@ ChronoLog/
 │           ├── App.js
 │           └── ... (components, pages, hooks)
 └── docker-compose.yml
+
 ```
 
 ## Getting Started
