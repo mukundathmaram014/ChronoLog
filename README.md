@@ -1,4 +1,8 @@
-# ChronoLog
+<h1 align="center">
+  <img src="assets/favicon.png" alt="Logo" width="32" style="vertical-align: middle; margin-right: 8px;">
+  ChronoLog
+</h1>
+
 
 ChronoLog is a productivity tracking application with a Flask backend and a React frontend. It helps users manage habits, track time with stopwatches, and view statistics on these. It is currently hosted at [www.chronologtracker.com](https://chronologtracker.com/) where I use it daily, and also available for anyone else to use.
 
