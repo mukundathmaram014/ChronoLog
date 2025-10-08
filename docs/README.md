@@ -1,13 +1,13 @@
 # ChronoLog Technical Documentation
 
-Welcome to the **ChronoLog Docs** — an in-depth guide explaining the architecture, features, and development workflow of the ChronoLog productivity app.
+See the links below for a detailed overview of ChronoLog’s architecture and features.
 
 ## Sections
 
-- [Implementation details](./implementation_details.md)
-- [Architectural changes and description](./architecture.md)
-- [Deployment](./deployment.md)
+- [Implementation Details](./implementation_details.md)
+- [Architecture](./architecture.md)
 - [Authentication](./authentication.md)
+- [Deployment](./deployment.md)
 
 ---
 
