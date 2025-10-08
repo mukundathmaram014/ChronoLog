@@ -97,7 +97,7 @@ JWT_SECRET_KEY = "your-secret-key"
 ## Technologies Used
 
 - Backend: Flask, Flask-SQLAlchemy, Flask-JWT-Extended, Flask-CORS
-- Frontend: React, React Router, Axios, DnD Kit
+- Frontend: React, React Router, DnD Kit
 - Database: SQLite (default)
 - Containerization: Docker, Docker Compose
 
