@@ -1,6 +1,6 @@
 # ChronoLog
 
-ChronoLog is a productivity tracking application with a Flask backend and a React frontend. It helps users manage habits, track time with stopwatches, and view productivity statistics. It is currently hosted at [www.chronologtracker.com](https://chronologtracker.com/) for use by anyone. 
+ChronoLog is a productivity tracking application with a Flask backend and a React frontend. It helps users manage habits, track time with stopwatches, and view statistics on these. It is currently hosted at [www.chronologtracker.com](https://chronologtracker.com/) where I use it daily, and also available for anyone else to use.
 
 
 
