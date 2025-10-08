@@ -1,6 +1,13 @@
 # ChronoLog
 
-ChronoLog is a productivity tracking application with a Flask backend and a React frontend. It helps users manage habits, track time with stopwatches, and view productivity statistics.
+ChronoLog is a productivity tracking application with a Flask backend and a React frontend. It helps users manage habits, track time with stopwatches, and view productivity statistics. It is currently hosted at [www.chronologtracker.com](https://chronologtracker.com/) for use by anyone. 
+
+
+
+## 📘 Documentation
+
+For in-depth explanations of the architecture, API structure, and design decisions, see the [**docs/**](./docs/) folder.
+
 
 ## Features
 
@@ -81,17 +88,11 @@ ChronoLog/
 	```
 4. The frontend will be available at `http://localhost:3000`.
 
-## API Endpoints
-
-- `/register` - User registration
-- `/login` - User login
-- `/habits/` - Habit management
-- `/stopwatch/` - Stopwatch management
-- `/stats/` - Productivity statistics
-
 ## Environment Variables
 
-- Backend uses a `.env` file for configuration (see `backend/.env`).
+- Backend uses a `.env` file for configuration (see `backend/.env`). Add your JWT secret key to this file using the format:
+
+JWT_SECRET_KEY = "your-secret-key"
 
 ## Technologies Used
 
@@ -103,3 +104,4 @@ ChronoLog/
 ## License
 
 MIT License
+Feel free to use, modify, and build upon it.
