@@ -4,12 +4,10 @@ Welcome to the **ChronoLog Docs** — an in-depth guide explaining the architect
 
 ## Sections
 
-- [Backend Overview](./backend.md)
-- [Frontend Overview](./frontend.md)
-- [Stopwatch Logic](./stopwatch-logic.md)
-- [User Authentication ](./authentication.md)
-- [Deployment Guide](./deployment.md)
-- [Development Roadmap](./roadmap.md)
+- [Implementation details](./implementation_details.md)
+- [Architectural changes and description](./architecture.md)
+- [Deployment](./deployment.md)
+- [Authentication](./authentication.md)
 
 ---
 
