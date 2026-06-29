@@ -113,6 +113,27 @@ JWT_SECRET_KEY = "your-secret-key"
 - Database: SQLite (default)
 - Containerization: Docker, Docker Compose
 
+## 🤖 AI-Assisted Development Workflow
+
+ChronoLog is developed with [Claude Code](https://claude.com/claude-code) using a small set of
+repo-specific slash commands (defined in [`.claude/commands/`](./.claude/commands/)) that take an idea
+from rough note to reviewed PR. Project conventions and the working agreement live in
+[`CLAUDE.md`](./CLAUDE.md); specs live in [`specs/`](./specs/) (see [`specs/README.md`](./specs/README.md)).
+
+The loop:
+
+| Command | What it does |
+|---------|--------------|
+| `/triage` | Reads my Obsidian notes doc (read-only), pulls every unchecked idea, and writes a reviewable accept/reject list of candidate specs to `specs/triage.md`. The pre-spec idea funnel. |
+| `/spec <todo>` | Turns one accepted idea/bug into a structured, code-grounded implementation spec at `specs/NNNN-slug.md`. |
+| `/build specs/NNNN-...` | Implements one approved spec on its own branch and opens a PR. |
+| `/build-batch <specs \| all>` | Orchestrates building many specs: maps dependencies from each spec's "Affected files", builds in waves — independent specs in parallel (isolated git worktrees), coupled specs sequenced — and pauses after each wave for me to review/merge before the next. Never auto-merges. |
+| `/deploy-backend <version>` | Builds, pushes, and redeploys the backend image to the production VM (frontend deploys automatically via Netlify on merge to `main`). |
+
+Guiding principles: `main` is always the deployed/stable branch (never committed to directly); every
+change lands through a reviewed PR; and changes stay as small as the goal allows — larger refactors are
+fine when they deliver substantial value, but never opportunistically.
+
 ## License
 
 MIT License
