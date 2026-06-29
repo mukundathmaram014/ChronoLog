@@ -25,7 +25,10 @@ frontend/src/
   Components/         # Navbar, HabitItem, StopwatchItem, Sortable* (DnD), RequireAuth
   context/AuthProvider.js, hooks/useAuth.js, hooks/useFetch.js
 docs/                 # architecture, authentication, deployment, implementation_details
-docker-compose.yml    # backend container
+docker-compose.yml    # backend container (image tag = what's currently live in prod)
+scripts/
+  deploy-backend.sh   # build → push → redeploy the backend to the GCP VM
+  .env.deploy.example # template for the gitignored scripts/.env.deploy (deploy config)
 specs/                # implementation specs (see specs/README.md)
 ```
 
@@ -55,6 +58,22 @@ specs/                # implementation specs (see specs/README.md)
   Requires `backend/.env` with `JWT_SECRET_KEY="..."`.
 - Frontend: `cd frontend && npm install && npm start` (port 3000).
 - Full stack: `docker-compose up --build`.
+
+## Deploying
+- **Frontend: automatic.** Netlify is wired to the GitHub repo and rebuilds on merge to `main`. The
+  `/api/*` → backend redirect lives in version control at `frontend/public/_redirects` (CRA pattern) —
+  NOT the Netlify dashboard, and there is no `netlify.toml`. The backend IP is baked into that file, so
+  if the VM's IP changes the redirect must be re-committed.
+- **Backend: manual**, via `/deploy-backend <version>` (or `scripts/deploy-backend.sh <version>`
+  directly). It builds the image, pushes to Docker Hub (`mukund146/chronologbackend`), bumps the tag in
+  the repo's `docker-compose.yml`, then SSHes to the GCP VM to pull + restart. This hits **PRODUCTION** —
+  confirm the version first, and commit the `docker-compose.yml` tag bump afterward so the repo records
+  what's live.
+- Config (VM host/user/path, image, SSH key) lives in **gitignored** `scripts/.env.deploy`. Copy
+  `scripts/.env.deploy.example` to `scripts/.env.deploy` and fill it in once; never commit it.
+- **Do not scp the repo's `docker-compose.yml` to the VM.** The VM's compose uses `env_file: .env`
+  (env at `~/.env`), not the repo's `env_file: backend/.env` — overwriting it boots the backend without
+  `JWT_SECRET_KEY` and crashes it. The script instead edits the tag in the VM's compose in place.
 
 ## Working agreement (AI-assisted workflow)
 - **No large refactors.** Implement the smallest change that satisfies the spec. If a task seems to
