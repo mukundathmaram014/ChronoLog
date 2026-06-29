@@ -2,3 +2,6 @@ backend/venv/
 ChronoLog.db
 backend/.env
 scripts/.env.deploy
+__pycache__/
+*.pyc
+.pytest_cache/
