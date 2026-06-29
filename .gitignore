@@ -1,3 +1,4 @@
 backend/venv/
 ChronoLog.db
 backend/.env
+scripts/.env.deploy
