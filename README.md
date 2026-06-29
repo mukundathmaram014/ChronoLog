@@ -49,11 +49,10 @@ ChronoLog/
 │   ├── deployment.md
 │   └── implementation_details.md
 ├── frontend/
-│   └── productivityapp/
-│       ├── package.json
-│       └── src/
-│           ├── App.js
-│           └── ... (components, pages, hooks)
+│   ├── package.json
+│   └── src/
+│       ├── App.js
+│       └── ... (components, pages, hooks)
 └── docker-compose.yml
 
 ```
@@ -90,7 +89,7 @@ ChronoLog/
 
 #### Frontend
 
-1. Navigate to `frontend/productivityapp`.
+1. Navigate to `frontend`.
 2. Install dependencies:
 	```sh
 	npm install
