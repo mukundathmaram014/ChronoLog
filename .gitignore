@@ -2,3 +2,5 @@ backend/venv/
 ChronoLog.db
 backend/.env
 scripts/.env.deploy
+__pycache__/
+specs/triage.md
