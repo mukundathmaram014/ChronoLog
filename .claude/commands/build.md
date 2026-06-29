@@ -17,10 +17,11 @@ Workflow:
    of guessing.
 3. Once approved:
    a. Create a branch off `main` named `feat/NNNN-slug` or `fix/NNNN-slug` matching the spec.
-   b. Implement the SMALLEST change that satisfies the spec. Follow existing conventions exactly
-      (blueprints + success_response/failure_response, user_id-scoped queries, ensure_utc for
-      datetimes, useFetch for frontend calls). Do NOT refactor beyond what the spec requires —
-      if you discover the spec needs a large change, stop and report back.
+   b. Implement what the spec requires — including a larger refactor if the spec calls for one —
+      following existing conventions exactly (blueprints + success_response/failure_response,
+      user_id-scoped queries, ensure_utc for datetimes, useFetch for frontend calls). Don't expand
+      scope beyond the spec or refactor opportunistically; if the work turns out substantially larger
+      than the spec describes, stop and report back so the spec can be updated.
    c. Verify to the degree practical: for backend, sanity-check the route logic / run the app if
       feasible; for frontend, ensure it builds. Report what you verified and what you didn't.
 4. Commit with a clear message referencing the spec. Push the branch.
