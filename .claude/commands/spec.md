@@ -26,14 +26,16 @@ Steps:
 
    ## Scope
    - In scope: <bullets>
-   - Out of scope / non-goals: <bullets — explicitly call out anything that would be a large refactor>
+   - Out of scope / non-goals: <bullets. If the change needs a large refactor, don't silently
+     exclude it — note it here or in Approach and justify why it's worth it (or why it's deferred)>
 
    ## Affected files
    <bulleted list of specific files, with a phrase on what changes in each>
 
    ## Approach
-   <Concrete, ordered steps. Reference real functions/routes/components. Keep it the SMALLEST
-   change that satisfies the goal — no opportunistic refactors. Note conventions to follow
+   <Concrete, ordered steps. Reference real functions/routes/components. Prefer the smallest change
+   that satisfies the goal, but include a larger refactor if it genuinely earns its keep — just say
+   so and justify it here; no refactors for their own sake. Note conventions to follow
    (success_response/failure_response, user_id scoping, ensure_utc, useFetch, etc.).>
 
    ## Acceptance criteria
