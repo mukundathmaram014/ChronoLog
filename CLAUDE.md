@@ -76,8 +76,11 @@ specs/                # implementation specs (see specs/README.md)
   `JWT_SECRET_KEY` and crashes it. The script instead edits the tag in the VM's compose in place.
 
 ## Working agreement (AI-assisted workflow)
-- **No large refactors.** Implement the smallest change that satisfies the spec. If a task seems to
-  require broad restructuring, stop and flag it rather than doing it.
+- **Refactor when it earns its keep.** Default to the smallest change that satisfies the spec, but a
+  large refactor is fine when it delivers something substantial (real simplification, unblocks the
+  feature, removes a recurring source of bugs). Don't refactor opportunistically or for its own sake —
+  if a task implies broad restructuring, call it out and justify the value in the spec/PR rather than
+  doing it silently or avoiding it on principle.
 - One task = one branch = one PR. Keep diffs small and reviewable.
 - Follow the spec in `specs/` for the task; if reality diverges from the spec, note it in the PR.
 - `main` is the deployed/stable branch. Never commit directly to it — always branch.
