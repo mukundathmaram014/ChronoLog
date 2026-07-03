@@ -88,3 +88,9 @@ Steps:
 
 Keep it honest and skimmable — the whole point is a fast accept/reject pass, so flag the heavy or
 dubious ideas clearly rather than making everything look equally actionable.
+
+**Privacy note:** `specs/triage.md` is gitignored (stays local), but the specs it feeds are public. When
+a candidate is derived from personal details in the brain doc (real habit/routine lists, health/sleep
+info, personal goals, names), summarize it generically and add a short `privacy:` hint so the eventual
+`/spec` keeps those specifics out of the committed spec. Never carry raw personal data into a spec. (See
+CLAUDE.md.)

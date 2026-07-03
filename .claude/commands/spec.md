@@ -52,3 +52,8 @@ Steps:
    it, then run `/build specs/NNNN-short-slug.md` when satisfied.
 
 Keep the spec tight and honest. Flag, don't hide, anything that smells like it needs a big change.
+
+**Privacy — specs are public (public GitHub repo).** If the raw request comes from the author's private
+notes, never transcribe personal specifics into the spec: no real habit/routine lists, health/sleep
+details, personal goals, or names. Describe the *mechanism* and use generic placeholders; treat concrete
+personal values as in-app user data, not spec content. When unsure, generalize or omit. (See CLAUDE.md.)

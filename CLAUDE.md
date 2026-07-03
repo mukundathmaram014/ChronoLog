@@ -84,3 +84,10 @@ specs/                # implementation specs (see specs/README.md)
 - One task = one branch = one PR. Keep diffs small and reviewable.
 - Follow the spec in `specs/` for the task; if reality diverges from the spec, note it in the PR.
 - `main` is the deployed/stable branch. Never commit directly to it — always branch.
+- **No personal data in committed files.** `specs/`, `docs/`, code comments, and commit messages are
+  public (this repo is on public GitHub). When a spec is derived from the author's private notes (the
+  Obsidian "brain" — see `/triage`, `/spec`), **never transcribe personal specifics** into a committed
+  file: no real habit/routine lists, health/sleep details, personal goals, names, or other private
+  content. Describe the *mechanism* and use generic placeholders instead (e.g. "a few heavy habits
+  weighted ~50, others ~10–30"), and treat concrete personal values as in-app user data, not spec
+  content. If unsure whether something is private, generalize it or leave it out.

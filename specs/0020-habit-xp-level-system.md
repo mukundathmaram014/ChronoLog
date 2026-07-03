@@ -8,9 +8,11 @@ buff, big-achievement jumps, and the derived "strength" readout are explicitly *
 specs** (this is the agreed first slice of the larger design).
 
 ## Source design (author's "Habit Scoring Protocol")
-- One XP pool, one level. Every habit grants **value-weighted** XP so hard habits dominate (example
-  weights from the doc: [redacted]
-  [redacted] each). Max ≈ 210 XP/day.
+- One XP pool, one level. Every habit grants **value-weighted** XP so the hardest habits dominate the
+  day: a small number of heavy habits carry large weights (e.g. ~50 each) and the rest carry smaller
+  weights (~10–30), so a typical day tops out around a couple hundred XP and the heavy habits are the
+  bulk of it. (Concrete per-habit weights are user data — configured in-app per Decision 1, not
+  hard-coded here.)
 - **Level curve:** cost to reach the next level `cost(L) = round(B × L^p)`; defaults **B = 20, p = 1.3**
   (level ~10 in ~2 weeks, never maxes out).
 - Deferred (NOT in this spec): momentum combo multiplier for consecutive heavy-habit days; big-
