@@ -18,19 +18,15 @@ just an editable note on the front page.
 - Out of scope / non-goals: no rotating/generated quotes, no bundled quote list, no external quote API;
   no rich-text/formatting; no change to the habit/stopwatch cards.
 
-## ⚠️ Decision needed — where the text persists
-- **(Recommended) Backend field on `User`:** add a nullable text column (e.g. `homepage_note`) plus a
-  small `@jwt_required()` GET/PUT route, saved via `useFetch`. Persists across devices and matches the
-  rest of the app (every other piece of data is per-user, server-side). Cost: a schema change (SQLite
-  `ALTER TABLE`, no Alembic — see Risk) + one route.
-- **Lighter alternative:** keep it in `localStorage` but namespace the key by user id (e.g.
-  `homepageNote:<userId>`). Frontend-only, no migration — but it stays per-browser (doesn't follow the
-  user across devices) and is lost on cache clear. Fixes only the shared-across-users bug.
+## Decision (made) — persist in a backend `User` field
+The text persists in a **backend field on `User`** (a nullable `homepage_note` column) exposed via a
+small `@jwt_required()` GET/PUT route and saved through `useFetch`. This keeps the note per-user and
+device-independent, consistent with the rest of the app (every other piece of data is per-user,
+server-side). The cost is a one-off SQLite `ALTER TABLE` (no Alembic — see Risk) plus one route.
+The considered alternative — a `localStorage` key namespaced by user id (frontend-only, no migration)
+— was **not** chosen because it stays per-browser and is lost on cache clear.
 
-The rest of this spec assumes the **recommended backend** approach; adjust in `/build` if the author
-prefers the lighter one.
-
-## Affected files (recommended approach)
+## Affected files
 - `backend/src/db.py` — add `User.homepage_note` (String, nullable) and include it in `User.serialize()`
   (`db.py:7-22`). **Schema change** — see Risk.
 - `backend/src/routes/users.py` — add a `@jwt_required()` GET + PUT (e.g. `/note`) that reads/updates the
@@ -42,7 +38,7 @@ prefers the lighter one.
   edits back (on blur or debounced). Keep the existing `<textarea>` (`:222-227`); remove the
   `"Daily Quote"` default (empty box with a neutral placeholder instead).
 
-## Approach (recommended)
+## Approach
 1. Add `homepage_note` (nullable String) to the `User` model and to `serialize()`.
 2. Add the note route on `user_routes`: GET returns `{ homepage_note }` for the current user; PUT reads
    `body.get("homepage_note", "")` and persists it (`db.session.commit()`), everything scoped by
@@ -56,29 +52,25 @@ prefers the lighter one.
 - Each user has their own text box; editing it persists and reloads with their saved text.
 - Two accounts (even on the same browser) have independent text; one never sees or overwrites the
   other's.
-- (Recommended approach) the text follows the user across devices.
+- The text follows the user across devices (it's stored server-side).
 - A brand-new user sees an empty box (or neutral placeholder), not the literal `"Daily Quote"`.
 
 ## Testing / verification
 - Log in, type into the box, reload → text persists. Log in as a second user → independent/empty box;
   editing it doesn't change the first user's text.
-- (Recommended) log in on another browser/device and confirm the saved text loads.
+- Log in on another browser/device and confirm the saved text loads.
 - Backend: GET/PUT the note route with a valid token and confirm it's scoped to the caller (a second
   user can't read or overwrite the first's note).
 
 ## Risk
-- **Involvement:** Moderate (recommended path) — one `User` column + a small GET/PUT route + swapping the
-  homepage's `localStorage` logic for `useFetch`. The localStorage-namespaced alternative is Minimal
-  (frontend-only).
-- **Review attention:** Medium (recommended path) — needs a hand-applied prod `ALTER TABLE` on the live
-  `users` table (no Alembic); confirm the persistence decision and that the note route is
-  `user_id`-scoped. The localStorage alternative drops this to Low.
+- **Involvement:** Moderate — one `User` column + a small GET/PUT route + swapping the homepage's
+  `localStorage` logic for `useFetch`.
+- **Review attention:** Medium — needs a hand-applied prod `ALTER TABLE` on the live `users` table (no
+  Alembic); confirm the note route is `user_id`-scoped so one user can't read or overwrite another's.
 
 ## Risks & notes
-- **SQLite migration** (recommended approach): `db.create_all()` won't add a column to the existing
-  `users` table and there's no Alembic — add `homepage_note` to the live `instance/ChronoLog.db` with a
-  one-off `ALTER TABLE users ADD COLUMN homepage_note VARCHAR` (existing rows default to NULL). Call this
-  out in the PR with the exact statement. Same migration concern as specs 0003/0012.
+- **SQLite migration:** `db.create_all()` won't add a column to the existing `users` table and there's
+  no Alembic — add `homepage_note` to the live `instance/ChronoLog.db` with a one-off
+  `ALTER TABLE users ADD COLUMN homepage_note VARCHAR` (existing rows default to NULL). Call this out in
+  the PR with the exact statement. Same migration concern as specs 0003/0012.
 - The box's contents are free-form per-user data — treat it as in-app user data, nothing to hard-code.
-- If the author wants zero backend work, the localStorage-namespaced alternative is a valid smaller fix;
-  it just won't sync across devices.
