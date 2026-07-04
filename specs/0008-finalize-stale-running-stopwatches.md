@@ -16,14 +16,13 @@ finalized so they stop accumulating.
 ## Scope
 - In scope: (a) backend finalizes non-Total stopwatches with `end_time IS NULL` whose `date` is before
   today; (b) frontend only accrues live time for stopwatches on the currently-selected day.
-- Out of scope / non-goals: the midnight same-day behavior is spec 0007; no schema change.
+- Out of scope / non-goals: the live midnight rollover (tab open) is spec 0007; no schema change.
 
-## ⚠️ Decision needed
-When finalizing a stale running stopwatch, how much time to credit?
-- **Recommended:** freeze it — set `end_time = interval_start` so `curr_duration` is unchanged (no
-  bogus overnight time added). Simple and avoids inflating stats.
-- Alternative: credit up to end-of-its-day. More "accurate" but speculative and messier.
-Pick one in `/build`.
+## Decision (made) — freeze it
+When finalizing a stale running stopwatch, **freeze it**: set `end_time = interval_start` so
+`curr_duration` is left unchanged — no bogus overnight time is added. This is the simple option and
+avoids inflating stats. (The considered alternative — crediting up to end-of-its-day — was rejected as
+speculative and messier.)
 
 ## Affected files
 - `backend/src/routes/stopwatch.py` — in `get_stopwatches` (or a small helper run on fetch), finalize
@@ -34,14 +33,14 @@ Pick one in `/build`.
 
 ## Approach
 1. Backend: when listing stopwatches for a date, sweep the user's stopwatches with `end_time IS NULL`
-   and `date < date.today()` and finalize per the chosen rule (recommended: `end_time = interval_start`,
-   leaving `curr_duration` as-is). Commit. Keep Total in sync if it was the one left running.
+   and `date < date.today()` and finalize by freezing them — set `end_time = interval_start`, leaving
+   `curr_duration` as-is. Commit. Keep Total in sync if it was the one left running.
 2. Frontend: guard `getElapsed` so only same-day running stopwatches tick; past/future return the
    stored `curr_duration` (future already returns 0).
 
 ## Acceptance criteria
 - Opening a past day that had a stopwatch left running shows a fixed time, not an ever-increasing one.
-- No extra/overnight time is silently added to past days (under the recommended rule).
+- No extra/overnight time is silently added to past days (frozen at `end_time = interval_start`).
 - Today's running stopwatch is unaffected and still ticks live.
 
 ## Testing / verification
@@ -51,9 +50,11 @@ Pick one in `/build`.
 
 ## Risk
 - **Involvement:** Moderate — a backend finalize-on-fetch sweep plus a frontend `getElapsed` guard.
-- **Review attention:** Medium — it mutates persisted durations (a decision on how much time to credit) and must stay consistent with 0007 and the Total.
+- **Review attention:** Medium — it mutates persisted durations (freezing stale runs) and must stay consistent with 0007 and the Total.
 
 ## Risks & notes
-- Coordinate with 0007 so the two midnight/cross-day behaviors don't fight: 0007 keeps *today's*
-  running stopwatch alive across midnight; 0008 finalizes stopwatches stranded on *earlier* days.
+- Coordinate with 0007 so the two midnight/cross-day behaviors don't fight: 0007 handles the **live**
+  midnight rollover (finalize the old day, restart the new day) when the tab is open; 0008 finalizes
+  stopwatches stranded on *earlier* days when the tab was closed at midnight. Freezing here (rather than
+  crediting overnight time) is what keeps a closed-tab run from inflating a past day.
 - Make sure the Total stopwatch's `curr_duration` stays consistent if it was the stranded one.
