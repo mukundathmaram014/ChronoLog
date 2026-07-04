@@ -17,3 +17,11 @@ Lifecycle:
    worktrees), coupled specs sequenced. It pauses after each wave for you to merge before building the
    next wave off updated `main`; it never auto-merges or touches `main` directly.
 4. You review the PR(s). The spec stays in the repo as a record of intent.
+5. Once a spec's PR is merged (it's implemented), move its file into `specs/implemented/`. This keeps
+   the top-level `specs/` folder as the **review queue** — only specs still awaiting build/decisions
+   live there — while `specs/implemented/` preserves the shipped ones as a historical record.
+
+Layout:
+- `specs/*.md` — pending specs (your review/build queue).
+- `specs/implemented/*.md` — specs whose PR has merged (done; kept for the record).
+- `specs/triage.md` — scratch accept/reject worklist, not a permanent spec.
