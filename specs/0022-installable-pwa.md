@@ -48,33 +48,25 @@ so it launches like an app — full-screen, own icon — instead of living in a 
 - Reorder UI uses dnd-kit (`frontend/src/Components/Sortable*`); on touch it needs a `TouchSensor` /
   `PointerSensor` configured or drag won't work on a phone.
 
-## ⚠️ Decisions needed
-1. **App icon + brand colors (the main input needed).** The current icons are the placeholder CRA React
-   logo and colors are black/white. Options:
-   - **(Recommended) Provide/approve a simple ChronoLog icon** (a plain wordmark/clock glyph is fine) and
-     a `theme_color` / `background_color`. I can generate the required sizes (192, 512, and a **maskable**
-     variant with safe padding) from one source image. Need: the source art (or "generate a simple one")
-     and the two colors.
-   - Ship with a quick generated placeholder now, replace art later. Works, but the icon is what you’ll
-     stare at on your home screen — worth getting right.
-2. **Service-worker strategy & how aggressively to cache.**
-   - **(Recommended) Minimal hand-written SW in `public/`** + manual registration; **network-first for
-     navigations** (always try the live app, fall back to cached shell offline) and cache-first only for
-     hashed static assets. This makes a new deploy show up immediately and avoids the classic "stale PWA"
-     trap. Simplest with CRA-no-eject.
-   - Workbox via the `cra-template-pwa` files (`GenerateSW`): more machinery/precache manifest; more than
-     this needs.
-   - Confirm the **update UX**: silently activate the new SW and reload on next launch (recommended) vs.
-     an in-app "Update available — refresh" prompt.
-3. **Install-hint behavior.** Desktop Chrome/Edge & Android fire `beforeinstallprompt` (we can show a real
-   **Install** button that triggers the native prompt). **iOS Safari has neither** — it needs a small
-   **instructional** hint ("Share → Add to Home Screen"). Recommended: one component that branches by
-   capability, shown once, **dismissible and remembered in `localStorage`**, and hidden entirely when
-   already running installed (`display-mode: standalone`). Confirm where it appears (e.g. a dismissible
-   banner on the homepage/login) and that it shouldn’t nag.
-4. **How far the responsive/touch pass goes.** Recommended MVP: every page **usable** at phone widths
-   (no horizontal scroll, tappable controls) and **drag reorder works by touch**; no visual redesign.
-   Confirm that "usable, not redesigned" is the bar for v1.
+## Decisions (made)
+1. **App icon = the existing site favicon's design.** Model the PWA icons after
+   `frontend/public/favicon.ico` (the current ChronoLog favicon), **not** new art and not the React
+   placeholder. Since that `.ico` is tiny (~318 B, low-res), redraw the same design at high resolution to
+   produce crisp `icon-192`, `icon-512`, and a **maskable** variant (safe padding), plus a refreshed
+   `apple-touch-icon` — replacing the React-logo `logo192.png` / `logo512.png`. Set
+   `theme_color` / `background_color` to match the favicon's palette (replacing the `#000000` placeholder);
+   confirm the exact hex at build.
+2. **Service worker:** a **minimal hand-written SW in `public/`** + manual registration — **network-first
+   for navigations** (always try the live app, fall back to the cached shell offline), cache-first only for
+   hashed static assets. **Update UX:** silently activate the new SW and reload on next launch (no in-app
+   prompt). Avoids the stale-PWA trap; no Workbox.
+3. **Install hint:** one capability-branched `InstallPrompt` component — a real **Install** button where
+   `beforeinstallprompt` fires (desktop Chrome/Edge, Android) and an **iOS "Share → Add to Home Screen"**
+   instruction otherwise; shown once as a **dismissible banner** (on the homepage/login), remembered in
+   `localStorage`, and hidden entirely when already running installed (`display-mode: standalone`).
+4. **Responsive / touch pass:** the MVP bar is **usable, not redesigned** — every page works at phone
+   widths (no horizontal scroll, tappable controls) and **drag-to-reorder works by touch** (a dnd-kit
+   touch/pointer sensor). No visual redesign.
 
 ## Affected files
 - `frontend/public/manifest.json` — real `name`/`short_name` ("ChronoLog"), proper icons incl. a
@@ -82,8 +74,10 @@ so it launches like an app — full-screen, own icon — instead of living in a 
 - `frontend/public/index.html` — iOS/install meta: `apple-mobile-web-app-capable`,
   `apple-mobile-web-app-status-bar-style`, `apple-mobile-web-app-title`, update `theme-color`, and
   `viewport-fit=cover` on the viewport meta (for notch-safe layout).
-- `frontend/public/` — new icon assets (e.g. `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`,
-  refreshed `apple-touch-icon`), plus **`service-worker.js`** (the hand-written SW, Decision 2).
+- `frontend/public/` — icon assets redrawn from the existing `favicon.ico` design (a high-res version):
+  `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, and a refreshed `apple-touch-icon` — replacing
+  the React-logo `logo192.png` / `logo512.png`. Plus **`service-worker.js`** (the hand-written SW,
+  Decision 2).
 - `frontend/src/serviceWorkerRegistration.js` — **new**: registers `/service-worker.js` in production,
   wires the update flow (Decision 2). Called from `index.js`.
 - `frontend/src/index.js` — register the service worker (currently does not).
@@ -100,9 +94,10 @@ so it launches like an app — full-screen, own icon — instead of living in a 
 - `README.md` — a short "Install as an app (iPhone / desktop)" note once shipped.
 
 ## Approach
-1. **Manifest + icons + iOS meta** (Decision 1). Replace the CRA manifest with real ChronoLog metadata
-   and icons (incl. maskable). Add the iOS meta tags + `viewport-fit=cover`. This alone makes iOS
-   "Add to Home Screen" and desktop "Install" produce a properly named, full-screen, icon’d app.
+1. **Manifest + icons + iOS meta** (Decision 1). Replace the CRA manifest with real ChronoLog metadata and
+   icons redrawn from the existing favicon (incl. a maskable variant), replacing the React placeholders.
+   Add the iOS meta tags + `viewport-fit=cover`. This alone makes iOS "Add to Home Screen" and desktop
+   "Install" produce a properly named, full-screen app with its own icon.
 2. **Service worker** (Decision 2). Add `public/service-worker.js` (network-first navigations, cache the
    app shell, cache-first for hashed assets) + `src/serviceWorkerRegistration.js`, and register it from
    `index.js` in production only. Bump a cache version on each release; on activate, clean old caches.
@@ -141,6 +136,16 @@ so it launches like an app — full-screen, own icon — instead of living in a 
 - **Update:** deploy a change, reopen the installed app, confirm the new version appears (per Decision 2).
 - **Touch reorder:** on a phone, drag a habit/stopwatch to reorder and confirm it persists.
 - **Responsive:** DevTools device toolbar at 375px across all pages — no overflow, tappable controls.
+
+## Risk
+- **Involvement:** Involved — frontend-only but broad: a real manifest + favicon-derived icons, a
+  hand-written service worker + registration, an install-prompt component, a dnd-kit touch sensor, and a
+  responsive/touch pass across every page.
+- **Review attention:** High — the **service-worker stale-cache trap** is the real hazard: it ships to
+  prod via Netlify on merge, and a wrong cache strategy can pin all users to an old build — so the
+  network-first + versioned-cache + un-cached-SW handling and the Netlify `_redirects` / MIME serving must
+  be verified on the deployed site. The responsive pass is broad but low-danger (volume, not risk); no
+  backend/migration.
 
 ## Risks & notes
 - **Stale-cache trap (top risk).** A too-aggressive service worker can pin users to an old build. Use
