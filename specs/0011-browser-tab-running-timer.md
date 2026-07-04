@@ -44,6 +44,10 @@ tab) so it's visible while you work in another tab, and restore the normal title
   reverts.
 - Navigate to another page mid-run and confirm the title is restored.
 
+## Risk
+- **Involvement:** Minimal — one additive effect writing `document.title` on the existing render tick.
+- **Review attention:** Low — additive, no backend, easily verified; just confirm the title format/scope decision.
+
 ## Risks & notes
 - Keep the update on the existing render tick — don't add a second interval.
 - Make sure the Total stopwatch isn't what drives the title; use the actually-running item.

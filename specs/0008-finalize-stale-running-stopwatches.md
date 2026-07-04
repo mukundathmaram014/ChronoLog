@@ -49,6 +49,10 @@ Pick one in `/build`.
   that day → time is frozen, not climbing.
 - Normal start/stop on today still works.
 
+## Risk
+- **Involvement:** Moderate — a backend finalize-on-fetch sweep plus a frontend `getElapsed` guard.
+- **Review attention:** Medium — it mutates persisted durations (a decision on how much time to credit) and must stay consistent with 0007 and the Total.
+
 ## Risks & notes
 - Coordinate with 0007 so the two midnight/cross-day behaviors don't fight: 0007 keeps *today's*
   running stopwatch alive across midnight; 0008 finalizes stopwatches stranded on *earlier* days.

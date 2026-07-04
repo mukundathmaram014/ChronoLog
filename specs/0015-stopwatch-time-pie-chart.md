@@ -47,6 +47,10 @@ glance.
 - A day with several stopwatches shows proportional slices that sum to the Total.
 - A day with no logged time shows an empty/placeholder state.
 
+## Risk
+- **Involvement:** Moderate — mainly a new frontend pie/legend component; optionally a period-breakdown endpoint or a charting lib.
+- **Review attention:** Medium — additive and visual (no schema), but confirm the SVG-vs-library and placement/data-window decisions.
+
 ## Risks & notes
 - Exclude the Total stopwatch from the slices (it's the sum, not a slice).
 - Keep it consistent with the existing SVG style if hand-rolling; if adding a lib, justify it in the PR

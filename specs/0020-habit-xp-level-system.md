@@ -75,6 +75,10 @@ specs** (this is the agreed first slice of the larger design).
 - Complete/uncomplete habits of known weights and confirm the endpoint's total XP and level update.
 - Confirm XP is per-user (no cross-user leakage).
 
+## Risk
+- **Involvement:** Involved — schema (`xp_weight`), a level-curve helper, a new XP/level endpoint, a habit-form input, and a minimal readout.
+- **Review attention:** High — prod migration, curve math needs unit tests, several design decisions, and strict scope discipline (defer momentum/achievements/strength).
+
 ## Risks & notes
 - **SQLite migration** for `Habit.xp_weight` (no Alembic; `create_all` won't alter `habits`) — `ALTER
   TABLE` + backfill existing rows to the default weight.

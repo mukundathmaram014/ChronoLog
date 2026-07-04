@@ -45,6 +45,10 @@ subtract. Choose based on what the investigation shows.
 - Start a stopwatch, let it run ~30s, stop it; the number should not snap backward by ~2s.
 - Optionally skew the client clock by a few seconds and confirm the display still matches on stop.
 
+## Risk
+- **Involvement:** Minimal — a surgical edit to `getElapsed`/`handleStart` in one file.
+- **Review attention:** Medium — small code, but the root cause is unconfirmed (investigation-first) and it touches the core on-the-fly elapsed calc the app depends on, so it's easy to regress timing.
+
 ## Risks & notes
 - Uncertain root cause — investigation-first. If the offset is NOT clock skew (e.g. it's the 10ms
   interval accumulating, or latency in setting `interval_start`), revise the approach and note it in

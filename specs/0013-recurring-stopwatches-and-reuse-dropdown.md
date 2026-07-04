@@ -57,6 +57,10 @@ Two related additions to creating stopwatches:
 - Confirm a DeletedDay-emptied day stays empty.
 - Pick a previous stopwatch from the dropdown and confirm the form prefills.
 
+## Risk
+- **Involvement:** Involved — schema change, carry-forward gating, a new dropdown-source endpoint, and add-form changes.
+- **Review attention:** High — changes today's "everything carries forward" behavior, tangles with DeletedDay/backfill, and needs a prod migration; lock the core decision and add tests.
+
 ## Risks & notes
 - **SQLite migration** (no Alembic; `create_all` won't alter `stopwatches`): adding `is_recurring` needs
   an `ALTER TABLE`/backfill — existing rows should default to recurring (= current behavior). Pairs with

@@ -45,6 +45,10 @@ present on the selected day.
   listed and its stats are correct.
 - `day` still lists only that day's items.
 
+## Risk
+- **Involvement:** Moderate — a distinct-items-in-period source plus selector logic driven by the period.
+- **Review attention:** Medium — no schema; coupled with 0016, and the distinct-by-name query can get heavy — keep it `user_id`-scoped.
+
 ## Risks & notes
 - Pairs with **0016** (combined individual+total) and feeds **0015** (pie over a period). Plan them as a
   cluster touching `statistics.py` + `statisticspage.jsx`.

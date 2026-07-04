@@ -81,6 +81,10 @@ builds the foundation those would layer onto.
 - Leave a task undone past its date and confirm the chosen overdue behavior.
 - Confirm a second user can't see the first user's tasks.
 
+## Risk
+- **Involvement:** Involved — a whole new pillar: new model, a full CRUD blueprint, a page + route + nav link (and maybe a homepage card).
+- **Review attention:** High — but this is *volume, not danger*: it's additive and isolated (new table auto-created, no carry-forward entanglement, mirrors habits), so there's a lot to review yet low regression risk; confirm the overdue/view decisions.
+
 ## Risks & notes
 - **No migration headache here:** unlike the column-adding specs (0012–0014, 0019, 0020), this adds a
   **new table**, which `db.create_all()` creates automatically on boot — no `ALTER TABLE` needed.

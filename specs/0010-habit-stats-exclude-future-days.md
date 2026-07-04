@@ -36,6 +36,10 @@ route is simply missing that guard.
   don't include not-yet-occurred days).
 - A past month still returns the same totals as before.
 
+## Risk
+- **Involvement:** Minimal — add a `> date.today()` break to three loops in one file, mirroring the existing stopwatch-stats code.
+- **Review attention:** Low — backend-only, directly copies working logic; small blast radius.
+
 ## Risks & notes
 - Small, backend-only, low risk — directly mirrors existing, working code in the same file.
 - Note: because habits only exist for days the user has visited, the visible effect is small today,

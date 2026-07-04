@@ -33,6 +33,10 @@ regular stopwatches. It should stay fixed (rendered first) and never be draggabl
 - Stopwatches page: try to drag the Total (should not move); drag regular stopwatches around and
   confirm the Total stays put.
 
+## Risk
+- **Involvement:** Minimal — frontend-only; splits the Total out of the sortable list in one page (+ its item component).
+- **Review attention:** Low — no data/schema change; verifiable at a glance by dragging.
+
 ## Risks & notes
 - Small, frontend-only. Best done together with **0003** since both touch the sortable list and the
   Total's placement.

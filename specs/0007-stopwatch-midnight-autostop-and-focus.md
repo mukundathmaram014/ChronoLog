@@ -41,6 +41,10 @@ not when the clock rolls over while they're still on the same day.
   running; confirm it does not stop or lose focus at rollover.
 - Switch dates via the date picker and confirm the running stopwatch still stops.
 
+## Risk
+- **Involvement:** Minimal — restructure one effect's dependencies (+ two one-line `getDay`→`getDate` fixes).
+- **Review attention:** Medium — subtle React effect/timing behavior around midnight; must not weaken 0008's stale-stopwatch cleanup.
+
 ## Risks & notes
 - Related minor bug to fix while here: `homepage.jsx:26` and `habitpage.jsx:60` compute
   `msUntilMidnight` with `now.getDay()` (day-of-week) instead of `getDate()` (day-of-month), so their

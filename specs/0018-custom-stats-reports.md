@@ -43,6 +43,10 @@ habit completion and time worked the author can review (and possibly export).
   the live stats.
 - (If export) open the exported file and confirm contents.
 
+## Risk
+- **Involvement:** Involved — a report endpoint + a report view, possibly an export lib; best sequenced after 0016/0017.
+- **Review attention:** High — "custom reports" is open-ended and prone to scope-sprawl; lock a minimal v1 definition (fields/format/trigger) before building.
+
 ## Risks & notes
 - **Scope risk:** "custom reports" is open-ended (medium–large). Ship a minimal, well-defined v1 and
   layer extras later — don't let it sprawl.

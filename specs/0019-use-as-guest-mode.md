@@ -54,6 +54,10 @@ habits/stopwatches/stats, so the app is explorable before sign-up.
 - Confirm a guest can't see another user's data.
 - Confirm the cleanup path removes an expired guest and its data.
 
+## Risk
+- **Involvement:** Involved — touches auth (`users.py`), a `User.is_guest` schema change, guest cleanup/TTL, and the frontend auth gate.
+- **Review attention:** High — security-sensitive (keep token handling identical to the real flow), a prod migration, and guest-data isolation + mandatory cleanup; review closely.
+
 ## Risks & notes
 - **SQLite migration** for `User.is_guest` (no Alembic; `create_all` won't alter `users`) — `ALTER
   TABLE` + backfill existing users to non-guest.

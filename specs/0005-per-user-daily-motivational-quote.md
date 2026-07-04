@@ -54,6 +54,10 @@ The rest of this spec assumes **A**; adjust in `/build` if the author picks B or
 - Confirm the quote stays the same on refresh within a day and changes after the date rolls over
   (can simulate by changing `today`).
 
+## Risk
+- **Involvement:** Minimal — frontend-only: a bundled quote list + a deterministic per-user/day pick (option A).
+- **Review attention:** Low — isolated to the homepage, no schema; the thing to confirm is the A/B/C source decision (option C would make it backend-touching → Moderate).
+
 ## Risks & notes
 - Confirm the current user id is available from the existing auth context before building.
 - If option C is chosen this becomes a backend-touching spec (new column + route + `useFetch`).

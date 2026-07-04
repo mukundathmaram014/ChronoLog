@@ -44,6 +44,15 @@ Steps:
    ## Testing / verification
    <How to confirm it works: which page/route, what to click or curl, expected result.>
 
+   ## Risk
+   <Two axes, one bullet each, each with a short rationale:
+   - **Involvement:** Minimal | Moderate | Involved — how big/spread-out the change is (files and
+     areas touched).
+   - **Review attention:** Low | Medium | High — how closely the author should supervise it.
+   Keep these distinct: a large but well-isolated change can be low-danger yet still Involved (lots to
+   review), while a tiny diff to core logic can warrant High review. Call out what specifically drives
+   the rating (prod migration, carry-forward/backfill, auth, open-ended scope, new pillar, etc.).>
+
    ## Risks & notes
    <Edge cases, data/migration concerns, anything the author should weigh in on.>
    ```

@@ -45,6 +45,10 @@ fetch, items come back in DB insertion order (`get_habits` / `get_stopwatches` u
 - Habits page and Stopwatches page: drag to reorder, hard-refresh, confirm order persists.
 - `GET /habits/<date>/` and `GET /stopwatches/<date>/` return items in the saved order.
 
+## Risk
+- **Involvement:** Moderate — backend schema (`position` column) + reorder endpoints on two routes + two frontend `handleDragEnd` handlers.
+- **Review attention:** High — needs a hand-applied prod `ALTER TABLE` (no Alembic); a wrong/omitted migration breaks prod. Pairs with 0004.
+
 ## Risks & notes
 - **Migration:** schema is created via `db.create_all()` (`backend/src/app.py:61`), which does NOT
   add columns to existing SQLite tables, and there is no Alembic. The new `position` column must be

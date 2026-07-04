@@ -48,6 +48,10 @@ individual habit/stopwatch alongside the total, all on one page**.
   total, for day/week/month.
 - Confirm consistency with the existing single-select stats.
 
+## Risk
+- **Involvement:** Moderate — a backend "all items" mode (new response shape) plus per-item frontend rendering + CSS.
+- **Review attention:** Medium — no schema, but coupled with 0017 and a fan-out (backend vs N frontend calls) decision to review; watch performance.
+
 ## Risks & notes
 - Strongly coupled with **0017** (period-driven data) and related to **0015** (the pie is a natural
   visualization of the per-stopwatch breakdown). Sequence/group these in build planning.

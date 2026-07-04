@@ -45,6 +45,10 @@ before changing logic.
 - Reproduce the Total-only day, refetch `GET /stopwatches/<date>/`, confirm regular stopwatches appear.
 - Verify a day intentionally emptied stays empty, and a normal new day still carries forward.
 
+## Risk
+- **Involvement:** Moderate — one backend route, but the carry-forward/backfill logic it changes is intricate.
+- **Review attention:** High — carry-forward + backfill is easy to regress (duplicate Totals, runaway backfill); reproduce first and add focused tests.
+
 ## Risks & notes
 - Carry-forward + backfill logic is intricate and easy to regress (duplicate Totals, infinite/extra
   backfill). Add focused tests around: empty day, Total-only day, deleted day, and a multi-day gap.

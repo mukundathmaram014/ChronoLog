@@ -49,6 +49,10 @@ shouldn't appear.
 - A default habit still appears every day.
 - Edit the day set and confirm future days reflect it while past rows are unchanged.
 
+## Risk
+- **Involvement:** Involved — schema change (`repeat_days`), weekday-gated carry-forward, and a weekday-picker UI.
+- **Review attention:** High — alters carry-forward semantics + prod migration + an encoding decision; carry-forward is easy to regress, so add tests.
+
 ## Risks & notes
 - **SQLite migration** (no Alembic; `create_all` won't alter `habits`): adding `repeat_days` needs an
   `ALTER TABLE`/backfill defaulting existing rows to all-days (= current behavior).

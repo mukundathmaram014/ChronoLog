@@ -56,6 +56,10 @@ stopwatch opt out of having a goal.
 - Edit a goal stopwatch to no-goal and back; confirm persistence and display.
 - A day mixing goal and no-goal stopwatches shows a coherent Total.
 
+## Risk
+- **Involvement:** Involved — schema change + two backend routes + three frontend files; every `goal_time` read must be audited.
+- **Review attention:** High — prod `ALTER TABLE` migration plus divide-by-zero/NaN risk across rings, Total, and stats sums; several representation decisions to lock.
+
 ## Risks & notes
 - **SQLite migration:** the app uses `db.create_all()` (no Alembic); `create_all` won't alter the
   existing `stopwatches` table. Changing/adding a column needs a one-off `ALTER TABLE` (or documented
