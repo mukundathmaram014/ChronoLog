@@ -11,3 +11,10 @@ Best built **after** the stats cluster (0015/0016/0017), whose period-aware data
 
 Deferred because "custom reports" is open-ended and prone to scope-sprawl — revisit once the stats
 cluster lands and the exact fields/format/trigger are worth pinning down. (Was spec 0018.)
+
+## Task dependency graph + scheduling
+For the task subsystem (spec 0021): let tasks declare **dependencies** on other tasks, visualize the
+resulting **tree / graph**, and apply **scheduling algorithms** (e.g. earliest-deadline-first) to suggest
+an order to work through them. Layers on top of the task model once sub-tasks + recurrence (0021) are in
+place. Deferred — it's a larger, more algorithmic feature and needs the base task subsystem shipped first.
+
