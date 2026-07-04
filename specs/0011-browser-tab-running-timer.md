@@ -12,16 +12,17 @@ tab) so it's visible while you work in another tab, and restore the normal title
 - There is no existing use of `document.title` for live state, so this is additive.
 
 ## Scope
-- In scope: while a non-Total stopwatch is running, set `document.title` to its live elapsed time (and
-  title); restore the original title when it stops, when navigating away, and on unmount.
+- In scope: while a non-Total stopwatch is running and the user is on the stopwatch page, set
+  `document.title` to its live elapsed time (`00:12:34`); restore the original title when it stops, when
+  navigating away, and on unmount.
 - Out of scope / non-goals: no backend change; no change to the elapsed-time calc (stays frontend per
   CLAUDE.md); no notifications/favicon work.
 
-## ⚠️ Decision needed
-1. **Title format.** Recommended: `▶ 00:12:34 · <stopwatch title>` (so it reads at a glance in a narrow
-   tab). Alternative: just `00:12:34`. Pick one.
-2. **Where it applies.** Recommended: only while on the stopwatch page (simplest, uses the existing
-   tick). Alternative: app-wide (would need the running-timer logic lifted above the page, larger).
+## Decision (made)
+1. **Title format:** the **most minimal** — just the elapsed time, `00:12:34` (no glyph, no stopwatch
+   title). Format isn't important here, so keep it as small as possible.
+2. **Where it applies:** only **while on the stopwatch page** (simplest, reuses the existing per-second
+   tick). App-wide was the considered alternative but isn't needed.
 
 ## Affected files
 - `frontend/src/Pages/stopwatchpage.jsx` — add an effect that, when `runningId !== null`, updates
@@ -31,7 +32,8 @@ tab) so it's visible while you work in another tab, and restore the normal title
 ## Approach
 1. Capture the default title once (e.g. `"ChronoLog"` or the current `document.title`).
 2. In an effect keyed on the running stopwatch and the per-second tick, if a stopwatch is running, set
-   `document.title` to the formatted elapsed (per the chosen format); else restore the default.
+   `document.title` to the formatted elapsed (`00:12:34` via `formatTimeString`); else restore the
+   default.
 3. Return a cleanup that restores the default title on unmount / when running stops.
 
 ## Acceptance criteria
@@ -46,7 +48,7 @@ tab) so it's visible while you work in another tab, and restore the normal title
 
 ## Risk
 - **Involvement:** Minimal — one additive effect writing `document.title` on the existing render tick.
-- **Review attention:** Low — additive, no backend, easily verified; just confirm the title format/scope decision.
+- **Review attention:** Low — additive, no backend, easily verified; title format and scope are settled (minimal time-only title, stopwatch page only).
 
 ## Risks & notes
 - Keep the update on the existing render tick — don't add a second interval.
