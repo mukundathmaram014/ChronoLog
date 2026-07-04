@@ -1,198 +1,177 @@
-# 0020 — Habit XP / level system (model, level curve, streaks, goals)
+# 0020 — XP / level system (habits + work time, streaks, goals)
 
 ## Problem / Goal
-Add a Solo-Leveling-style progression layer on top of habits: completing habits grants weighted XP into
-a **single shared pool**, and that XP maps to a **level** via a defined curve. This spec now covers three
-layers:
-1. **Foundation** — the data model, XP accrual from habit completion, and the level curve.
-2. **Streak / momentum** — a multiplier that rewards consecutive "qualifying" days, boosting the XP earned
-   on a day when you keep a run going.
-3. **Goals** — user-defined objectives with a **self-configured XP reward** that inject a burst of XP into
-   the same pool when completed.
+Add a Solo-Leveling-style progression layer: your activity grants XP into a **single shared pool**, and
+that XP maps to a **level** via a fixed curve. XP comes from three sources — completing **habits**
+(weighted by a per-habit difficulty), **time worked** on stopwatches (XP per hour), and completing
+**goals** (weighted by difficulty). A **streak multiplier** rewards consecutive good days. The level
+curve is **fixed in code** (the user cannot tune how hard it is to level up) and is calibrated so a
+dedicated user reaches ~level 100 (a "theoretical peak") in ~4–5 years.
 
-Still **deferred** to a later spec: the derived **"strength"** readout, and any optional split of the
-single pool into physical/intellect/vitality stats. Those are UI/analytics on top of this and don't
-change the model below.
+Explicitly **not** in scope (and not planned): the "strength" readout and any physical/intellect/
+vitality stat split — a single XP pool / single level only.
 
-## Source design (author's "Habit Scoring Protocol")
-- One XP pool, one level. Every habit grants **value-weighted** XP so the hardest habits dominate the
-  day: a small number of heavy habits carry large weights (e.g. ~50 each) and the rest carry smaller
-  weights (~10–30), so a typical day tops out around a couple hundred XP and the heavy habits are the
-  bulk of it. (Concrete per-habit weights are user data — configured in-app per Decision 1, not
-  hard-coded here.)
-- **Level curve:** cost to reach the next level `cost(L) = round(B × L^p)`; defaults **B = 20, p = 1.3**
-  (level ~10 in ~2 weeks, never maxes out).
-- **Momentum / streak:** consecutive qualifying days build a multiplier applied to that day's *habit* XP,
-  capped — so keeping a run going is worth more than isolated good days, but it can't run away.
-- **Goals:** one-off, user-defined objectives with a reward the user sets themselves; completing one
-  injects that reward into the shared pool. (This is the configurable form of the earlier "big-achievement
-  XP injection" idea — now user-driven rather than hard-coded.)
-- Still deferred (NOT in this spec): "strength" as a derived readout; optional later split into
-  physical/intellect/vitality stats.
+## Design decisions (locked)
+- **Per-habit XP = a difficulty tier on the `Habit` row** (a column). The user picks **Easy / Medium /
+  Hard** when creating/editing a habit (discrete choice — a 3-way toggle/segmented control; a slider is
+  an optional UI flourish). Each tier maps to a fixed XP value.
+- **Stopwatches have no difficulty** — time worked simply grants XP at a fixed **XP-per-hour** rate
+  (total hours worked that day → XP). Keeps stopwatch XP simple.
+- **Goals use the same Easy / Medium / Hard tiers**, one-time (complete once → its XP; un-complete
+  removes it; no repeating goals).
+- **The level curve is fixed / not user-configurable.** `cost(L) = round(B · L^p)` with B, p **hard-coded**
+  (see Calibration). Users never see or set B/p or any XP constant — only the per-item difficulty tier.
+- **Storage is stored, not derived:** `User.total_xp` holds a running total, incremented by each day's
+  earned XP; a **per-day XP ledger** records how much was earned on each day.
+- **Level readout:** an **XP bar + level** on the **home page**.
+- **Goals live on a dedicated Goals page** (nav link + route, like Tasks in 0021).
 
-## Context — current model
-- `Habit` (`backend/src/db.py:27-59`) has `description`, `done`, `date`, `user_id` only — no XP weight.
-- Habit completion is the `done` toggle (`backend/src/routes/habits.py`); habits carry forward per day, so
-  a habit lives as **one row per day**.
-- There is **no `Goal` model** yet — this spec adds one (a brand-new table, like `Task` in spec 0021).
-- Stats are computed in `backend/src/routes/statistics.py`; that (or a new `routes/level.py`) is the
-  natural home for the XP/level/streak endpoint.
+## XP sources (detail)
+### A. Habit XP (difficulty tiers)
+- `Habit.difficulty` ∈ {easy, medium, hard} → fixed XP (starting values **easy = 10, medium = 25,
+  hard = 50**, matching the author's "heavy habits ~50, others ~10–30"; final values set by Calibration).
+- A day's **habit base XP** = Σ (difficulty XP) over that day's completed (`done = True`) habits. Habits
+  are per-day rows, so a daily habit pays out each day it's done.
 
-## The three layers (design detail)
+### B. Work-time XP (stopwatch hours)
+- A day's **work XP** = (total hours worked that day across stopwatches) × a fixed **XP-per-hour** rate
+  (starting value **~20 XP/hour**; set by Calibration). Uses the day's total stopwatch duration; **no**
+  per-stopwatch difficulty. Flat (not streak-multiplied).
 
-### A. Base habit XP (foundation)
-Each habit carries an `xp_weight` (default 10). A day's **base XP** = sum of `xp_weight` over that day's
-completed (`done = True`) habits. Because habits are per-day rows, a daily habit pays out every day it's
-done — intended.
+### C. Goal XP (difficulty tiers, one-time)
+- `Goal.difficulty` ∈ {easy, medium, hard} → fixed XP (starting values **easy = 50, medium = 100,
+  hard = 200**; set by Calibration). Completing a goal grants its XP once on its `completed_date`;
+  un-completing removes it. Flat (not streak-multiplied). No repeating goals.
 
-### B. Streak / momentum multiplier
-- **Qualifying day:** a day "counts" toward a streak if it clears a bar (Decision 6). Recommended default:
-  the day's **base XP ≥ a configurable daily threshold** (so a day where you did your important habits
-  qualifies; a token single-habit day may not). Alternative: "completed at least one *heavy* habit"
-  (weight ≥ a threshold).
-- **Streak count:** number of consecutive qualifying days ending on a given day. A non-qualifying day (or a
-  gap with no completions) **resets the streak to 0**; the next qualifying day restarts at 1.
-- **Multiplier:** `mult(streak) = min(1 + step × (streak − 1), cap)` (Decision 7). Recommended default
-  `step = 0.1, cap = 2.0` → day 1 = ×1.0, ramping to ×2.0 by an 11-day run.
-- **What it multiplies:** that day's **habit base XP only** — *not* goal rewards (Decision 9). So a day's
-  XP contribution = `base_xp(day) × mult(streak_through_day)`.
-- **Total from habits (derived):** `Σ over days [ base_xp(day) × mult(streak_through_day) ]`.
-  ⚠️ Note this makes total XP **path-dependent** (day order matters), so it's no longer a single `SUM`
-  query — see Decision 8 and Risks.
-- The endpoint also exposes **current streak** and **current multiplier** for the UI.
+### D. Streak multiplier (applies to habit XP only)
+- **Qualifying day:** a day counts toward a streak if its habit base XP ≥ a fixed threshold (so a real
+  effort day qualifies, a token single-habit day may not). A non-qualifying day or a gap **resets** the
+  streak to 0.
+- **Multiplier:** `mult(streak) = min(1 + step·(streak − 1), cap)`, starting values **step = 0.1,
+  cap = 2.0** (ramps to ×2 over ~11 days). Applies to **habit XP only** — work XP and goal XP are flat.
+- A day's earned XP = `habit_base × mult(streak) + work_xp + goal_xp_completed_that_day`.
 
-### C. Goals (configurable XP bursts)
-- A **`Goal`** is a one-off objective: `description`, a user-set `xp_reward`, a `done` flag, and (when
-  completed) a `completed_date`. Completing it grants `xp_reward` **once**, flat (not streak-multiplied,
-  per Decision 9). Un-completing removes it again.
-- **Total from goals (derived):** `Σ xp_reward where done = True`, scoped to the user.
-- **Grand total XP** = habit total (A×B) + goal total (C), fed into the level curve.
+## Level curve (fixed) & calibration
+- `cost(L) = round(B · L^p)` = XP to go from level L to L+1; cumulative to reach level N = Σ_{L=1}^{N−1}.
+- **Calibration target:** a **dedicated user** — a standard list of **3 easy + 3 medium + 3 hard** habits
+  done daily, **~5–6 h/day** of tracked work, a **sustained streak**, and a **reasonable cadence of
+  goals** — reaches **~level 100 in ~4–5 years** (mirrors real-world "years to mastery"). Level 100 is the
+  calibration anchor / theoretical peak, **not** a hard cap (the curve keeps going).
+- **Illustrative constants that hit the target** (to be confirmed by the calibration simulation below):
+  with the XP values above and a sustained ×2 streak, a dedicated day ≈ 255×2 (habits) + ~110 (5.5 h × 20)
+  + ~15 (goals) ≈ **~635 XP/day**; over ~4.3 years that's ≈ 1.0 M XP, which `cost(L) = round(25 · L^1.5)`
+  reaches at L ≈ 100. So **B ≈ 25, p ≈ 1.5** is the starting curve. Early levels are cheap (fast,
+  satisfying start); late levels are expensive (never maxes out).
+- These constants (habit/goal tier XP, XP-per-hour, streak step/cap/threshold, B, p) are **fixed in code**
+  and must be **tuned together via the calibration simulation** so the dedicated-user profile lands in the
+  4–5-year window. They are not user-facing.
 
-## ⚠️ Decisions needed
-1. **Where the per-habit XP weight lives.**
-   - **(Recommended) `xp_weight` column on `Habit`** with a sensible default (e.g. 10), editable in the
-     habit add/edit form. Weight travels with the habit (and its carry-forward copies).
-   - Alternative: a separate weight table keyed by habit description (renaming/recreating keeps the
-     weight). More robust to the per-day-row model but more machinery.
-2. **Level-curve helper location & exact mapping.** Recommended: a pure helper (total XP → level +
-   progress) in `utils.py`, `cost(L) = round(B·L^p)`, B=20, p=1.3, starting at level 1. Confirm B/p and
-   whether to expose "XP into current level / XP to next".
-3. **Default weight for existing/back-dated habits.** Recommended: default weight 10 for all unless edited.
-4. **Level/XP readout placement.** Minimal in this slice — e.g. level + progress + current streak/
-   multiplier on the habit or home page. Rich UI is a later spec.
-5. **(Streak) Qualifying-day definition.** Recommended: day **base XP ≥ a configurable daily threshold**.
-   Alternative: "completed ≥ 1 heavy habit (weight ≥ H)". Pick one and set the default threshold/H.
-6. **(Streak) Multiplier formula + cap.** Recommended `mult = min(1 + 0.1·(streak−1), 2.0)`. Confirm
-   `step` and `cap` (and that the streak counts the current day inclusive).
-7. **(Streak) Does momentum apply to habit XP only?** Recommended **yes** — goals are flat bursts, habits
-   carry the streak. Confirm.
-8. **(Architecture) Total XP: derived-on-read vs stored daily ledger.** The multiplier makes the habit
-   total path-dependent, so a plain `SUM` no longer works. Two options:
-   - **(Recommended for now) Derived on read:** group completed habits by day, walk days chronologically
-     tracking the running streak, apply the multiplier, then add goal rewards. No stored counter to sync;
-     cost is an O(days) walk per read. Fine at personal scale.
-   - **Stored daily XP ledger** (a per-day row of earned XP + streak state), updated on toggle. Faster
-     reads, but adds sync/backfill complexity. Consider only if the derived walk gets slow.
-9. **(Goals) Model fields.** Recommended MVP: `description`, `xp_reward`, `done`, `completed_date`,
-   `user_id` — no deadline/priority/sub-goals yet. Confirm (a deadline could be a fast follow-up).
-10. **(Goals) Repeatable or one-time?** Recommended: **one-time toggle** — completing grants the reward,
-    un-completing removes it; no auto-reset/repeat in v1.
-11. **(Goals) UI placement.** Recommended: a **dedicated Goals page** (nav link + route, like Tasks in
-    0021) with an add-goal form (description + XP-reward input), complete checkbox, edit/delete. Alternative:
-    a section on the habit or stats page.
+## Storage / architecture (stored total + daily ledger)
+- `User.total_xp` (Integer, default 0) — running total; **level is derived from it** via the curve helper
+  (cheap: invert cumulative `cost`).
+- **`DailyXP`** table (new): one row per user per day — `id`, `date`, `xp_earned` (Integer), `streak`
+  (Integer, that day's streak count), `user_id` (FK). Records what each day contributed.
+- **Accrual:** for a given day, `xp_earned` is a pure function of that day's completed habits (× streak),
+  hours worked, and goals completed. When a day's inputs change (habit toggle, stopwatch stop, goal
+  completed on that date), **recompute that day's `DailyXP` row and adjust `User.total_xp` by the delta**.
+  Because the streak is path-dependent, a change to a day's qualifying status **recomputes that day
+  forward** (subsequent days' multipliers/streak may shift). See Risks — this sync is the main complexity
+  of the stored approach.
 
 ## Affected files
 - `backend/src/db.py` —
-  - (Decision 1 = column) add `Habit.xp_weight` (default 10) to `__init__` + `serialize`. **Schema change
-    on an existing table** — see Risks.
-  - **New `Goal` model**: `id`, `description` (String), `xp_reward` (Integer), `done` (Boolean, default
-    False), `completed_date` (Date/DateTime, nullable), `user_id` (FK). `__init__` + `serialize`. **New
-    table** — auto-created by `create_all`, no migration (unlike the column above).
+  - add `Habit.difficulty` (String enum: easy/medium/hard, default `medium`) to `__init__` + `serialize`.
+    **Schema change on `habits`** — see Risks.
+  - add `User.total_xp` (Integer, default 0) to `serialize`. **Schema change on `users`** — see Risks.
+  - **new `Goal` model**: `id`, `description`, `difficulty` (String enum), `done` (Boolean, default
+    False), `completed_date` (Date, nullable), `user_id` (FK). `__init__` + `serialize`. **New table** —
+    auto-created by `create_all`, no migration.
+  - **new `DailyXP` model** (per-user-per-day ledger). **New table** — auto-created, no migration.
 - `backend/src/utils.py` —
-  - pure **level-curve** helper: total XP → `{level, xp_into_level, xp_to_next}`.
-  - pure **streak/momentum** helper: given the per-day base-XP series (chronological) → `{habit_total_xp,
-    current_streak, current_multiplier}`, applying the qualifying rule + multiplier (Decisions 5–7).
-- `backend/src/routes/statistics.py` (or a new `routes/level.py` blueprint under `/api`) — a
-  `@jwt_required()` endpoint returning the user's **total XP** (habits×streak + goals), **level +
-  progress**, and **current streak + multiplier**, all scoped by `user_id`.
-- `backend/src/routes/habits.py` — accept `xp_weight` on create/edit (if Decision 1 = column).
-- `backend/src/routes/goals.py` — **new** blueprint `goal_routes`: list, create, get-one, update (toggle
-  done / edit description+reward), delete — all `@jwt_required()`, `user_id`-scoped,
-  `success_response`/`failure_response`, bodies via `json.loads(request.data)`.
-- `backend/src/app.py` — register `goal_routes` under `/api` (`app.py:63-66`).
-- `frontend/src/Pages/habitpage.jsx` — XP-weight input in the habit add/edit form (if column).
+  - a pure **level-curve helper**: `total_xp → {level, xp_into_level, xp_to_next}` using
+    `cost(L)=round(B·L^p)` with the fixed B/p.
+  - a pure **day-XP helper**: given a day's completed-habit difficulties, hours worked, goals completed,
+    and the running streak → `{xp_earned, streak, multiplier}` (applies the tier XP, per-hour rate,
+    streak rule). Central home for all the fixed XP constants.
+- `backend/src/routes/level.py` (new blueprint under `/api`, or fold into `statistics.py`) — a
+  `@jwt_required()` endpoint returning the user's `total_xp`, derived level + progress, and current
+  streak/multiplier, scoped by `user_id`.
+- `backend/src/routes/habits.py` — accept `difficulty` on create/edit; on any `done` toggle, recompute
+  that day's `DailyXP` + adjust `total_xp` (recompute forward for streak).
+- `backend/src/routes/stopwatch.py` — when a day's worked time changes (stop), recompute that day's
+  `DailyXP` + `total_xp`.
+- `backend/src/routes/goals.py` — **new** blueprint `goal_routes`: list/create/get/update (toggle done /
+  edit description + difficulty)/delete, all `@jwt_required()`, `user_id`-scoped,
+  `success_response`/`failure_response`; on complete/uncomplete, adjust that day's `DailyXP` + `total_xp`.
+- `backend/src/app.py` — register `goal_routes` (and `level.py` if separate) under `/api`.
+- `frontend/src/Pages/habitpage.jsx` — an Easy/Medium/Hard control in the habit add/edit form.
 - `frontend/src/Pages/goalpage.jsx` + `goalpage.css` — **new** Goals page: add-goal form (description +
-  XP-reward), list with complete/edit/delete, all calls via `useFetch`.
-- `frontend/src/App.js` — new protected `/goalpage` route under `RequireAuth` + `Layout` (`App.js:22-28`).
-- `frontend/src/Components/Navbar.jsx` — add a "Goals" nav link (`Navbar.jsx:39-47`).
-- Frontend level display — minimal readout: level + progress + current streak/multiplier (habit or home
-  page); rich UI deferred.
+  Easy/Medium/Hard), list with complete/edit/delete, via `useFetch`.
+- `frontend/src/App.js` — protected `/goalpage` route; `frontend/src/Components/Navbar.jsx` — "Goals" link.
+- `frontend/src/Pages/homepage.jsx` — an **XP bar + level** readout (fed by the level endpoint).
 
 ## Approach
-1. **Layer A (foundation).** Decide weight storage (Decision 1). Add the level-curve helper in `utils.py`
-   (B=20, p=1.3): invert cumulative `cost(L)` to get level from total XP + progress into current level.
-2. **Layer B (streak).** Add the streak/momentum helper in `utils.py` implementing the qualifying rule
-   (Decision 5) and multiplier (Decision 6/7): take completed habits, group by day, walk chronologically
-   tracking the running streak, sum `base_xp(day) × mult(streak)`. Derive `current_streak` /
-   `current_multiplier` from the tail (Decision 8 = derived-on-read).
-3. **Layer C (goals).** Add the `Goal` model (new table — `create_all` auto-creates it, no migration).
-   Build `routes/goals.py` CRUD following the habits conventions; register the blueprint; verify all
-   routes are `user_id`-scoped. Goal XP = `Σ xp_reward where done` (flat).
-4. **Endpoint.** Assemble the XP/level payload: habit total (A×B) + goal total (C) → level via helper;
-   include streak + multiplier. Scope everything by `user_id`.
-5. **Frontend.** Surface `xp_weight` in the habit form (default 10); add the Goals page + nav link +
-   route; add a minimal level/XP/streak readout.
+1. **Model + migrations.** Add `Habit.difficulty` and `User.total_xp` (ALTER TABLE on `habits` / `users`);
+   add `Goal` and `DailyXP` tables (auto-created). Serialize all.
+2. **Helpers (`utils.py`).** The level-curve helper (fixed B/p) and the day-XP helper (tier XP, per-hour
+   rate, streak rule) — the single home for the fixed constants.
+3. **Accrual wiring.** On habit toggle / stopwatch stop / goal complete, recompute the affected day's
+   `DailyXP` (recompute forward for streak) and adjust `User.total_xp` by the delta.
+4. **Endpoint.** Return `total_xp`, derived level + progress, current streak/multiplier, `user_id`-scoped.
+5. **Goals pillar.** `goals.py` CRUD + blueprint + Goals page + nav link + route.
+6. **Home readout.** XP bar + level on the home page.
+7. **Calibration.** A simulation/unit test that runs the dedicated-user profile (3/3/3 habits, 5–6 h/day,
+   sustained streak, goal cadence) day by day and asserts it reaches ~level 100 at ~4–5 years; tune the
+   fixed constants (tier XP, per-hour rate, streak step/cap/threshold, B, p) until it does.
 
 ## Acceptance criteria
-- Each habit has an XP weight (default 10), editable, persisted.
-- A day's habit XP is `Σ xp_weight` of that day's completed habits, **multiplied** by the streak
-  multiplier for that day; the multiplier follows `min(1 + step·(streak−1), cap)` with the agreed
-  step/cap, and **resets after a non-qualifying day**.
-- Goals can be created with a user-set `xp_reward`; completing a goal adds exactly that reward to total XP
-  (flat, not streak-multiplied), and un-completing removes it.
-- An endpoint returns, scoped to the user: total XP (habits×streak + goals), derived level + progress,
-  and current streak + multiplier.
-- The level curve matches `cost(L)=round(B·L^p)` with B=20, p=1.3 (verified against hand computations).
-- Toggling a habit or goal done/undone changes total XP/level consistently (stays correct because
-  derived).
-- No cross-user leakage (habits, goals, and the XP endpoint all `user_id`-scoped).
+- A habit has an Easy/Medium/Hard difficulty (a column), editable and persisted; goals likewise.
+- A day's earned XP = (Σ completed-habit tier XP × streak multiplier) + (hours worked × per-hour rate) +
+  (tier XP of goals completed that day); stored in `DailyXP`, and summed into `User.total_xp`.
+- The streak multiplier follows `min(1 + step·(streak−1), cap)`, applies to habit XP only, and resets
+  after a non-qualifying day.
+- `User.total_xp` and the daily ledger stay consistent when habits/goals are toggled or worked time
+  changes (including editing a past day — recomputed forward).
+- Level is derived from `total_xp` via `cost(L)=round(B·L^p)` with the fixed B/p.
+- The home page shows an XP bar + level; Goals has its own page; XP/goals are `user_id`-scoped (no
+  cross-user leakage).
+- **Calibration:** the dedicated-user simulation reaches ~level 100 in ~4–5 years.
 
 ## Testing / verification
-- **Curve helper:** total XP 0 → level 1; verify the XP thresholds for the first several levels against
-  `round(20·L^1.3)`.
-- **Streak helper (unit):** a run of qualifying days ramps the multiplier and caps at `cap`; a
-  non-qualifying day or gap resets the streak; a known day/weight sequence yields the expected habit
-  total and current streak/multiplier.
-- **Goals:** create goals with known rewards, complete/uncomplete them, and confirm the endpoint's total
-  XP moves by exactly the reward each time.
-- **Integration:** complete/uncomplete habits of known weights across several days and confirm total XP,
-  level, streak, and multiplier update as expected.
-- **Isolation:** a second user can't see the first user's habits, goals, or XP.
+- **Curve helper:** total_xp 0 → level 1; verify thresholds for the first several levels against
+  `round(B·L^p)`.
+- **Day-XP helper:** known habit tiers + hours + goals + streak → expected `xp_earned`, multiplier, and
+  streak; the multiplier ramps and caps; a non-qualifying day resets it.
+- **Accrual sync:** toggling a habit/goal or changing worked time updates `DailyXP` and `total_xp` by the
+  right delta, including editing a past day (streak recomputed forward).
+- **Calibration simulation:** run the dedicated-user profile over ~4–5 years and assert level ≈ 100;
+  assert early levels come quickly and late levels slowly.
+- **Isolation:** a second user can't see the first's habits/goals/XP.
 
 ## Risk
-- **Involvement:** Involved — the largest spec in the queue: an `xp_weight` schema change, a level-curve
-  helper, a streak/momentum helper, a **new `Goal` model + CRUD blueprint + Goals page/nav/route**, an
-  XP/level/streak endpoint, plus habit-form and readout changes.
-- **Review attention:** High — a prod `ALTER TABLE` for `xp_weight`, and the streak makes total XP
-  **path-dependent** (no longer a simple `SUM` — the one genuinely tricky piece); the curve + streak math
-  need unit tests, there are ~11 design decisions to lock, and Goals is a new app pillar. Only the
-  "strength" readout / stat-split stays deferred.
+- **Involvement:** Involved — the largest spec in the queue: two `ALTER TABLE`s (`Habit.difficulty`,
+  `User.total_xp`), two new tables (`Goal`, `DailyXP`), two `utils.py` helpers, an XP/level endpoint,
+  accrual wiring across the habit/stopwatch/goal routes, a new Goals page/nav/route, a habit-form control,
+  and a home-page XP bar.
+- **Review attention:** High — two prod migrations; the **stored total + daily ledger must stay in sync**
+  on every toggle/stop/goal (and on past-day edits, with the streak recomputed forward) — this is the
+  central risk of the stored approach; plus the **calibration** (fixed constants tuned by simulation to the
+  4–5-year target). Needs unit tests for the helpers and the calibration.
 
 ## Risks & notes
-- **SQLite migration for `Habit.xp_weight`** (no Alembic; `create_all` won't alter `habits`) — `ALTER
-  TABLE` + backfill existing rows to the default weight. The **`Goal` table needs no migration** —
-  `create_all` creates brand-new tables automatically on boot (same as `Task` in spec 0021).
-- **Streak makes the habit total path-dependent (main new complexity).** Because the multiplier depends
-  on the running streak, total XP is **no longer a single `SUM`** — the endpoint must group completed
-  habits by day and walk chronologically. Derived-on-read (Decision 8) keeps everything in sync with no
-  backfill, at the cost of an O(days) walk per read; if that ever gets slow, switch to a stored daily
-  ledger. Flagging this because it's the one part that isn't a trivial query.
-- **Un-toggling stays correct automatically** if XP is derived — no counters to reconcile on
-  toggle/delete for either habits or goals.
-- **Streak feel is tunable** — the qualifying threshold and step/cap set how punishing/rewarding momentum
-  is; expect to adjust the defaults after using it.
-- **Scope discipline:** this spec is model + curve + accrual + streak + goals. The **"strength" readout**
-  and any **physical/intellect/vitality split** remain deferred — they're presentation/analytics over this
-  same pool and don't change the model.
-- Per-day habit rows mean a habit completed on many days pays out each day — intended; the streak
-  multiplier then scales each qualifying day on top of that.
+- **Two SQLite migrations** (no Alembic): `ALTER TABLE habits ADD COLUMN difficulty VARCHAR NOT NULL
+  DEFAULT 'medium'` and `ALTER TABLE users ADD COLUMN total_xp INTEGER NOT NULL DEFAULT 0`. `Goal` and
+  `DailyXP` are brand-new tables (`create_all` makes them, no migration). Spell out the ALTERs in the PR.
+- **Stored-vs-derived tradeoff (the main complexity).** Storing `total_xp` + the daily ledger gives fast
+  reads and a per-day history, but every input change must keep them in sync — and because the streak is
+  path-dependent, a change to a past day's qualifying status recomputes that day **forward**. Keep the
+  day-XP computation a pure function so recompute-and-diff is straightforward; add tests for past-day edits.
+- **Difficulty stored as a tier label** (not a raw XP number) so the fixed XP values can be re-tuned during
+  calibration without migrating rows; already-finalized `DailyXP` amounts stay as earned (past is locked,
+  future uses the new mapping).
+- **All balancing constants are fixed in code** (tier XP, per-hour rate, streak step/cap/threshold, B, p) —
+  users only pick per-item difficulty, never how fast they level. Tune constants only via the calibration
+  simulation.
+- **No strength/vitality split and no repeating goals** — single pool, single level, one-time goals; these
+  are deliberately excluded (not merely deferred).
+- Per-day habit rows mean a daily habit pays out each day; the streak then scales each qualifying day.
