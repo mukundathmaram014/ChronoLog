@@ -14,42 +14,42 @@ Two related additions to creating stopwatches:
 - The add-stopwatch form in `frontend/src/Pages/stopwatchpage.jsx` is free-text only.
 - Stopwatch model (`backend/src/db.py:62-109`) has no recurrence flag.
 
-## ⚠️ Decision needed
-1. **Does "recurring" change carry-forward semantics?** This is the core decision.
-   - **(Recommended) Yes:** only stopwatches marked recurring carry forward to future days;
-     non-recurring ones are one-off for their day. This makes the flag meaningful but **changes existing
-     behavior** (today everything carries forward) and must be reconciled with the DeletedDay logic.
-   - Alternative: recurrence is metadata only (everything still carries forward as now) — lower value,
-     basically just a label.
-2. **Dropdown source.** Recommended: distinct stopwatch titles previously created by this user
-   (optionally only those marked recurring), most-recent first. Selecting one prefills title + goal.
-   Confirm whether it's all past titles or recurring-only.
-3. **Default for new stopwatches:** recurring on or off by default? (Recommended: on, to match today's
-   "everything recurs" behavior and avoid surprising existing users.)
+## Decisions (made)
+1. **Recurring drives carry-forward.** Only stopwatches marked **recurring** carry forward to future
+   days; non-recurring ones are **one-off** for their day. This changes today's "everything carries
+   forward" behavior and must be reconciled with the DeletedDay logic (see Risks).
+2. **Dropdown source:** the user's **distinct stopwatch titles previously created** (all of them, not
+   just recurring ones), most-recent first; selecting one prefills title + goal.
+3. **Default for new stopwatches: recurring ON** — matches today's "everything recurs" behavior and
+   avoids surprising existing users.
 
 ## Affected files
 - `backend/src/db.py` — add `is_recurring` boolean to `Stopwatch`; update `__init__` + `serialize`.
   **Schema change** — see Risks.
-- `backend/src/routes/stopwatch.py` — accept `is_recurring` on create/edit; if Decision 1 = yes, gate
-  carry-forward (`get_stopwatches` / `create_stopwatch_for_date`) on `is_recurring`, preserving the
-  Total and the DeletedDay "intentionally emptied" behavior and the duplicate guard.
-- (Maybe) `backend/src/routes/stopwatch.py` — a small endpoint returning the user's distinct prior
-  stopwatch titles (+ goal) for the dropdown, scoped by `user_id`.
+- `backend/src/routes/stopwatch.py` — accept `is_recurring` on create/edit; gate carry-forward
+  (`get_stopwatches` / `create_stopwatch_for_date`) on `is_recurring` so only recurring stopwatches
+  propagate, preserving the Total, the DeletedDay "intentionally emptied" behavior, and the duplicate
+  guard.
+- `backend/src/routes/stopwatch.py` — a small endpoint returning the user's distinct prior stopwatch
+  titles (+ goal) for the dropdown, scoped by `user_id`, most-recent first.
 - `frontend/src/Pages/stopwatchpage.jsx` — add-stopwatch form: a "recurring" toggle and a
   "reuse previous" dropdown that prefills the form.
 
 ## Approach
-1. Add `is_recurring` to the model + serialize (default per Decision 3).
+1. Add `is_recurring` (boolean, **default True**) to the model + `serialize`.
 2. Create/edit routes accept and store it.
-3. If Decision 1 = yes: in carry-forward, only propagate recurring non-Total stopwatches; keep Total
-   creation and DeletedDay handling intact; keep the duplicate-title guard.
-4. Add the reuse dropdown (and its data source) and the recurring toggle to the add form.
+3. In carry-forward, only propagate recurring non-Total stopwatches; non-recurring stay one-off. Keep
+   Total creation and DeletedDay handling intact; keep the duplicate-title guard.
+4. Add the "reuse previous" dropdown (fed by the distinct-prior-titles endpoint) and the recurring
+   toggle (default on) to the add form; picking a prior title prefills title + goal.
 
 ## Acceptance criteria
-- A stopwatch can be marked recurring at creation (and edited); the flag persists.
-- (If Decision 1 = yes) Only recurring stopwatches appear on future days; non-recurring stay one-off;
-  intentionally-deleted days remain empty; no duplicate Totals.
-- The add form offers prior stopwatches and prefills title/goal when one is picked.
+- A stopwatch can be marked recurring at creation (and edited); the flag persists; new stopwatches
+  default to recurring.
+- Only recurring stopwatches appear on future days; non-recurring stay one-off; intentionally-deleted
+  days remain empty; no duplicate Totals.
+- The add form offers the user's prior distinct stopwatch titles and prefills title/goal when one is
+  picked.
 
 ## Testing / verification
 - Create recurring vs non-recurring stopwatches, advance to a future day, confirm only recurring ones
@@ -59,7 +59,7 @@ Two related additions to creating stopwatches:
 
 ## Risk
 - **Involvement:** Involved — schema change, carry-forward gating, a new dropdown-source endpoint, and add-form changes.
-- **Review attention:** High — changes today's "everything carries forward" behavior, tangles with DeletedDay/backfill, and needs a prod migration; lock the core decision and add tests.
+- **Review attention:** High — changes today's "everything carries forward" behavior, tangles with DeletedDay/backfill, and needs a prod migration; add focused carry-forward tests (recurring vs one-off, deleted day, Total).
 
 ## Risks & notes
 - **SQLite migration** (no Alembic; `create_all` won't alter `stopwatches`): adding `is_recurring` needs
