@@ -170,8 +170,13 @@ done — intended.
 - **Isolation:** a second user can't see the first user's habits, goals, or XP.
 
 ## Risk
-- **Involvement:** Involved — schema (`xp_weight`), a level-curve helper, a new XP/level endpoint, a habit-form input, and a minimal readout.
-- **Review attention:** High — prod migration, curve math needs unit tests, several design decisions, and strict scope discipline (defer momentum/achievements/strength).
+- **Involvement:** Involved — the largest spec in the queue: an `xp_weight` schema change, a level-curve
+  helper, a streak/momentum helper, a **new `Goal` model + CRUD blueprint + Goals page/nav/route**, an
+  XP/level/streak endpoint, plus habit-form and readout changes.
+- **Review attention:** High — a prod `ALTER TABLE` for `xp_weight`, and the streak makes total XP
+  **path-dependent** (no longer a simple `SUM` — the one genuinely tricky piece); the curve + streak math
+  need unit tests, there are ~11 design decisions to lock, and Goals is a new app pillar. Only the
+  "strength" readout / stat-split stays deferred.
 
 ## Risks & notes
 - **SQLite migration for `Habit.xp_weight`** (no Alembic; `create_all` won't alter `habits`) — `ALTER
