@@ -13,18 +13,16 @@ habits/stopwatches/stats, so the app is explorable before sign-up.
   refresh-cookie flow on mount.
 - Because everything is per-user and server-persisted, "guest" needs a clear data story.
 
-## ⚠️ Decision needed — this drives the whole design
-1. **Where does guest data live?**
-   - **(Recommended) Ephemeral backend guest user:** create a throwaway `User` + tokens on "use as
-     guest", real backend behavior, and expire/clean it up later (TTL job or on logout). Most faithful;
-     cost is user lifecycle + cleanup.
-   - **Frontend-only/local:** guest data stays in `localStorage`, no backend writes. No server cost, but
-     duplicates all data logic on the client and diverges from the real app — large and fragile. Not
-     recommended.
-   - **Single shared demo account:** simplest, but all guests share/clobber the same data — poor UX.
-2. **Conversion.** If a guest later signs up, do we migrate their guest data to the new account?
-   Recommended: not in v1 (note as a follow-up).
-3. **Limits/expiry.** TTL for guest accounts/data (e.g. purge after N days), and any feature limits.
+## Decisions (made)
+1. **Ephemeral backend guest user.** "Use as guest" provisions a throwaway `User` (+ access/refresh
+   tokens) so guests get the real backend behavior via normal `user_id` scoping; the account and its
+   data are cleaned up later. (The frontend-only/localStorage and single-shared-demo options were
+   rejected — the former duplicates all data logic and diverges from the real app; the latter lets
+   guests clobber each other.)
+2. **No conversion in v1.** If a guest later signs up, their guest data is **not** migrated to the new
+   account (noted as a possible follow-up).
+3. **Expiry/cleanup:** guests and all their data are **purged on a TTL** — default ~7 days (adjustable);
+   no special feature limits beyond that. Cleanup is mandatory (see Risks), not optional.
 
 ## Affected files
 - `backend/src/routes/users.py` — a guest entry endpoint (e.g. `/guest`) that provisions a guest `User`
@@ -37,16 +35,16 @@ habits/stopwatches/stats, so the app is explorable before sign-up.
   gate; surface guest state (e.g. a banner / "sign up to keep your data").
 
 ## Approach
-1. Decide the data model (Decision 1) — recommended ephemeral guest user.
-2. Backend: `/guest` provisions a guest user + tokens; everything else (habits/stopwatch/stats) works
-   unchanged via normal `user_id` scoping.
-3. Frontend: "Use as guest" enters an authed-but-guest session; show guest status and a sign-up nudge.
-4. Add cleanup/TTL for guest data (Decision 3).
+1. Backend: a `/guest` endpoint provisions an ephemeral guest `User` (marked `is_guest`) + access/refresh
+   tokens; everything else (habits/stopwatch/stats) works unchanged via normal `user_id` scoping.
+2. Frontend: "Use as guest" enters an authed-but-guest session; show guest status and a sign-up nudge.
+3. Add the TTL purge for guest accounts + their data (~7 days), covering habits, stopwatches,
+   deleted-days, and tokens.
 
 ## Acceptance criteria
 - A visitor can enter the app as a guest and use habits/stopwatches/stats without registering.
 - Guest data is isolated per guest session (no clobbering between guests / real users).
-- Guests are identifiable and their data is cleaned up per the chosen TTL.
+- Guests are identifiable (`is_guest`) and their data is cleaned up per the TTL (~7 days).
 
 ## Testing / verification
 - "Use as guest" → land in the app authed; create habits/stopwatches; confirm they persist for the

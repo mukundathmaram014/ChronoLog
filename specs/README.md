@@ -25,3 +25,4 @@ Layout:
 - `specs/*.md` — pending specs (your review/build queue).
 - `specs/implemented/*.md` — specs whose PR has merged (done; kept for the record).
 - `specs/triage.md` — scratch accept/reject worklist, not a permanent spec.
+- `specs/ideas.md` — parking lot of future ideas not yet promoted to a numbered spec.
