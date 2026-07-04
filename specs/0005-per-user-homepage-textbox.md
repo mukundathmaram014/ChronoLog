@@ -18,7 +18,7 @@ just an editable note on the front page.
 - Out of scope / non-goals: no rotating/generated quotes, no bundled quote list, no external quote API;
   no rich-text/formatting; no change to the habit/stopwatch cards.
 
-## Decision (made) — persist in a backend `User` field
+## Decisions (made)
 The text persists in a **backend field on `User`** (a nullable `homepage_note` column) exposed via a
 small `@jwt_required()` GET/PUT route and saved through `useFetch`. This keeps the note per-user and
 device-independent, consistent with the rest of the app (every other piece of data is per-user,

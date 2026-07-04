@@ -33,18 +33,15 @@ At the midnight boundary (D → D+1), for the running (non-Total) stopwatch:
   is finalized on its day by spec **0008** — there's no auto-continue onto the next day); manually
   switching `selectedDate` should still stop the running stopwatch (unchanged).
 
-## ⚠️ Decisions needed
-1. **Does the view follow to the new day?** Recommended: **yes** — advance `selectedDate` to the new
-   `today` so the user sees the freshly-running 0:00 timer. (Alternative: keep the view on D showing the
-   finalized time — but then the actually-running timer is on a day you're not looking at, which is
-   confusing.)
-2. **Orchestration: frontend vs backend.** Recommended: **frontend** at the existing midnight timeout —
-   stop the running stopwatch, let D+1's carry-forward create the fresh row, then start the matching
-   one. The timeout already fires at ~00:00, so the split is near-exact and no backend change is needed.
-   Alternative: a backend "rollover/split" endpoint for exact-midnight atomicity (only if the ~sub-second
-   boundary matters).
-3. **Total stopwatch.** Recommended: finalize D's Total and start D+1's Total in tandem with the child,
-   so the aggregate splits the same way. Confirm.
+## Decisions (made)
+1. **The view follows to the new day:** advance `selectedDate` to the new `today` at rollover, so the
+   user sees the freshly-running 0:00 timer (rather than leaving the view on the finalized old day).
+2. **Frontend-orchestrated** at the existing midnight timeout — stop the running stopwatch, let D+1's
+   carry-forward create the fresh row, then start the matching one. The timeout already fires at ~00:00,
+   so the split is near-exact and **no backend change is needed** (a backend rollover/split endpoint is
+   the fallback only if exact-midnight atomicity ever matters).
+3. **Total stopwatch splits in tandem:** finalize D's Total and start D+1's Total alongside the child, so
+   the aggregate rolls over the same way.
 
 ## Affected files
 - `frontend/src/Pages/stopwatchpage.jsx` — the midnight timeout handler: instead of the data effect
@@ -52,10 +49,11 @@ At the midnight boundary (D → D+1), for the running (non-Total) stopwatch:
   (b) advance `selectedDate` to the new `today`, (c) after D+1's stopwatches load (carry-forward creates
   them fresh at 0), **auto-start** the one matching the previously-running stopwatch and set `runningId`
   (focus). Also fix the two `getDay`→`getDate` bugs noted below.
-- (Only if Decision 2 = backend) `backend/src/routes/stopwatch.py` — a small split/rollover endpoint for
-  exact-midnight precision; otherwise no backend change (reuses existing stop / carry-forward / start).
+- `backend/src/routes/stopwatch.py` — **no change needed** for the chosen frontend approach (it reuses
+  the existing stop / carry-forward / start). A small backend split/rollover endpoint is only a fallback
+  if exact-midnight atomicity ever proves necessary.
 
-## Approach (recommended, frontend-orchestrated)
+## Approach
 1. Keep the midnight timeout that advances `today`, but stop letting the `[selectedDate, today, ...]`
    effect call `stopRunning()` purely because `today` changed (that's the current teardown bug).
 2. In the timeout handler, if a non-Total stopwatch is running: call `stop` on it (day D now holds its
@@ -63,7 +61,7 @@ At the midnight boundary (D → D+1), for the running (non-Total) stopwatch:
 3. When D+1's list loads (carry-forward creates the matching stopwatch fresh at `curr_duration = 0`),
    find it by title and call `start`, and set `runningId` to it so it's focused and ticking from 0.
 4. If nothing is running at midnight, just advance `today`/`selectedDate` as usual — no stop/start.
-5. Keep the Total consistent across the hand-off (Decision 3).
+5. Keep the Total consistent across the hand-off (finalize D's Total, start D+1's Total in tandem).
 
 ## Acceptance criteria
 - A stopwatch running at 23:59 is still running at 00:01 **without the user restarting it**; at 00:00 its

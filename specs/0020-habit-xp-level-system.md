@@ -11,7 +11,7 @@ dedicated user reaches ~level 100 (a "theoretical peak") in ~4–5 years.
 Explicitly **not** in scope (and not planned): the "strength" readout and any physical/intellect/
 vitality stat split — a single XP pool / single level only.
 
-## Design decisions (locked)
+## Decisions (made)
 - **Per-habit XP = a difficulty tier on the `Habit` row** (a column). The user picks **Easy / Medium /
   Hard** when creating/editing a habit (discrete choice — a 3-way toggle/segmented control; a slider is
   an optional UI flourish). Each tier maps to a fixed XP value.

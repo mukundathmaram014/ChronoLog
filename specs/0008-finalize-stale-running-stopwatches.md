@@ -18,7 +18,7 @@ finalized so they stop accumulating.
   today; (b) frontend only accrues live time for stopwatches on the currently-selected day.
 - Out of scope / non-goals: the live midnight rollover (tab open) is spec 0007; no schema change.
 
-## Decision (made) — freeze it
+## Decisions (made)
 When finalizing a stale running stopwatch, **freeze it**: set `end_time = interval_start` so
 `curr_duration` is left unchanged — no bogus overnight time is added. This is the simple option and
 avoids inflating stats. (The considered alternative — crediting up to end-of-its-day — was rejected as

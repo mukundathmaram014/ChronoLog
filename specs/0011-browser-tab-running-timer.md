@@ -18,7 +18,7 @@ tab) so it's visible while you work in another tab, and restore the normal title
 - Out of scope / non-goals: no backend change; no change to the elapsed-time calc (stays frontend per
   CLAUDE.md); no notifications/favicon work.
 
-## Decision (made)
+## Decisions (made)
 1. **Title format:** the **most minimal** — just the elapsed time, `00:12:34` (no glyph, no stopwatch
    title). Format isn't important here, so keep it as small as possible.
 2. **Where it applies:** only **while on the stopwatch page** (simplest, reuses the existing per-second

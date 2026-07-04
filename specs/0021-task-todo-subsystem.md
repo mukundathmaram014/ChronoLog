@@ -10,7 +10,7 @@ Scope now includes (expanded from the original MVP): **sub-tasks** and **periodi
 tasks**. **Parked in `specs/ideas.md` for a later spec:** a task dependency graph + tree visualization
 and scheduling algorithms (EDF etc.).
 
-## Design decisions (locked)
+## Decisions (made)
 1. **Overdue roll-forward.** An incomplete task with `date <= today` stays visible as **overdue** until
    completed or deleted (it keeps its original `date`; the "due" view always surfaces it).
 2. **Dedicated Tasks page** showing **Overdue / Today / Upcoming**, grouped by date (a nav tab + route).
