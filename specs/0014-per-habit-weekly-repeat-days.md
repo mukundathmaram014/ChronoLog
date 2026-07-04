@@ -14,29 +14,31 @@ shouldn't appear.
 - Add/edit habit UI lives in `frontend/src/Pages/habitpage.jsx`; the row renders via
   `frontend/src/Components/HabitItem.jsx`.
 
-## ⚠️ Decision needed
-1. **Representation of repeat days.** Recommended: a 7-bit set stored as a small string/int (e.g. CSV
-   `"0,2,4"` of `date.weekday()` indices, or a 7-char bitmask). Confirm the encoding.
-2. **Carry-forward semantics.** Recommended: on opening a day, a habit is present iff that day's weekday
-   is in its repeat set (default = all 7 days, matching today's behavior). Must keep the DeletedDay
-   behavior and the duplicate guard. Confirm.
-3. **Editing applies forward only?** Recommended: changing a habit's repeat days affects future
-   carry-forward, not already-created past rows. Confirm.
+## Decisions (made)
+1. **Representation: a 7-bit bitmask** stored as an integer `repeat_days`, one bit per weekday
+   (`date.weekday()`, 0 = Mon … 6 = Sun); bit set = repeats that day. Default `127` (`0b1111111`, all
+   seven days = today's behavior). Membership test: `repeat_days & (1 << target_weekday)`.
+2. **Carry-forward semantics:** on opening a day, a habit is present **iff** that day's weekday bit is
+   set in its `repeat_days`. Keep the DeletedDay "intentionally emptied" behavior and the duplicate
+   guard intact.
+3. **Editing applies forward only:** changing a habit's repeat days affects **future** carry-forward
+   only — already-created past rows are left untouched.
 
 ## Affected files
-- `backend/src/db.py` — add `repeat_days` to `Habit` (per Decision 1); `__init__` + `serialize`.
-  **Schema change** — see Risks.
+- `backend/src/db.py` — add `repeat_days` (Integer, 7-bit bitmask, default `127`) to `Habit`;
+  `__init__` + `serialize`. **Schema change** — see Risks.
 - `backend/src/routes/habits.py` — create/edit accept `repeat_days`; carry-forward only creates the
   habit when the target day's weekday is in its set; preserve DeletedDay + duplicate guard.
 - `frontend/src/Pages/habitpage.jsx` — add/edit form: a weekday picker (7 toggles); send `repeat_days`.
 - (Maybe) `frontend/src/Components/HabitItem.jsx` — optional small indicator of repeat days.
 
 ## Approach
-1. Add `repeat_days` to the model (default = all days) + serialize.
-2. Create/edit routes parse and store the set.
-3. In carry-forward, compute the target day's `weekday()` and only create habits whose set includes it;
-   keep Total-less habit logic, DeletedDay, and duplicate-title guard intact.
-4. Add the weekday toggle UI to the habit add/edit form.
+1. Add `repeat_days` (Integer bitmask, default `127` = all days) to the model + `serialize`.
+2. Create/edit routes parse the 7 weekday toggles into the bitmask and store it (edits apply forward
+   only — don't rewrite past rows).
+3. In carry-forward, compute the target day's `weekday()` and only create a habit when its bit is set
+   (`repeat_days & (1 << weekday)`); keep DeletedDay and the duplicate-title guard intact.
+4. Add the weekday toggle UI (7 checkboxes) to the habit add/edit form, reading/writing the bitmask.
 
 ## Acceptance criteria
 - A habit can be created/edited with a chosen set of weekdays; the set persists.
@@ -51,10 +53,11 @@ shouldn't appear.
 
 ## Risk
 - **Involvement:** Involved — schema change (`repeat_days`), weekday-gated carry-forward, and a weekday-picker UI.
-- **Review attention:** High — alters carry-forward semantics + prod migration + an encoding decision; carry-forward is easy to regress, so add tests.
+- **Review attention:** High — alters carry-forward semantics + prod migration; carry-forward is easy to regress, so add tests (all-days default, a weekday subset, deleted day, multi-day gap).
 
 ## Risks & notes
-- **SQLite migration** (no Alembic; `create_all` won't alter `habits`): adding `repeat_days` needs an
-  `ALTER TABLE`/backfill defaulting existing rows to all-days (= current behavior).
+- **SQLite migration** (no Alembic; `create_all` won't alter `habits`): add `repeat_days` with a one-off
+  `ALTER TABLE habits ADD COLUMN repeat_days INTEGER NOT NULL DEFAULT 127` so existing rows default to
+  all-days (= current behavior). Call out the exact statement in the PR.
 - Carry-forward is easy to regress; add tests for: all-days default, a subset, a deleted day, and a
   multi-day gap.
