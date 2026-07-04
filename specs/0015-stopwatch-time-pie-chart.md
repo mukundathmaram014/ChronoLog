@@ -14,44 +14,52 @@ glance.
 - The stats endpoints return only aggregates (total/average/goal), not a per-stopwatch breakdown
   (`backend/src/routes/statistics.py`).
 
-## ⚠️ Decision needed
-1. **Where it lives.** Recommended: the statistics page (alongside the existing Total ring). Alternative:
-   the stopwatch page under the Total. Pick one.
-2. **Charting approach.** Recommended: hand-rolled SVG pie (consistent with the existing SVG rings, no
-   new dependency). Alternative: add a lib (e.g. `recharts`) — faster to build legends/tooltips but adds
-   a dependency. Pick one.
-3. **Data window.** Just the selected day, or the selected period (ties into 0016/0017)? Recommended:
-   start with the selected day's stopwatches; generalize to period if 0016/0017 land.
+## Decisions (made)
+1. **Lives on the statistics page**, alongside the existing Total ring.
+2. **Hand-rolled SVG pie** (consistent with the existing SVG rings) — no charting library / new
+   dependency.
+3. **Data window follows the selected statistics period.** The pie reflects whatever period is selected:
+   a day → the day's split, a week → the week's split, likewise month/year. So it needs per-stopwatch
+   **durations aggregated over the selected period**, not just the selected day — which couples this with
+   0017 (period item set) and 0016 (per-item stats). See Affected files / Risks.
 
 ## Affected files
-- `frontend/src/Pages/statisticspage.jsx` (or `stopwatchpage.jsx` per Decision 1) — a pie chart
-  component + legend, fed by per-stopwatch durations.
-- (Maybe) `backend/src/routes/statistics.py` — if a per-stopwatch breakdown over a period is needed, add
-  it (return a list of `{title, duration}`); for the single-day case the frontend can use the already-
-  fetched stopwatches.
-- (If Decision 2 = lib) `frontend/package.json`.
+- `backend/src/routes/statistics.py` — a per-stopwatch breakdown **over the selected period**
+  (day/week/month/year): return a list of `{title, duration}` for the period, scoped by `user_id`,
+  reusing the existing period loops. (Required now that the window follows the period — the single-day
+  case could reuse the already-fetched stopwatches, but week/month/year needs this aggregate. Share it
+  with 0016/0017 rather than duplicating it.)
+- `frontend/src/Pages/statisticspage.jsx` — a hand-rolled SVG pie component + legend, fed by that
+  per-stopwatch period breakdown; keyed on the selected date + period.
 
 ## Approach
-1. Gather per-stopwatch durations for the chosen window (reuse the day's fetched stopwatches, excluding
-   the Total; or a new endpoint for a period).
-2. Render slices proportional to each stopwatch's share of the total; show a legend with title + time +
-   percentage; reuse the existing color treatment where sensible.
-3. Handle the empty/zero-total case (no time logged) gracefully.
+1. Add the per-stopwatch period breakdown to `statistics.py` (list of `{title, duration}` over the
+   selected period, excluding the Total), scoped by `user_id`, reusing the existing period aggregation.
+2. On the statistics page, fetch that breakdown for the current date + period and render a hand-rolled
+   SVG pie: slices proportional to each stopwatch's share of the total, plus a legend with title + time
+   + percentage; reuse the existing SVG color treatment.
+3. Handle the empty/zero-total case (no time logged) gracefully; the pie updates when the period changes.
 
 ## Acceptance criteria
-- The selected window's time is shown as a pie split per stopwatch, slices summing to the total.
+- The selected period's time (day/week/month/year) is shown as a pie split per stopwatch, slices
+  summing to the period total; changing the period updates the pie accordingly.
 - A legend maps slices to stopwatch titles with their time/percentage.
 - Zero-time and single-stopwatch cases render without error.
 
 ## Testing / verification
-- A day with several stopwatches shows proportional slices that sum to the Total.
-- A day with no logged time shows an empty/placeholder state.
+- A day with several stopwatches shows proportional slices that sum to the day's Total; switch to
+  week/month and confirm the slices re-aggregate over that period.
+- A period with no logged time shows an empty/placeholder state.
 
 ## Risk
-- **Involvement:** Moderate — mainly a new frontend pie/legend component; optionally a period-breakdown endpoint or a charting lib.
-- **Review attention:** Medium — additive and visual (no schema), but confirm the SVG-vs-library and placement/data-window decisions.
+- **Involvement:** Moderate — a new frontend SVG pie/legend component **plus** a per-stopwatch
+  period-breakdown endpoint in `statistics.py` (the period window makes the backend part required).
+- **Review attention:** Medium — additive and visual (no schema, no new dependency), but it's now coupled
+  with 0016/0017; ideally share one period-breakdown source across the three rather than duplicating it.
 
 ## Risks & notes
 - Exclude the Total stopwatch from the slices (it's the sum, not a slice).
-- Keep it consistent with the existing SVG style if hand-rolling; if adding a lib, justify it in the PR
-  per the working agreement.
+- Keep it consistent with the existing SVG style (hand-rolled, no charting dependency).
+- Coupled with 0016/0017 via the period breakdown — build them as a cluster (one `statistics.py`
+  period-breakdown source feeding the pie, the per-item stats, and the period item list) instead of
+  three separate queries.
