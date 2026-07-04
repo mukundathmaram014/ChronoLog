@@ -81,9 +81,13 @@ specs/                # implementation specs (see specs/README.md)
   feature, removes a recurring source of bugs). Don't refactor opportunistically or for its own sake —
   if a task implies broad restructuring, call it out and justify the value in the spec/PR rather than
   doing it silently or avoiding it on principle.
-- One task = one branch = one PR. Keep diffs small and reviewable.
+- One task = one branch = one PR for **code changes** — keep diffs small and reviewable.
 - Follow the spec in `specs/` for the task; if reality diverges from the spec, note it in the PR.
-- `main` is the deployed/stable branch. Never commit directly to it — always branch.
+- `main` is the deployed/stable branch. **Never commit code directly to it — always branch + PR.**
+  *Exception:* **spec / docs / README-only changes** — files under `specs/`, `docs/`, `.claude/`, and
+  top-level Markdown like `README.md` / `CLAUDE.md` (i.e. nothing under `backend/` or `frontend/`) —
+  may be committed straight to `main`, since they don't touch the deployed app. If a change touches any
+  code, or you're unsure, branch.
 - **No personal data in committed files.** `specs/`, `docs/`, code comments, and commit messages are
   public (this repo is on public GitHub). When a spec is derived from the author's private notes (the
   Obsidian "brain" — see `/triage`, `/spec`), **never transcribe personal specifics** into a committed
