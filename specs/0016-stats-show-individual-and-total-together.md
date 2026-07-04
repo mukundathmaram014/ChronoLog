@@ -12,31 +12,30 @@ individual habit/stopwatch alongside the total, all on one page**.
 - The dropdown currently lists only the **selected day's** items (this is also what 0017 wants to
   broaden to the period).
 
-## ⚠️ Decision needed
-1. **Per-item fan-out: backend or frontend?**
-   - **(Recommended) Backend "all" mode:** add an option to the stats endpoints that returns a list of
-     per-item results plus the total in one response. Fewer round-trips, cleaner.
-   - Alternative: frontend loops and calls the existing single-item endpoint once per item. No backend
-     change but N requests.
-2. **Layout.** Recommended: the Total/aggregate at top (existing ring), then a list/grid of per-item
-   cards below. Confirm.
-3. **Which items are listed.** The selected day's items, or all items in the selected period? This is
-   the overlap with **0017** — recommended to decide 0016 and 0017 together so "individual + total" and
-   "period-driven data" are consistent.
+## Decisions (made)
+1. **Backend "all" mode.** A single `@jwt_required()` response returns the **total plus a list of
+   per-item stats** for the selected date + period — one round-trip, no N-calls fan-out from the
+   frontend.
+2. **Layout:** the Total/aggregate at top (existing ring), then a list/grid of per-item cards below.
+3. **Items = all items in the selected period** (not just the selected day), matching **0017**. This
+   combined view is built together with 0017 (period item set) and shares the same period-aware source
+   as **0015** (the pie) — see the shared-source note in Affected files / Risks.
 
 ## Affected files
-- `backend/src/routes/statistics.py` — (if Decision 1 = backend) an "all items" mode returning
-  per-item stats + the total, scoped by `user_id`, reusing the existing period loops.
+- `backend/src/routes/statistics.py` — an "all items" mode returning `{ total, items: [...] }` for the
+  selected date + period, scoped by `user_id`, reusing the existing period loops. **Build this as the
+  one shared period-aware source** that also feeds 0017 (the period item set) and 0015 (the
+  per-stopwatch duration breakdown) — don't add three separate queries.
 - `frontend/src/Pages/statisticspage.jsx` — render the total plus a per-item list; a dropdown/toggle to
   switch into this combined view.
 - `frontend/src/Pages/statisticspage.css` — layout for the per-item list.
 
 ## Approach
-1. Decide fan-out location (Decision 1).
-2. Backend (if chosen): return `{ total: {...}, items: [{name, ...stats}, ...] }` for the period,
-   reusing existing per-period aggregation.
-3. Frontend: a combined view showing the Total readout (ring) and each item's stats together; keep the
-   existing single-select view available or fold it in.
+1. Backend: add the "all items" mode returning `{ total: {...}, items: [{name, ...stats}, ...] }` for the
+   selected date + period, reusing the existing per-period aggregation — the shared source for 0015/0017.
+2. Frontend: a combined view showing the Total readout (ring) at top and each item's stats below; keep
+   the existing single-select view available or fold it in.
+3. Drive the item list from the period item set (0017) so period ≠ day shows every item in the period.
 
 ## Acceptance criteria
 - One page shows the aggregate plus every individual habit/stopwatch's stats for the chosen window.
@@ -50,10 +49,11 @@ individual habit/stopwatch alongside the total, all on one page**.
 
 ## Risk
 - **Involvement:** Moderate — a backend "all items" mode (new response shape) plus per-item frontend rendering + CSS.
-- **Review attention:** Medium — no schema, but coupled with 0017 and a fan-out (backend vs N frontend calls) decision to review; watch performance.
+- **Review attention:** Medium — no schema, but part of the 0015/0016/0017 cluster (share one period-aware source); watch performance (one request, not N).
 
 ## Risks & notes
-- Strongly coupled with **0017** (period-driven data) and related to **0015** (the pie is a natural
-  visualization of the per-stopwatch breakdown). Sequence/group these in build planning.
-- Watch the "which items exist in the period vs just today" question — it determines what the list
-  iterates over.
+- Part of the **0015/0016/0017 cluster** — build them together with **one** period-aware `statistics.py`
+  source (total + per-item stats + per-stopwatch breakdown + distinct period items) rather than three
+  separate queries.
+- The item list iterates over the period's items (from 0017), not just today's — that's the resolved
+  behavior.
