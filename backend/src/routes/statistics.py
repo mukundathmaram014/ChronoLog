@@ -174,5 +174,45 @@ def get_stopwatchs_stats(date_string, time_period):
     return success_response({"total_time_worked" : total_time_worked, "average_time_worked_per_day" : average_time_worked_per_day, "total_goal_time" : total_goal_time})
 
 
+@statistic_routes.route("/stats/stopwatches/breakdown/<string:date_string>/<string:time_period>/")
+@jwt_required()
+def get_stopwatches_breakdown(date_string, time_period):
+    """
+    Endpoint for getting the per-stopwatch time breakdown over a period.
+    Returns a list of {title, duration} (milliseconds), excluding the Total stopwatch.
+    Shared source for the pie chart / per-item period stats (specs 0015/0016/0017).
+    """
+
+    user_id = int(get_jwt_identity())
+    requested_date = date.fromisoformat(date_string)
+
+    if (time_period == "day"):
+        start_day = requested_date
+        num_days = 1
+    elif (time_period == "week"):
+        start_day = requested_date - timedelta(days = requested_date.weekday())
+        num_days = 7
+    elif (time_period == "month"):
+        start_day = requested_date.replace(day = 1)
+        num_days = calendar.monthrange(requested_date.year, requested_date.month)[1]
+    elif (time_period == "year"):
+        start_day = requested_date.replace(month = 1, day = 1)
+        num_days = 366 if calendar.isleap(requested_date.year) else 365
+    else:
+        return failure_response("Invalid time period")
+
+    durations = {}
+    current_day = start_day
+    for i in range(num_days):
+        if current_day > date.today() and time_period != "day":
+            break
+        for stopwatch in Stopwatch.query.filter_by(date = current_day, isTotal = False, user_id = user_id).all():
+            durations[stopwatch.title] = durations.get(stopwatch.title, 0) + stopwatch.curr_duration
+        current_day += timedelta(days=1)
+
+    breakdown = [{"title" : title, "duration" : duration} for title, duration in durations.items()]
+    return success_response({"breakdown" : breakdown})
+
+
 
     

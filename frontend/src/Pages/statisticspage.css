@@ -206,3 +206,58 @@ h1 {
   color: #fff;
   background: #232323;
 }
+
+.stopwatchstatistics .stopwatch-pie-section {
+  color: rgb(0,230,122);
+  font-weight: bold;
+  margin-top: 24px;
+}
+
+.stopwatch-pie {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.stopwatch-pie svg {
+  display: block;
+}
+
+.pie-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stopwatchstatistics .pie-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  font-weight: normal;
+  color: #fff;
+  margin-bottom: 0;
+  letter-spacing: 0.5px;
+}
+
+.pie-legend-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.pie-legend-value {
+  color: #aaa;
+}
+
+.stopwatchstatistics .pie-empty {
+  color: #aaa;
+  font-size: 1.1rem;
+  font-weight: normal;
+  text-align: center;
+  padding: 24px 0;
+}
