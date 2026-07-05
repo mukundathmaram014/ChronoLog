@@ -1,36 +1,33 @@
 ---
-description: Implement a spec file end-to-end on a branch and open a PR
-argument-hint: <path to spec file, e.g. specs/0001-fix-xyz.md>
-model: sonnet
+description: Implement one spec on the current branch and open a PR
 ---
 
-You are implementing an approved spec for the ChronoLog codebase. Read `CLAUDE.md` for
-conventions before starting.
+Implement the spec at: $ARGUMENTS
 
-Spec to implement: $ARGUMENTS
+Preconditions — check these before writing any code:
+1. Read the spec file. If its "Decisions needed" section has any unresolved
+   (unchecked) items, STOP and report them instead of implementing.
+2. Read CLAUDE.md for stack conventions, and read every file listed under
+   "Affected files".
 
-Workflow:
-1. Read the spec file in full. Read every file it lists under "Affected files" plus anything
-   else needed to implement correctly.
-2. Enter plan mode and present a concrete implementation plan based on the spec. WAIT for the
-   author to approve before writing any code. If the spec is missing or unclear, say so instead
-   of guessing.
-3. Once approved:
-   a. Create a branch off `main` named `feat/NNNN-slug` or `fix/NNNN-slug` matching the spec.
-   b. Implement what the spec requires — including a larger refactor if the spec calls for one —
-      following existing conventions exactly (blueprints + success_response/failure_response,
-      user_id-scoped queries, ensure_utc for datetimes, useFetch for frontend calls). Don't expand
-      scope beyond the spec or refactor opportunistically; if the work turns out substantially larger
-      than the spec describes, stop and report back so the spec can be updated.
-   c. Verify to the degree practical: for backend, sanity-check the route logic / run the app if
-      feasible; for frontend, ensure it builds. Report what you verified and what you didn't.
-4. Commit with a clear message referencing the spec. Push the branch.
-5. Open a PR with `gh pr create`, targeting `main`. The PR body should:
-   - Link/summarize the spec.
-   - List the changes made and any deviations from the spec (with reasons).
-   - State what was verified and how the author can test it.
-   End the PR body with:
-   🤖 Generated with [Claude Code](https://claude.com/claude-code)
-6. Print the PR URL for the author to review.
+Implementation:
+3. You are already on a dedicated branch in an isolated worktree — do not
+   create or switch branches.
+4. Implement the spec. Treat "Affected files" as the plan: deviating is
+   allowed when reality demands it, but then **update the spec's Affected
+   files section in this same branch** so it reflects what you actually
+   touched.
+5. Update the spec's frontmatter to `status: built`.
+6. Run the project's checks (tests, linter, build — whatever CLAUDE.md or the
+   repo's config defines). Fix failures you introduced. If checks fail for
+   pre-existing reasons, say so explicitly in the PR body.
 
-Stay scoped to this one spec. One spec = one branch = one PR.
+Ship:
+7. Commit everything with a message starting `spec-NNNN: ` (the spec's
+   number). Small logical commits are fine; at least one is required.
+8. If a remote and the `gh` CLI are available: push the branch and open a PR
+   titled with the spec title, whose body summarizes the change, links the
+   spec file, and notes check results. If there is no remote or no `gh`, skip
+   this — the branch is the deliverable.
+9. The LAST line of your final message must be the PR URL if one was created,
+   otherwise `BRANCH: <branch-name>`.

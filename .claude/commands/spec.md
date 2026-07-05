@@ -1,68 +1,62 @@
 ---
-description: Turn a rough todo or bug report into a structured implementation spec
-argument-hint: <todo or bug description>
-model: opus
+description: Turn one idea or bug into a grounded, structured spec file
 ---
 
-You are turning a rough todo/bug note from the author into a precise, reviewable
-implementation spec for the ChronoLog codebase. Read `CLAUDE.md` first for conventions.
+Turn the following idea into a spec file: $ARGUMENTS
 
-The raw request: $ARGUMENTS
+You are writing a **spec**, not implementing anything. Follow this process:
 
-Steps:
-1. Investigate the codebase enough to ground the spec in real files, functions, and routes.
-   Read the relevant backend route(s)/model(s) and/or frontend page(s)/component(s). Do NOT
-   write any implementation code in this step.
-2. If something essential is genuinely ambiguous (and you can't resolve it from the code or a
-   sensible default), ask the author ONE round of clarifying questions before writing the spec.
-3. Determine the next spec number by looking at existing files in `specs/`.
-4. Write the spec to `specs/NNNN-short-slug.md` using this structure:
+1. **Ground the idea in this codebase.** Search and read the files the change
+   would plausibly touch. Defer to CLAUDE.md for stack conventions. If the
+   idea references behavior, find where that behavior lives before writing.
+2. **Pick the filename.** Specs live in `specs/` as `NNNN-slug.md`. Use the
+   next free zero-padded number (check existing files) and a short kebab-case
+   slug.
+3. **Write the spec** in exactly this shape:
 
-   ```
-   # NNNN — <Title>
+   ```markdown
+   ---
+   title: <one-line imperative title>
+   status: draft
+   ---
 
-   ## Problem / Goal
-   <1–3 sentences: what the author wants and why.>
+   # <same title>
 
-   ## Scope
-   - In scope: <bullets>
-   - Out of scope / non-goals: <bullets. If the change needs a large refactor, don't silently
-     exclude it — note it here or in Approach and justify why it's worth it (or why it's deferred)>
+   ## Summary
+   One or two paragraphs: what and why, grounded in what you found in the code.
 
    ## Affected files
-   <bulleted list of specific files, with a phrase on what changes in each>
+   - `path/to/file.py` — why it changes
+   - `path/to/new_file.py` — new
 
-   ## Approach
-   <Concrete, ordered steps. Reference real functions/routes/components. Prefer the smallest change
-   that satisfies the goal, but include a larger refactor if it genuinely earns its keep — just say
-   so and justify it here; no refactors for their own sake. Note conventions to follow
-   (success_response/failure_response, user_id scoping, ensure_utc, useFetch, etc.).>
-
-   ## Acceptance criteria
-   <Checkable bullets describing observable correct behavior.>
-
-   ## Testing / verification
-   <How to confirm it works: which page/route, what to click or curl, expected result.>
+   ## Decisions needed
+   - [ ] <a genuinely ambiguous question the implementer cannot answer alone>
 
    ## Risk
-   <Two axes, one bullet each, each with a short rationale:
-   - **Involvement:** Minimal | Moderate | Involved — how big/spread-out the change is (files and
-     areas touched).
-   - **Review attention:** Low | Medium | High — how closely the author should supervise it.
-   Keep these distinct: a large but well-isolated change can be low-danger yet still Involved (lots to
-   review), while a tiny diff to core logic can warrant High review. Call out what specifically drives
-   the rating (prod migration, carry-forward/backfill, auth, open-ended scope, new pillar, etc.).>
+   - **Involvement:** Minimal | Moderate | Involved — <short rationale>
+   - **Review attention:** Low | Medium | High — <short rationale>
 
-   ## Risks & notes
-   <Edge cases, data/migration concerns, anything the author should weigh in on.>
+   ## Implementation notes
+   Concrete guidance for the build agent: entry points, existing patterns to
+   follow, tests to add.
    ```
 
-5. After writing, print a 3–5 line summary and the spec path, and tell the author to review/edit
-   it, then run `/build specs/NNNN-short-slug.md` when satisfied.
-
-Keep the spec tight and honest. Flag, don't hide, anything that smells like it needs a big change.
-
-**Privacy — specs are public (public GitHub repo).** If the raw request comes from the author's private
-notes, never transcribe personal specifics into the spec: no real habit/routine lists, health/sleep
-details, personal goals, or names. Describe the *mechanism* and use generic placeholders; treat concrete
-personal values as in-app user data, not spec content. When unsure, generalize or omit. (See CLAUDE.md.)
+Rules:
+- **Affected files must be real, specific repo-relative paths** you verified
+  (or explicitly new files). This list drives conflict detection between
+  specs — err on the side of listing every file the change will touch,
+  including tests and config.
+- **Decisions needed** is only for questions that genuinely change the
+  implementation (algorithm choice, user-facing behavior, data migration).
+  Do not pad it; an empty section is fine — but then set `status: decided`.
+- **Risk** has two axes, one bullet each, each with a short rationale:
+  **Involvement** (Minimal | Moderate | Involved) — how big/spread-out the
+  change is (files and areas touched); **Review attention** (Low | Medium |
+  High) — how closely the author should supervise it. Keep these distinct: a
+  large but well-isolated change can be low-danger yet still Involved (lots to
+  review), while a tiny diff to core logic can warrant High review. Call out
+  what specifically drives the rating (prod migration, carry-forward/backfill,
+  auth, open-ended scope, new pillar, etc.). SpindleGraph schedules
+  higher-risk specs earlier in build batches.
+- Do NOT modify any other file. Do NOT start implementing.
+- End your final message with the path of the spec file you wrote.
