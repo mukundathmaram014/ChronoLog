@@ -34,6 +34,8 @@ class Habit(db.Model):
     description = db.Column(db.String, nullable = False)
     done = db.Column(db.Boolean, nullable=False)
     date = db.Column(db.Date, nullable=False)
+    # 7-bit weekday bitmask: bit i = date.weekday() i (0 = Mon ... 6 = Sun); 127 = every day
+    repeat_days = db.Column(db.Integer, nullable=False, default=127)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def __init__(self, **kwargs):
@@ -44,6 +46,7 @@ class Habit(db.Model):
         self.description = kwargs.get("description", "")
         self.done = kwargs.get("done", False)
         self.date = kwargs.get("date", date.today())
+        self.repeat_days = kwargs.get("repeat_days", 127)
         self.user_id = kwargs.get("user_id")
 
     def serialize(self):
@@ -55,7 +58,8 @@ class Habit(db.Model):
             "description" : self.description,
             "done" : self.done,
             "date": self.date.isoformat(),
-            "user_id": self.user_id 
+            "repeat_days": self.repeat_days,
+            "user_id": self.user_id
         }
     
 #stopwatch model

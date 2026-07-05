@@ -122,6 +122,39 @@ h1{
   cursor: pointer;
 }
 
+.weekday-picker {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.weekday-toggle {
+  width: 34px;
+  padding: 6px 0;
+  background-color: #232323;
+  color: #aaa;
+  border: 1.5px solid #444;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.weekday-toggle:hover {
+  border-color: rgb(0,230,122);
+}
+
+.weekday-toggle.selected {
+  background-color: rgb(0,230,122);
+  border-color: rgb(0,230,122);
+  color: white;
+}
+
+.repeat-days-indicator {
+  font-size: 0.75rem;
+  color: #aaa;
+  letter-spacing: 1px;
+}
+
 /* check icon specific styling */
 .plus-icon {
   font-size: 25px;   /* Change size here */

@@ -14,11 +14,20 @@ from datetime import datetime, timedelta
 from utils import success_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import os
+from sqlalchemy import text
 
 FRONTEND_ORIGINS = [
     "http://localhost:3000",                 # dev
     "https://chronologtracker.com",       # prod - Netlify
 ]
+
+
+def ensure_habit_repeat_days_column():
+    result = db.session.execute(text("PRAGMA table_info(habits)"))
+    columns = {row[1] for row in result}
+    if "repeat_days" not in columns:
+        db.session.execute(text("ALTER TABLE habits ADD COLUMN repeat_days INTEGER NOT NULL DEFAULT 127"))
+        db.session.commit()
 
 
 def create_app(test_config=None):
@@ -59,6 +68,7 @@ def create_app(test_config=None):
     db.init_app(app)
     with app.app_context():
         db.create_all()
+        ensure_habit_repeat_days_column()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
     app.register_blueprint(stopwatch_routes,  url_prefix="/api")

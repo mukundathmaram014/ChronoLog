@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0014 — Per-habit weekly repeat days
 
 ## Problem / Goal
@@ -27,6 +31,8 @@ shouldn't appear.
 ## Affected files
 - `backend/src/db.py` — add `repeat_days` (Integer, 7-bit bitmask, default `127`) to `Habit`;
   `__init__` + `serialize`. **Schema change** — see Risks.
+- `backend/src/app.py` — run a startup SQLite migration for existing DBs:
+  `ALTER TABLE habits ADD COLUMN repeat_days INTEGER NOT NULL DEFAULT 127`.
 - `backend/src/routes/habits.py` — create/edit accept `repeat_days`; carry-forward only creates the
   habit when the target day's weekday is in its set; preserve DeletedDay + duplicate guard.
 - `frontend/src/Pages/habitpage.jsx` — add/edit form: a weekday picker (7 toggles); send `repeat_days`.
