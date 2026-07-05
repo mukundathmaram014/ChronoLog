@@ -547,19 +547,25 @@ export function Stopwatch() {
   
     function handleDragEnd(event) {
         const {active, over} = event;
-        
-        if (active.id !== over.id) {
+
+        if (over && active.id !== over.id) {
         setStopwatches((prevStopwatches) => {
-            const oldIndex = prevStopwatches.findIndex(stopwatch => stopwatch.id === active.id);
-            const newIndex = prevStopwatches.findIndex(stopwatch => stopwatch.id === over.id);
-            
-            return arrayMove(prevStopwatches, oldIndex, newIndex);
+            const total = prevStopwatches.find(stopwatch => stopwatch.isTotal);
+            const rest = prevStopwatches.filter(stopwatch => !stopwatch.isTotal);
+            const oldIndex = rest.findIndex(stopwatch => stopwatch.id === active.id);
+            const newIndex = rest.findIndex(stopwatch => stopwatch.id === over.id);
+            const reordered = arrayMove(rest, oldIndex, newIndex);
+
+            return total ? [total, ...reordered] : reordered;
         });
         }
-        
+
         setActiveId(null);
     }
 
+
+    const totalStopwatch = allStopwatches.find(stopwatch => stopwatch.isTotal);
+    const nonTotalStopwatches = allStopwatches.filter(stopwatch => !stopwatch.isTotal);
 
     return (
     <DndContext sensors={sensors} collisionDetection={closestCenter}
@@ -744,8 +750,30 @@ export function Stopwatch() {
                     </div>
                   </div>
                 )}
-        <SortableContext items={allStopwatches.map(stopwatch => stopwatch.id)} strategy={rectSortingStrategy}>
-            {allStopwatches.map((item) => (
+        {totalStopwatch && (
+            <StopwatchItem
+                item={totalStopwatch}
+                isFuture={isFuture}
+                onEdit={async item => {if (item.end_time === null){
+                                                await handleStop(item.id, item.end_time);
+                                            }
+                                        setEditStopwatch(true); setStopwatchTitle(item.title);
+                                        setEditingStopwatchID(item.id); const [hours, minutes] = formatTimeString(item.goal_time);
+                                        setInputHours(Number(hours));
+                                        setInputMinutes(Number(minutes)); }}
+                onStart = {handleStart}
+                onStop = {handleStop}
+                onReset = {handleReset}
+                onDelete={deleteStopwatch}
+                runningId = {runningId}
+                getElapsed = {getElapsed}
+                formatTimeString = {formatTimeString}
+                CircularProgress = {CircularProgress}
+                CircularProgressTotal = {CircularProgressTotal}
+            />
+        )}
+        <SortableContext items={nonTotalStopwatches.map(stopwatch => stopwatch.id)} strategy={rectSortingStrategy}>
+            {nonTotalStopwatches.map((item) => (
             <SortableStopwatchItem
                 key={item.id}
                 item={item}
