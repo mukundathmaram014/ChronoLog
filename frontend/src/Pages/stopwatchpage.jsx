@@ -54,6 +54,7 @@ export function Stopwatch() {
     const [currentCentiseconds, setCurrentCentiseconds] = useState(0);
     const isFuture = (new Date(selectedDate)) > (new Date(today));
     const intervalRef = useRef(null);
+    const defaultTitleRef = useRef(document.title);
     const [stopwatchError, setStopwatchError] = useState("");
     const location = useLocation();
     
@@ -169,7 +170,29 @@ export function Stopwatch() {
         }
     },[editingStopwatchID, allStopwatches])
 
-    
+    // shows the running stopwatch's live elapsed time in the browser tab
+    useEffect(() => {
+        const running = allStopwatches.find(stopwatch => (stopwatch.id === runningId) && !stopwatch.isTotal);
+        let newTitle = defaultTitleRef.current;
+        if (running) {
+            const [hours, minutes, seconds] = formatTimeString(getElapsed(running));
+            newTitle = `${hours}:${minutes}:${seconds}`;
+        }
+        if (document.title !== newTitle) {
+            document.title = newTitle;
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [runningId, tick, allStopwatches]);
+
+    // restores the default title on unmount (navigating to another page)
+    useEffect(() => {
+        const defaultTitle = defaultTitleRef.current;
+        return () => {
+            document.title = defaultTitle;
+        };
+    }, []);
+
+
     const addStopwatch = async () => {
         if (isFuture){
             return;

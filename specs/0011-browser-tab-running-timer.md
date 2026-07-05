@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0011 — Show the running stopwatch timer in the browser tab
 
 ## Problem / Goal
