@@ -1,7 +1,7 @@
 
 services:
   backend:
-    image: mukund146/chronologbackend:v.1.0.10
+    image: mukund146/chronologbackend:v.1.0.11
     ports: 
       - "80:5000"
     env_file: backend/.env
