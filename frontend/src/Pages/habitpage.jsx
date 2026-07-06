@@ -21,7 +21,9 @@ import {
 } from '@dnd-kit/sortable';
 import useFetch from "../hooks/useFetch";
 
-
+// bit i = weekday i (0 = Mon ... 6 = Sun), matching Python date.weekday(); 127 = every day
+const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+const ALL_DAYS = 127;
 
 export function Habit() {
 
@@ -40,6 +42,7 @@ export function Habit() {
   const [editHabit, setEditHabit] = useState(false);
   const [allHabits, setHabits] = useState([]);
   const [newDescription, setNewDescription] = useState("");
+  const [newRepeatDays, setNewRepeatDays] = useState(ALL_DAYS);
   const [isAdding, setIsAdding] = useState(false);
   const [editingHabitID, setEditingHabitID] = useState(null);
   const [today, setToday] = useState(() => (DatetoISOString(new Date())));
@@ -82,11 +85,16 @@ export function Habit() {
 
   const handleAddHabit = () => {
     if (isFuture){return;}
+    if (newRepeatDays === 0) {
+      setHabitError("Select at least one repeat day.");
+      return;
+    }
     setHabitError(""); // Clear previous errors
     const newHabit = {
       description: newDescription,
       done: false,
-      date: selectedDate
+      date: selectedDate,
+      repeat_days: newRepeatDays
     }
     setIsAdding(true);
     fetchWithAuth("/habits/", {
@@ -103,6 +111,7 @@ export function Habit() {
     .then( data => {
       setHabits(allHabits => [...allHabits, data]);
       setNewDescription("");
+      setNewRepeatDays(ALL_DAYS);
       setaddHabit(false);
     }
     )
@@ -124,11 +133,17 @@ export function Habit() {
 
   const handleEditHabit = () => {
     if (isFuture){return;}
+    if (isAdding) return;
     if (editingHabitID === null) return;
+    if (newRepeatDays === 0) {
+      setHabitError("Select at least one repeat day.");
+      return;
+    }
     setHabitError(""); // Clear previous errors
 
     const newHabit = {
-      description: newDescription
+      description: newDescription,
+      repeat_days: newRepeatDays
     }
 
     setIsAdding(true);
@@ -146,15 +161,27 @@ export function Habit() {
     .then(data => {
       setHabits(allHabits =>
         allHabits.map(habit =>
-          (habit.id === data.id) ? data : habit 
+          (habit.id === data.id) ? data : habit
         ));
       setNewDescription("");
+      setNewRepeatDays(ALL_DAYS);
       setEditHabit(false);
       setEditingHabitID(null);
     }
     )
     .catch(error => console.error(error))
     .finally(() => setIsAdding(false))
+  }
+
+  const closeEditHabit = () => {
+    if (editingHabitID === null) {
+      setEditHabit(false);
+      setNewDescription("");
+      setNewRepeatDays(ALL_DAYS);
+      setHabitError("");
+      return;
+    }
+    handleEditHabit();
   }
 
   const handleToggleHabit = (index, currStatus) => {
@@ -176,6 +203,24 @@ export function Habit() {
     )
     .catch(error => console.error(error))
   }
+
+  const renderWeekdayPicker = () => (
+    <>
+      <label>Repeat on</label>
+      <div className="weekday-picker">
+        {WEEKDAY_LABELS.map((label, i) => (
+          <button type="button" key={label}
+            className={`weekday-toggle ${(newRepeatDays & (1 << i)) ? 'selected' : ''}`}
+            onClick={() => setNewRepeatDays(prev => prev ^ (1 << i))}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {newRepeatDays === 0 && (
+        <div style={{ color: "red", marginBottom: "10px" }}>Select at least one day.</div>
+      )}
+    </>
+  );
 
   function handleDragStart(event) {
     const {active} = event;
@@ -215,7 +260,7 @@ export function Habit() {
         <h1>My Habits</h1>
         <div className="habit-wrapper">
           <button type = 'button' className = 'primaryBtn'
-              onClick={() => setaddHabit(true)} disabled = {isFuture}>
+              onClick={() => {setaddHabit(true); setNewRepeatDays(ALL_DAYS);}} disabled = {isFuture}>
               <FaPlus className = "plus-icon" />
           </button>
           {addHabit && (
@@ -233,9 +278,10 @@ export function Habit() {
                   }
                 }}
                 placeholder="What's the habit"/>
+                {renderWeekdayPicker()}
                 <button type = 'button' className = 'addHabitButton'
                   onClick={handleAddHabit}
-                  disabled = {isAdding}
+                  disabled = {isAdding || newRepeatDays === 0}
                   > {isAdding ? "Adding..." : "Add Habit"}</button>
                 {habitError && (
                   <div style={{ color: "red", marginBottom: "10px" }}>{habitError}</div>
@@ -247,7 +293,7 @@ export function Habit() {
             <div className = "habit-input">
               <div className = "habit-edit-item">
                 <IoMdClose className = "close-icon"
-                  onClick={() => {setEditHabit(false); setNewDescription(""); setHabitError("")}}/>
+                  onClick={closeEditHabit}/>
                 <h3>Edit habit</h3>
                 <label>Description</label>
                 <input type= "text" value = {newDescription} 
@@ -258,9 +304,10 @@ export function Habit() {
                   }
                 }}
                 placeholder="What's the habit"/>
+                {renderWeekdayPicker()}
                 <button type = 'button' className = 'editHabitButton'
                   onClick={handleEditHabit}
-                  disabled = {isAdding}
+                  disabled = {isAdding || newRepeatDays === 0}
                   > {isAdding ? "Editing..." : "Done"}</button>
                 {habitError && (
                 <div style={{ color: "red", marginBottom: "10px" }}>{habitError}</div>
@@ -275,7 +322,7 @@ export function Habit() {
                   key={item.id}
                   item={item}
                   isFuture={isFuture}
-                  onEdit={item => { setEditHabit(true); setNewDescription(item.description); setEditingHabitID(item.id); }}
+                  onEdit={item => { setEditHabit(true); setNewDescription(item.description); setNewRepeatDays(item.repeat_days ?? ALL_DAYS); setEditingHabitID(item.id); }}
                   onDelete={handleDeleteHabit}
                   onToggle={handleToggleHabit}
                   activeId= {activeId}
@@ -289,7 +336,7 @@ export function Habit() {
         {activeId ? <HabitItem 
             item={allHabits.find(h => h.id === activeId)}
             isFuture={isFuture}
-            onEdit={item => { setEditHabit(true); setNewDescription(item.description); setEditingHabitID(item.id); }}
+            onEdit={item => { setEditHabit(true); setNewDescription(item.description); setNewRepeatDays(item.repeat_days ?? ALL_DAYS); setEditingHabitID(item.id); }}
             onDelete={handleDeleteHabit}
             onToggle={handleToggleHabit} /> : null}
       </DragOverlay>

@@ -16,13 +16,19 @@ habit_routes = Blueprint('habit', __name__)
 def test():
     return success_response("hello world")
 
-def create_habit_for_date(requested_date, done, description, user_id):
+def validate_repeat_days(repeat_days):
+    """
+    Returns True iff repeat_days is a valid 7-bit weekday bitmask with at least one day set.
+    """
+    return isinstance(repeat_days, int) and not isinstance(repeat_days, bool) and 1 <= repeat_days <= 127
+
+def create_habit_for_date(requested_date, done, description, user_id, repeat_days = 127):
 
     duplicate = Habit.query.filter_by(description = description, date = requested_date, user_id = user_id).first()
     if duplicate is not None:
         return failure_response("Habit already exists for this day", 409)
-    
-    new_habit = Habit(description = description, done = done, date = requested_date, user_id = user_id)
+
+    new_habit = Habit(description = description, done = done, date = requested_date, user_id = user_id, repeat_days = repeat_days)
 
     db.session.add(new_habit)
     db.session.commit()
@@ -47,32 +53,56 @@ def get_habits(date_string):
         #dosent repopulate if user intentionally deleted everything
         if not deleted_marker:
             earliest_date = db.session.query(func.min(Habit.date)).filter(Habit.user_id == user_id).scalar()
-            prev_date = requested_date
-            prev_habits = []
 
-            # keeps going back until finds day with non empty habits list or a deleted day
+            # walks back to the most recent non empty day, then keeps scanning up to 7 more days
+            # (one full weekday cycle) so habits whose repeat days skip that day arent lost.
+            # collects the most recent row per description; stops at a deleted day
+            candidates = {}
+            first_filled_date = None
             if earliest_date:
-                while (not prev_habits) and (prev_date >= earliest_date):
+                prev_date = requested_date
+                while prev_date > earliest_date:
                     prev_date = prev_date - timedelta(days=1)
+                    if first_filled_date and (first_filled_date - prev_date).days >= 7:
+                        break
                     # Stop if a deleted day is found
                     prev_deleted = DeletedDay.query.filter_by(date=prev_date, type="habit", user_id = user_id).first()
                     if prev_deleted:
-                        prev_habits = []
                         break
-                    prev_habits = Habit.query.filter_by(date=prev_date, user_id = user_id).all()
-                    
+                    day_habits = Habit.query.filter_by(date=prev_date, user_id = user_id).all()
+                    if day_habits and first_filled_date is None:
+                        first_filled_date = prev_date
+                    for day_habit in day_habits:
+                        if day_habit.description not in candidates:
+                            candidates[day_habit.description] = day_habit
 
             new_habits = []
 
-            for prev_habit in prev_habits:
-                # repopulates days in between
-                temp_date = prev_date
+            for prev_habit in candidates.values():
+                repeat_days = prev_habit.repeat_days
+
+                # a scheduled day after the habits last row (up to the most recent non empty day)
+                # with no row means the user deleted it there — dont carry it forward
+                was_deleted = False
+                check_date = prev_habit.date + timedelta(days=1)
+                while check_date <= first_filled_date:
+                    if repeat_days & (1 << check_date.weekday()):
+                        was_deleted = True
+                        break
+                    check_date += timedelta(days=1)
+                if was_deleted:
+                    continue
+
+                # repopulates days in between, skipping weekdays outside the habits repeat set
+                temp_date = first_filled_date
                 while (temp_date < (requested_date - timedelta(days=1))):
                     temp_date += timedelta(days=1)
-                    create_habit_for_date(requested_date=temp_date, done = False, description=prev_habit.description, user_id = user_id)
+                    if repeat_days & (1 << temp_date.weekday()):
+                        create_habit_for_date(requested_date=temp_date, done = False, description=prev_habit.description, user_id = user_id, repeat_days = repeat_days)
 
-                new_habit = create_habit_for_date(requested_date=requested_date, done = False, description = prev_habit.description, user_id = user_id)
-                new_habits.append(new_habit)
+                if repeat_days & (1 << requested_date.weekday()):
+                    new_habit = create_habit_for_date(requested_date=requested_date, done = False, description = prev_habit.description, user_id = user_id, repeat_days = repeat_days)
+                    new_habits.append(new_habit)
 
             db.session.commit()
             habits = new_habits
@@ -89,7 +119,10 @@ def create_habit():
     user_id = int(get_jwt_identity())
     body = json.loads(request.data)
     requested_date = process_date(request)
-    new_habit = create_habit_for_date(requested_date=requested_date, done = body.get("done", False), description= body.get("description",""), user_id=user_id)
+    repeat_days = body.get("repeat_days", 127)
+    if not validate_repeat_days(repeat_days):
+        return failure_response("repeat_days must be an integer between 1 and 127", 400)
+    new_habit = create_habit_for_date(requested_date=requested_date, done = body.get("done", False), description= body.get("description",""), user_id=user_id, repeat_days=repeat_days)
     # If result is a failure response, return it directly
     if isinstance(new_habit, tuple):
         return new_habit
@@ -127,6 +160,12 @@ def update_habit(habit_id):
             return failure_response("Habit already exists for this day", 409)
     habit.description = new_description
     
+    new_repeat_days = body.get("repeat_days", habit.repeat_days)
+    if not validate_repeat_days(new_repeat_days):
+        return failure_response("repeat_days must be an integer between 1 and 127", 400)
+    # applies forward only: future carry-forward reads this value; past rows are untouched
+    habit.repeat_days = new_repeat_days
+
     habit.done = body.get("done", habit.done)
     habit.date = body.get("date", habit.date)
     db.session.commit()
