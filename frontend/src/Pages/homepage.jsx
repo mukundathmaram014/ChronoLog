@@ -17,6 +17,7 @@ export function Home() {
 
     const [habitsData, setHabitsData] = useState(null);
     const [stopwatchesData, setStopwatchesData] = useState(null);
+    const [tasksData, setTasksData] = useState({ overdue: [], today: [] });
     const [today, setToday] = useState(() => (DatetoISOString(new Date())));
     const [quote, setQuote] = useState("");
 
@@ -57,6 +58,20 @@ export function Home() {
                 .then(response => response.json())
                 .then(data => {
                     setStopwatchesData(data);
+                })
+                .catch(error => console.error(error))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [today])
+
+    // fetches overdue + today's tasks
+    useEffect(() => {
+
+                fetchWithAuth(`/tasks/${today}/`, {
+                    method: "GET"
+                    })
+                .then(response => response.json())
+                .then(data => {
+                    setTasksData({ overdue: data.overdue ?? [], today: data.today ?? [] });
                 })
                 .catch(error => console.error(error))
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,6 +243,29 @@ export function Home() {
                         </div>
                     <Link to="/stopwatchpage">
                         <button>Go to Stopwatches</button>
+                    </Link>
+                </div>
+                <div className = "homepage-taskcard">
+                    <h3>Tasks</h3>
+                    <div className="homepage-task-summary">
+                        {tasksData.overdue.length > 0 && (
+                            <span className="homepage-task-overdue-count">{tasksData.overdue.length} overdue</span>
+                        )}
+                        <span>{tasksData.today.filter(task => task.done).length} / {tasksData.today.length} done today</span>
+                    </div>
+                    <div className="homepage-task-list">
+                        {[...tasksData.overdue, ...tasksData.today].length === 0 && (
+                            <p className="homepage-task-empty">Nothing due today</p>
+                        )}
+                        {[...tasksData.overdue, ...tasksData.today].slice(0, 6).map(task => (
+                            <div key={task.id} className={`homepage-task-item ${task.done ? 'done' : ''}`}>
+                                <span className={`homepage-task-dot ${tasksData.overdue.some(overdueTask => overdueTask.id === task.id) ? 'overdue' : ''}`}></span>
+                                <span className="homepage-task-description">{task.description}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <Link to="/taskpage">
+                        <button>Go to Tasks</button>
                     </Link>
                 </div>
                 <div className = "homepage-quotesection">
