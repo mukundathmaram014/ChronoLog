@@ -81,6 +81,14 @@ def recompute_from(user_id, day):
         user.total_xp = (user.total_xp or 0) + delta
 
 
+def day_xp(user_id, day):
+    """
+    The XP earned on `day` (0 if that day has no ledger row yet).
+    """
+    row = DailyXP.query.filter_by(user_id=user_id, date=day).first()
+    return row.xp_earned if row else 0
+
+
 def current_streak(user_id, today):
     """
     The user's live streak as of `today`: today's ledger streak once today

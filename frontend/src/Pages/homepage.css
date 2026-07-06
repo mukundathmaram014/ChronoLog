@@ -240,6 +240,20 @@ button:hover {
   background: linear-gradient(90deg, #ff8a00, #e6a700);
 }
 
+.homepage-xp-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.homepage-xp-today {
+  color: #00e67a;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .homepage-xp-label {
   color: #aaa;
   font-size: 0.95rem;

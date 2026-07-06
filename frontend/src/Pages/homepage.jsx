@@ -259,9 +259,12 @@ export function Home() {
                             style={{ width: `${levelData?.xp_to_next ? Math.min((levelData.xp_into_level / levelData.xp_to_next) * 100, 100) : 0}%` }}>
                         </div>
                     </div>
-                    <span className="homepage-xp-label">
-                        {levelData?.xp_into_level ?? 0} / {levelData?.xp_to_next ?? 0} XP to level {(levelData?.level ?? 1) + 1}
-                    </span>
+                    <div className="homepage-xp-footer">
+                        <span className="homepage-xp-today">+{levelData?.day_xp ?? 0} XP today</span>
+                        <span className="homepage-xp-label">
+                            {levelData?.xp_into_level ?? 0} / {levelData?.xp_to_next ?? 0} XP to level {(levelData?.level ?? 1) + 1}
+                        </span>
+                    </div>
                 </div>
                 <div className = "homepage-habitcard">
                     <h3>Habits</h3>
