@@ -10,6 +10,7 @@ from utils import (
     compute_day_xp,
     level_cost,
     level_from_xp,
+    rank_from_level,
     streak_multiplier,
 )
 
@@ -248,9 +249,39 @@ def test_goal_validation(client):
     token = auth_token(client)
     assert create_goal(client, token, description="   ").status_code == 400
     assert create_goal(client, token, description="x", difficulty="brutal").status_code == 400
+    # "extreme" is a goal-only tier and must be accepted
+    assert create_goal(client, token, description="frontier lab", difficulty="extreme").status_code == 201
     resp = create_goal(client, token, description="x")
     goal_id = json.loads(resp.data)["id"]
     assert update_goal(client, token, goal_id, difficulty="brutal").status_code == 400
+
+
+def test_extreme_goal_grants_its_xp(client):
+    token = auth_token(client)
+    resp = create_goal(client, token, description="join a league", difficulty="extreme")
+    goal_id = json.loads(resp.data)["id"]
+    update_goal(client, token, goal_id, done=True, date=TODAY)
+    assert get_level(client, token)["total_xp"] == GOAL_XP["extreme"]
+
+
+def test_rank_from_level():
+    assert rank_from_level(1) == "E"
+    assert rank_from_level(9) == "E"
+    assert rank_from_level(10) == "D"
+    assert rank_from_level(24) == "D"
+    assert rank_from_level(25) == "C"
+    assert rank_from_level(49) == "C"
+    assert rank_from_level(50) == "B"
+    assert rank_from_level(74) == "B"
+    assert rank_from_level(75) == "A"
+    assert rank_from_level(99) == "A"
+    assert rank_from_level(100) == "S"
+    assert rank_from_level(500) == "S"
+
+
+def test_level_readout_includes_rank(client):
+    token = auth_token(client)
+    assert get_level(client, token)["rank"] == "E"
 
 
 def test_xp_and_goals_are_user_scoped(client):
@@ -276,9 +307,11 @@ def test_xp_and_goals_are_user_scoped(client):
 
 def test_calibration_dedicated_user_reaches_level_100_in_4_to_5_years():
     """
-    The dedicated-user profile: 3 easy + 3 medium + 3 hard habits done daily,
-    5.5 h/day of tracked work, a sustained streak, and one medium goal a week.
-    The fixed constants must land level 100 in ~4-5 years.
+    The dedicated-user grind: 3 easy + 3 medium + 3 hard habits done daily,
+    5.5 h/day of tracked work, and a sustained streak. Goals are excluded here:
+    on the goal-XP scale they are large, occasional bonuses (a medium goal is
+    ~1-2 weeks of effort), so the habit + time grind *alone* must land level 100
+    in ~4-5 years, with any goals only accelerating past that floor.
     """
     habits = ["easy"] * 3 + ["medium"] * 3 + ["hard"] * 3
     total_xp = 0
@@ -287,8 +320,7 @@ def test_calibration_dedicated_user_reaches_level_100_in_4_to_5_years():
     level_after_30_days = None
 
     for day in range(1, 365 * 6 + 1):
-        goals = ["medium"] if day % 7 == 0 else []
-        result = compute_day_xp(habits, 5.5, goals, streak)
+        result = compute_day_xp(habits, 5.5, [], streak)
         streak = result["streak"]
         total_xp += result["xp_earned"]
         if day == 30:

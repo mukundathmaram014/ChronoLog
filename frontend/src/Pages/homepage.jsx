@@ -244,14 +244,17 @@ export function Home() {
             <div className = "homepage-cards-grid">
                 <div className = "homepage-levelcard">
                     <div className = "homepage-level-header">
-                        <h3>Level {levelData?.level ?? 1}</h3>
+                        <h3>
+                            Level {levelData?.level ?? 1}
+                            <span className="homepage-level-rank">{levelData?.rank ?? "E"}-Rank</span>
+                        </h3>
                         {(levelData?.streak ?? 0) > 0 && (
                             <span className="homepage-level-streak">
                                 🔥 {levelData.streak}-day streak · ×{levelData.multiplier.toFixed(1)} XP
                             </span>
                         )}
                     </div>
-                    <div className="homepage-xp-bar">
+                    <div className={`homepage-xp-bar ${(levelData?.streak ?? 0) > 0 ? 'streak-active' : ''}`}>
                         <div className="homepage-xp-bar-fill"
                             style={{ width: `${levelData?.xp_to_next ? Math.min((levelData.xp_into_level / levelData.xp_to_next) * 100, 100) : 0}%` }}>
                         </div>

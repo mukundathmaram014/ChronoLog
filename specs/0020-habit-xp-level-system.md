@@ -187,3 +187,30 @@ vitality stat split — a single XP pool / single level only.
 - **No strength/vitality split and no repeating goals** — single pool, single level, one-time goals; these
   are deliberately excluded (not merely deferred).
 - Per-day habit rows mean a daily habit pays out each day; the streak then scales each qualifying day.
+
+---
+
+## Addendum — difficulty badges, extreme goals, ranks & XP note (follow-up)
+
+A follow-up pass after the initial ship (and after the historical-data XP backfill), covering
+visibility and goal-balance gaps found in daily use. Deltas from the spec above:
+
+- **Goal XP rescaled.** The original goal tiers (easy 50 / medium 100 / hard 200) made even a hard
+  goal worth roughly a single ordinary day (~200 XP/day for an active user). Goals now represent
+  days-to-months of effort: **easy 500, medium 2,000, hard 5,000**. Historical goal XP only re-values
+  when its day is next recomputed (e.g. a later toggle); no forced re-backfill.
+- **New "extreme" goal tier (goal-only).** A fourth tier, **20,000 XP**, for rare life-changing goals.
+  Habits stay easy/medium/hard. Validation is split: `VALID_DIFFICULTIES` (habits) vs
+  `VALID_GOAL_DIFFICULTIES` (goals) in `utils.py`.
+- **Habit difficulty is now visible.** Each habit row shows a coloured difficulty badge, mirroring the
+  goal rows (the habit page already had the picker; only the badge was missing).
+- **Streak cue on the level bar.** When a streak is active the homepage XP bar burns orange and glows,
+  in addition to the existing "🔥 N-day streak · ×M XP" header text.
+- **Letter ranks (Solo Leveling-style).** Levels map to ranks **E → D → C → B → A → S**: E 1–9,
+  D 10–24, C 25–49, B 50–74, A 75–99, **S 100+ (ultimate)**. `rank_from_level()` in `utils.py`, exposed
+  as `rank` on `GET /level/<date>/`, shown next to the level on the homepage.
+- **XP-rules note.** The profile popup (👤, present on every page) gains an expandable "How XP & ranks
+  work" section documenting the XP sources, the streak rule, and the rank table.
+- **Calibration test updated.** The dedicated-user calibration now excludes goals (they became large,
+  occasional bonuses rather than a weekly grind input); the habit + time grind alone still lands level
+  100 in the 4–5 year window.

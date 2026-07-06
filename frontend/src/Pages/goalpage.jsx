@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import './goalpage.css';
 import useFetch from "../hooks/useFetch";
 
-const DIFFICULTY_OPTIONS = ["easy", "medium", "hard"];
+const DIFFICULTY_OPTIONS = ["easy", "medium", "hard", "extreme"];
 
 export function Goals() {
 
