@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0022 — Installable PWA (Progressive Web App)
 
 ## Problem / Goal
@@ -81,12 +85,15 @@ so it launches like an app — full-screen, own icon — instead of living in a 
 - `frontend/src/serviceWorkerRegistration.js` — **new**: registers `/service-worker.js` in production,
   wires the update flow (Decision 2). Called from `index.js`.
 - `frontend/src/index.js` — register the service worker (currently does not).
-- `frontend/src/Components/InstallPrompt.jsx` (+ small CSS) — **new**: the capability-branched, dismissible
-  install hint (Decision 3); mounted once (e.g. in `layout.jsx` or on the homepage/login page).
-- `frontend/src/Components/Sortable*` (dnd-kit setup) — add a touch/pointer sensor so reorder works on
-  touch (Decision 4).
-- Page/component CSS across `frontend/src/Pages/*` and `Components/*` — targeted responsive fixes
-  (widths, wrapping, tap-target sizes, safe-area padding). Scoped to "usable on a phone" per Decision 4.
+- `frontend/src/Components/InstallPrompt.jsx` + `InstallPrompt.css` — **new**: the capability-branched,
+  dismissible install hint (Decision 3); mounted once in `layout.jsx`.
+- `frontend/src/Pages/habitpage.jsx` / `stopwatchpage.jsx` — the dnd-kit sensor setup lives in these
+  pages (not in `Components/Sortable*` as originally listed): added a `TouchSensor` + pointer activation
+  constraint so reorder works on touch (Decision 4), plus `touch-action: none` on the drag handles in the
+  page CSS.
+- Page/component CSS across `frontend/src/Pages/*`, `Components/Navbar.css`, and `src/index.css` —
+  targeted responsive fixes (widths, wrapping, tap-target sizes, safe-area padding). Scoped to "usable
+  on a phone" per Decision 4.
 - `frontend/public/_redirects` — **verify only** (no change expected): Netlify serves real static files
   before applying the `/*  /index.html` rewrite, so `/service-worker.js` and `/manifest.json` are served
   directly, not rewritten to `index.html`. Confirm the SW is served with a JS MIME type and **not**

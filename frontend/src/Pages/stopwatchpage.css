@@ -420,6 +420,8 @@ h1{
   background: none;
   padding: 4px;
   border-radius: 4px;
+  /* without this the browser turns a touch-drag into a page scroll */
+  touch-action: none;
 }
 
 .drag-icon-stopwatch {
@@ -431,4 +433,49 @@ h1{
 .drag-handle-stopwatch:hover .drag-icon-stopwatch {
   color: rgb(0,230,122);
   transform: scale(1.1);
+}
+
+/* phone widths: single-column grid, full-width panel, smaller readouts */
+@media (max-width: 700px) {
+  .stopwatches {
+    grid-template-columns: 1fr;
+    width: 92%;
+    padding: 16px 4% 40px 4%; /* header is static here, no need for the 80px offset */
+    box-sizing: border-box;
+  }
+
+  .header {
+    position: static;
+    margin: 0 0 8px 0;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .stopwatch-input-item,
+  .stopwatch-edit-item {
+    width: min(300px, 82vw);
+  }
+
+  .stopwatch-input-item input,
+  .stopwatch-edit-item input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .goal-time-inputs input[type="number"] {
+    width: 60px;
+  }
+
+  .total-time-display {
+    font-size: 3rem;
+  }
+
+  .total-stopwatch-item p {
+    font-size: 2rem;
+  }
+
+  .date-slider-container {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
 }

@@ -22,6 +22,20 @@ For in-depth explanations of the architecture, authentication, deployment, and d
 - Productivity statistics and analytics
 - Responsive React frontend
 - RESTful API backend
+- Installable as an app (PWA) with an offline app shell
+
+## Install as an app (iPhone / desktop)
+
+ChronoLog is a Progressive Web App — same site, same login, same data, but it launches
+full-screen with its own icon:
+
+- **iPhone (Safari):** open the site, tap **Share → Add to Home Screen**.
+- **Desktop Chrome/Edge:** click the **Install** icon in the address bar (or the in-app
+  Install banner) to get a standalone window with a taskbar/Start-menu icon.
+
+The app shell is cached by a service worker (`frontend/public/service-worker.js`), so the
+app opens instantly even offline; data actions still need connectivity. Updates are picked
+up automatically on the next online launch (navigations are network-first).
 
 ## Project Structure
 

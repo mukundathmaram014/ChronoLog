@@ -416,9 +416,11 @@ h1{
 
 .drag-handle-habit {
   cursor: grab;
-  padding: 0 2px;
+  padding: 6px 4px;
   display: flex;
   align-items: center;
+  /* without this the browser turns a touch-drag into a page scroll */
+  touch-action: none;
 }
 .drag-icon-habit {
   font-size: 1.2rem;
@@ -428,4 +430,33 @@ h1{
 .drag-handle-habit:hover .drag-icon-habit {
   color: rgb(0,230,122);
   transform: scale(1.1);
+}
+
+/* phone widths: let the list and popups use the full screen */
+@media (max-width: 600px) {
+  .habit-wrapper {
+    width: 92%;
+    padding: 4%;
+    box-sizing: border-box;
+  }
+
+  .habit-input-item,
+  .habit-edit-item {
+    width: min(300px, 82vw);
+  }
+
+  .habit-input-item input,
+  .habit-edit-item input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .left-section {
+    gap: 12px;
+  }
+
+  .date-slider-container {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
 }

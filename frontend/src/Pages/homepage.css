@@ -260,3 +260,31 @@ button:hover {
   text-align: right;
 }
 
+/* phone widths: stack the cards in one column */
+@media (max-width: 700px) {
+  .homepage-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 0 12px;
+  }
+
+  .homepage-quotesection {
+    padding: 0 12px;
+    box-sizing: border-box;
+  }
+
+  .homepage-header h1 {
+    font-size: 2rem;
+  }
+
+  .homepage-habitcard h3,
+  .homepage-stopwatchcard h3,
+  .homepage-taskcard h3 {
+    font-size: 1.8rem;
+  }
+
+  .homepage-quote-input {
+    font-size: 1.2rem;
+  }
+}
+

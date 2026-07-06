@@ -311,3 +311,32 @@ h1 {
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
+
+/* phone widths: wrap the select bars and shrink the controls */
+@media (max-width: 600px) {
+  .selection-bar,
+  .stats-select-bar,
+  .time-period-select-bar,
+  .habits-or-stopwatches-select-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .stats-select-bar select,
+  .time-period-select-bar select,
+  .habits-or-stopwatches-select-bar select {
+    font-size: 1rem;
+    padding: 10px 14px;
+  }
+
+  .date-slider-container {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .habitstatistics div,
+  .stopwatchstatistics div {
+    font-size: 1.2rem;
+  }
+}
