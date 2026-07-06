@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0021 — Task / to-do subsystem
 
 ## Problem / Goal
@@ -65,8 +69,24 @@ and scheduling algorithms (EDF etc.).
   recurrence selector, optional parent), grouped Overdue/Today/Upcoming list with expandable sub-tasks,
   add-sub-task, complete/edit/delete.
 - `frontend/src/App.js` — protected `/taskpage` route; `frontend/src/Components/Navbar.jsx` — "Tasks" link.
-- `frontend/src/Pages/homepage.jsx` — a small **Tasks card** (today + overdue); optionally a `TaskItem`
-  component mirroring `HabitItem`.
+- `frontend/src/Pages/homepage.jsx` + `homepage.css` — a small **Tasks card** (today + overdue) with a
+  compact read-only list (no separate `TaskItem` component was needed; the rows live in the page files).
+- `backend/tests/test_tasks.py` — **new** pytest coverage: grouping/roll-forward, sub-task
+  nesting/inheritance/cascade/auto-complete, recurrence spawning (incl. monthly day-clamping and the
+  double-spawn guard), reschedule propagation, cross-user isolation.
+- `README.md` — feature-list line for the new pillar.
+
+### Decisions confirmed at build
+- Completing every sub-task **auto-completes the parent** (which spawns if periodic); the parent can
+  still be toggled manually, and unchecking a sub-task does not reopen it.
+- `weekly` recurrence is a plain **+7 days** (no weekday bitmask).
+- Editing a periodic task affects **future occurrences only** — inherent to spawn-on-complete, since
+  each occurrence is an independent row and the next one copies the current instance's fields.
+- The spawned occurrence keeps the **recurrence cadence from the instance's own date** (a daily task
+  missed for 3 days spawns date+1 on each completion, letting the chain catch up), rather than jumping
+  past today.
+- Rescheduling a parent moves its sub-tasks' dates with it; a duplicate-description guard prevents
+  double-spawning when a completed periodic task is unchecked and re-completed.
 
 ## Approach
 1. Add the `Task` model (self-referential `parent_id`, `recurrence`); `create_all` auto-creates the table.

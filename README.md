@@ -17,6 +17,7 @@ For in-depth explanations of the architecture, authentication, deployment, and d
 
 - User authentication (JWT-based)
 - Habit tracking (CRUD operations)
+- Task / to-do tracking with sub-tasks, recurring tasks, and overdue roll-forward
 - Time tracking with custom stopwatches
 - Productivity statistics and analytics
 - Responsive React frontend
