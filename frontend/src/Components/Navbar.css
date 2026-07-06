@@ -46,6 +46,8 @@
   padding: 32px;
   width: 90%;
   max-width: 400px;
+  max-height: 85vh;
+  overflow-y: auto;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -108,6 +110,78 @@
   padding: 8px 0;
   border-bottom: 1px solid #333;
 }
+
+.xp-rules-toggle {
+  background: none;
+  border: 1px solid #444;
+  color: #00e67a;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.xp-rules-toggle:hover {
+  border-color: #00e67a;
+  background: #2a2a2a;
+}
+
+.xp-rules {
+  width: 100%;
+  margin-top: 16px;
+  text-align: left;
+}
+
+.xp-rules h3 {
+  color: #00e67a;
+  font-size: 1rem;
+  margin: 16px 0 8px 0;
+}
+
+.xp-rules h3:first-child {
+  margin-top: 0;
+}
+
+.xp-rules-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.xp-rules-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #ddd;
+  font-size: 0.9rem;
+  padding: 5px 0;
+  border-bottom: 1px solid #333;
+}
+
+.xp-rules-list li span:last-child {
+  color: #aaa;
+}
+
+.xp-rules-note {
+  color: #aaa;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.xp-rank-letter {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.xp-rank-letter.rank-e { color: #9aa0a6; }
+.xp-rank-letter.rank-d { color: #00e67a; }
+.xp-rank-letter.rank-c { color: #4aa3ff; }
+.xp-rank-letter.rank-b { color: #e6a700; }
+.xp-rank-letter.rank-a { color: #ff6b6b; }
+.xp-rank-letter.rank-s { color: #a970ff; }
 
 .logout-btn {
   background: #ef4444;

@@ -19,13 +19,18 @@ export const HabitItem = forwardRef(({item, isFuture, onEdit, onDelete, onToggle
                   </div>
                   <div className = "habit-text">
                     <p>{item.description}</p>
-                    {(item.repeat_days ?? 127) !== 127 && (
-                      <span className="repeat-days-indicator">
-                        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
-                          .filter((_, i) => item.repeat_days & (1 << i))
-                          .join(" ")}
+                    <span className="habit-meta">
+                      <span className={`habit-difficulty ${item.difficulty ?? 'medium'}`}>
+                        {item.difficulty ?? 'medium'}
                       </span>
-                    )}
+                      {(item.repeat_days ?? 127) !== 127 && (
+                        <span className="repeat-days-indicator">
+                          {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+                            .filter((_, i) => item.repeat_days & (1 << i))
+                            .join(" ")}
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </div>
                 <div className = "icon-bar">

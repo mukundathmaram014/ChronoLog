@@ -1,5 +1,5 @@
 from flask import Blueprint
-from utils import success_response, failure_response, VALID_DIFFICULTIES
+from utils import success_response, failure_response, VALID_GOAL_DIFFICULTIES
 import json
 from db import db
 from flask import request
@@ -39,8 +39,8 @@ def create_goal():
         return failure_response("description is required", 400)
 
     difficulty = body.get("difficulty", "medium")
-    if difficulty not in VALID_DIFFICULTIES:
-        return failure_response("difficulty must be one of: easy, medium, hard", 400)
+    if difficulty not in VALID_GOAL_DIFFICULTIES:
+        return failure_response("difficulty must be one of: easy, medium, hard, extreme", 400)
 
     new_goal = Goal(description=description, difficulty=difficulty, user_id=user_id)
     db.session.add(new_goal)
@@ -78,8 +78,8 @@ def update_goal(goal_id):
     goal.description = body.get("description", goal.description)
 
     new_difficulty = body.get("difficulty", goal.difficulty)
-    if new_difficulty not in VALID_DIFFICULTIES:
-        return failure_response("difficulty must be one of: easy, medium, hard", 400)
+    if new_difficulty not in VALID_GOAL_DIFFICULTIES:
+        return failure_response("difficulty must be one of: easy, medium, hard, extreme", 400)
     difficulty_changed = new_difficulty != goal.difficulty
     goal.difficulty = new_difficulty
 

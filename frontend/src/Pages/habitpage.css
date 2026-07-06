@@ -192,6 +192,35 @@ h1{
   border-color: #ff6b6b;
 }
 
+/* goal-only "extreme" tier */
+.difficulty-toggle.extreme.selected {
+  background-color: #a970ff;
+  border-color: #a970ff;
+}
+
+/* difficulty badge shown on each habit/goal row */
+.habit-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.habit-difficulty {
+  text-transform: capitalize;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+}
+
+.habit-difficulty.easy { color: rgb(0,230,122); }
+.habit-difficulty.medium { color: #e6a700; }
+.habit-difficulty.hard { color: #ff6b6b; }
+
+.habit-list-item.completed .habit-difficulty {
+  color: #888;
+}
+
 /* check icon specific styling */
 .plus-icon {
   font-size: 25px;   /* Change size here */

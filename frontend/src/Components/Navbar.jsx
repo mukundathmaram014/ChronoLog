@@ -9,6 +9,7 @@ export function Navbar() {
     const {auth} = useContext(AuthContext);
     const {setAuth} = useAuth();
     const [showProfilePopup, setShowProfilePopup] = useState(false);
+    const [showXpRules, setShowXpRules] = useState(false);
     const navigate = useNavigate();
 
     const handleLogout = async () => {
@@ -86,9 +87,49 @@ export function Navbar() {
                                 <p>{auth.email || "Not available"}</p>
                             </div>
                         </div>
-                        
-                        <button 
-                            className="logout-btn" 
+
+                        <button
+                            className="xp-rules-toggle"
+                            onClick={() => setShowXpRules(prev => !prev)}
+                        >
+                            {showXpRules ? "Hide how XP & ranks work" : "How XP & ranks work"}
+                        </button>
+
+                        {showXpRules && (
+                            <div className="xp-rules">
+                                <h3>Earning XP</h3>
+                                <ul className="xp-rules-list">
+                                    <li><span>Habit — Easy</span><span>+10</span></li>
+                                    <li><span>Habit — Medium</span><span>+25</span></li>
+                                    <li><span>Habit — Hard</span><span>+50</span></li>
+                                    <li><span>Tracked time</span><span>+20 / hour</span></li>
+                                    <li><span>Goal — Easy</span><span>+500</span></li>
+                                    <li><span>Goal — Medium</span><span>+2,000</span></li>
+                                    <li><span>Goal — Hard</span><span>+5,000</span></li>
+                                    <li><span>Goal — Extreme</span><span>+20,000</span></li>
+                                </ul>
+
+                                <h3>Streak</h3>
+                                <p className="xp-rules-note">
+                                    Earn at least 50 base habit XP in a day to keep your streak going.
+                                    Each streak day adds ×0.1 to your habit XP, up to ×2.0 — miss a day
+                                    and it resets.
+                                </p>
+
+                                <h3>Ranks</h3>
+                                <ul className="xp-rules-list">
+                                    <li><span className="xp-rank-letter rank-e">E</span><span>Levels 1–9</span></li>
+                                    <li><span className="xp-rank-letter rank-d">D</span><span>Levels 10–24</span></li>
+                                    <li><span className="xp-rank-letter rank-c">C</span><span>Levels 25–49</span></li>
+                                    <li><span className="xp-rank-letter rank-b">B</span><span>Levels 50–74</span></li>
+                                    <li><span className="xp-rank-letter rank-a">A</span><span>Levels 75–99</span></li>
+                                    <li><span className="xp-rank-letter rank-s">S</span><span>Level 100+ · ultimate</span></li>
+                                </ul>
+                            </div>
+                        )}
+
+                        <button
+                            className="logout-btn"
                             onClick={handleLogout}
                         >
                             Logout

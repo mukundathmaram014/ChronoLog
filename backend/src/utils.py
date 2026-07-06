@@ -35,7 +35,9 @@ def ensure_utc(dt):
 # calibration simulation in backend/tests/test_xp.py.
 
 HABIT_XP = {"easy": 10, "medium": 25, "hard": 50}
-GOAL_XP = {"easy": 50, "medium": 100, "hard": 200}
+# Goals are worth days-to-months of effort (a normal productive day is ~200 XP),
+# so they dwarf a single habit. "extreme" is the rare, life-changing tier.
+GOAL_XP = {"easy": 500, "medium": 2000, "hard": 5000, "extreme": 20000}
 XP_PER_HOUR = 20
 STREAK_STEP = 0.1
 STREAK_CAP = 2.0
@@ -44,7 +46,21 @@ STREAK_THRESHOLD = 50
 LEVEL_B = 25
 LEVEL_P = 1.5
 
+# Habits use the 3-tier scale; goals add the "extreme" tier on top.
 VALID_DIFFICULTIES = set(HABIT_XP)
+VALID_GOAL_DIFFICULTIES = set(GOAL_XP)
+
+# Solo Leveling-style letter ranks by level, ascending. S is the ultimate,
+# reached at level 100+. Each (threshold, letter) means "this letter from
+# `threshold` up to the next threshold".
+RANKS = [
+    (1, "E"),
+    (10, "D"),
+    (25, "C"),
+    (50, "B"),
+    (75, "A"),
+    (100, "S"),
+]
 
 
 def streak_multiplier(streak):
@@ -89,3 +105,16 @@ def level_from_xp(total_xp):
         remaining -= level_cost(level)
         level += 1
     return {"level": level, "xp_into_level": remaining, "xp_to_next": level_cost(level)}
+
+
+def rank_from_level(level):
+    """
+    The letter rank (E..S) for a level; S is the ultimate, reached at 100+.
+    """
+    letter = RANKS[0][1]
+    for threshold, name in RANKS:
+        if level >= threshold:
+            letter = name
+        else:
+            break
+    return letter

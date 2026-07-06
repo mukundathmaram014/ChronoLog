@@ -150,6 +150,10 @@
   color: #ff6b6b;
 }
 
+.goal-difficulty.extreme{
+  color: #a970ff;
+}
+
 .goal-list-item.completed .goal-text p {
   color: #aaa;
   text-decoration: line-through;
