@@ -30,6 +30,14 @@ def ensure_habit_repeat_days_column():
         db.session.commit()
 
 
+def ensure_user_homepage_note_column():
+    result = db.session.execute(text("PRAGMA table_info(users)"))
+    columns = {row[1] for row in result}
+    if "homepage_note" not in columns:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN homepage_note VARCHAR"))
+        db.session.commit()
+
+
 def create_app(test_config=None):
     db_filename = "ChronoLog.db"
     app = Flask(__name__)
@@ -69,6 +77,7 @@ def create_app(test_config=None):
     with app.app_context():
         db.create_all()
         ensure_habit_repeat_days_column()
+        ensure_user_homepage_note_column()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
     app.register_blueprint(stopwatch_routes,  url_prefix="/api")
