@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0015 — Pie chart of total time split by stopwatch
 
 ## Problem / Goal
@@ -31,6 +35,9 @@ glance.
   with 0016/0017 rather than duplicating it.)
 - `frontend/src/Pages/statisticspage.jsx` — a hand-rolled SVG pie component + legend, fed by that
   per-stopwatch period breakdown; keyed on the selected date + period.
+- `frontend/src/Pages/statisticspage.css` — styles for the pie section, legend, and empty state.
+- `backend/tests/test_statistics_breakdown.py` — tests for the breakdown endpoint (day/week
+  aggregation, Total exclusion, empty period, invalid period, user scoping).
 
 ## Approach
 1. Add the per-stopwatch period breakdown to `statistics.py` (list of `{title, duration}` over the

@@ -2,6 +2,18 @@ import {useState, useEffect} from "react";
 import './statisticspage.css';
 import useFetch from "../hooks/useFetch";
 
+// Slice colors for the stopwatch pie: starts from the app's green accent, then
+// hues spaced for distinguishability on the dark background. Cycles if exceeded.
+const PIE_COLORS = [
+    "rgb(0, 230, 122)",
+    "rgb(77, 163, 255)",
+    "rgb(255, 184, 77)",
+    "rgb(179, 139, 255)",
+    "rgb(255, 107, 129)",
+    "rgb(77, 215, 230)",
+    "rgb(255, 225, 77)",
+    "rgb(230, 120, 220)",
+];
 
 export function Statistics() {
 
@@ -23,6 +35,7 @@ export function Statistics() {
     const [stopwatches, setStopwatches] = useState([]);
     const [selectedHabit, setSelectedHabit] = useState("");
     const [selectedStopwatch, setSelectedStopwatch] = useState("");
+    const [breakdownData, setBreakdownData] = useState([]);
 
 
     // fetches habits
@@ -71,6 +84,23 @@ export function Statistics() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedTimePeriod, selectedStatistics, selectedDate, selectedHabit, selectedStopwatch])
+
+    // fetches the per-stopwatch time breakdown for the pie chart
+    useEffect(() => {
+
+            if (selectedStatistics !== "stopwatches") return;
+
+            fetchWithAuth(`/stats/stopwatches/breakdown/${selectedDate}/${selectedTimePeriod}/`, {
+                method: "GET"
+                })
+            .then(response => response.json())
+            .then(data => {
+                setBreakdownData(data.breakdown ?? []);
+            })
+            .catch(error => console.error(error))
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedStatistics, selectedDate, selectedTimePeriod])
 
     const formatTime = (totalMilliSeconds) => {
         const hours = String(Math.floor(totalMilliSeconds / 3600000)).padStart(2, '0');
@@ -199,6 +229,67 @@ export function Statistics() {
         );
     }
 
+    function StopwatchPie({ breakdown, size = 300 }) {
+        const slices = [...breakdown]
+            .filter(item => item.duration > 0)
+            .sort((a, b) => b.duration - a.duration);
+        const total = slices.reduce((sum, item) => sum + item.duration, 0);
+
+        if (total === 0) {
+            return (
+                <div className="pie-empty">No time logged for this period</div>
+            );
+        }
+
+        const cx = size / 2;
+        const cy = size / 2;
+        const radius = size / 2 - 2;
+        // angle measured clockwise from 12 o'clock
+        const point = (angle) => [
+            cx + radius * Math.sin(angle),
+            cy - radius * Math.cos(angle),
+        ];
+
+        let startAngle = 0;
+        const pieSlices = slices.map((item, index) => {
+            const sweep = (item.duration / total) * 2 * Math.PI;
+            const [x0, y0] = point(startAngle);
+            const [x1, y1] = point(startAngle + sweep);
+            const largeArc = sweep > Math.PI ? 1 : 0;
+            const d = `M ${cx} ${cy} L ${x0} ${y0} A ${radius} ${radius} 0 ${largeArc} 1 ${x1} ${y1} Z`;
+            startAngle += sweep;
+            return { ...item, d, color: PIE_COLORS[index % PIE_COLORS.length] };
+        });
+
+        return (
+            <div className="stopwatch-pie">
+                <svg width={size} height={size}>
+                    {pieSlices.length === 1 ? (
+                        // a 100% arc degenerates (start point == end point), so draw a full circle
+                        <circle cx={cx} cy={cy} r={radius} fill={pieSlices[0].color} />
+                    ) : (
+                        pieSlices.map(slice => (
+                            <path key={slice.title} d={slice.d} fill={slice.color} stroke="#232323" strokeWidth="2" />
+                        ))
+                    )}
+                </svg>
+                <div className="pie-legend">
+                    {pieSlices.map(slice => {
+                        const [hours, minutes] = formatTimeString(slice.duration);
+                        const percent = ((slice.duration / total) * 100).toFixed(1);
+                        return (
+                            <div key={slice.title} className="pie-legend-item">
+                                <span className="pie-legend-swatch" style={{ backgroundColor: slice.color }}></span>
+                                <span className="pie-legend-title">{slice.title}</span>
+                                <span className="pie-legend-value">{hours}h {minutes}m ({percent}%)</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
+
     const renderStats = () => {
         switch(selectedStatistics){
             case "habits": 
@@ -240,6 +331,10 @@ export function Statistics() {
                                 </div>
                                 <div className = "average-time-worked">
                                     Average Time Worked Per Day: {formatTime(statsData.average_time_worked_per_day)}
+                                </div>
+                                <div className = "stopwatch-pie-section">
+                                    <p>Time by Stopwatch: </p>
+                                    <StopwatchPie breakdown={breakdownData} />
                                 </div>
                             </>
                         )}
