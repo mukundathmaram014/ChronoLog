@@ -78,53 +78,67 @@ def test_level_curve_first_levels():
 
 
 def test_day_xp_helper_sums_sources_and_ramps_multiplier():
-    # qualifying day (hard + easy = 60 base), fresh streak: no boost yet
-    result = compute_day_xp(["hard", "easy"], 0, [], 0)
-    assert result == {"xp_earned": 60, "streak": 1, "multiplier": 1.0}
+    # a qualifying day needs habit + work XP >= STREAK_THRESHOLD (250);
+    # 5 hard habits = 250 base clears it on its own. Fresh streak: no boost yet
+    result = compute_day_xp(["hard"] * 5, 0, [], 0)
+    assert result == {"xp_earned": 250, "streak": 1, "multiplier": 1.0}
 
     # multiplier ramps with the running streak (habit XP only)
-    result = compute_day_xp(["hard", "easy"], 0, [], 5)
+    result = compute_day_xp(["hard"] * 5, 0, [], 5)
     assert result["streak"] == 6
     assert result["multiplier"] == 1.5
-    assert result["xp_earned"] == 90
+    assert result["xp_earned"] == 375
 
     # and caps at 2.0
-    result = compute_day_xp(["hard", "easy"], 0, [], 30)
+    result = compute_day_xp(["hard"] * 5, 0, [], 30)
     assert result["multiplier"] == 2.0
-    assert result["xp_earned"] == 120
+    assert result["xp_earned"] == 500
 
     # work and goal XP are flat (not streak-multiplied)
-    result = compute_day_xp(["hard"], 1.0, ["easy"], 30)
-    assert result["xp_earned"] == HABIT_XP["hard"] * 2 + XP_PER_HOUR + GOAL_XP["easy"]
+    result = compute_day_xp(["hard"] * 5, 1.0, ["easy"], 30)
+    assert result["xp_earned"] == HABIT_XP["hard"] * 5 * 2 + XP_PER_HOUR + GOAL_XP["easy"]
 
 
 def test_day_xp_helper_non_qualifying_day_resets_streak():
-    # a token single-easy-habit day is below the threshold: streak resets,
-    # but the day's flat XP still counts
+    # a light day (one easy habit + 2h work = 50 grind XP) is below the
+    # threshold: streak resets, but the day's flat XP still counts
     result = compute_day_xp(["easy"], 2.0, ["medium"], 7)
     assert result["streak"] == 0
     assert result["multiplier"] == 1.0
     assert result["xp_earned"] == HABIT_XP["easy"] + 2 * XP_PER_HOUR + GOAL_XP["medium"]
 
 
+def test_work_counts_toward_streak_qualification():
+    # habits alone below threshold (4 hard = 200), but habits + work clear it
+    assert compute_day_xp(["hard"] * 4, 0, [], 0)["streak"] == 0
+    assert compute_day_xp(["hard"] * 4, 2.5, [], 0)["streak"] == 1  # 200 + 50 = 250
+    # goals never count toward qualification, however large
+    assert compute_day_xp([], 0, ["extreme"], 0)["streak"] == 0
+
+
 # ---- accrual sync ----
 
 def test_habit_toggle_updates_total_and_streak(client):
     token = auth_token(client)
-    resp = create_habit(client, token, description="deep work", date=TODAY, difficulty="hard")
-    habit_id = json.loads(resp.data)["id"]
+    # a qualifying day needs >= 250 grind XP; 5 hard habits = 250 base
+    habit_ids = []
+    for i in range(5):
+        resp = create_habit(client, token, description=f"deep work {i}", date=TODAY, difficulty="hard")
+        habit_ids.append(json.loads(resp.data)["id"])
     assert json.loads(resp.data)["difficulty"] == "hard"
     assert get_level(client, token)["total_xp"] == 0
 
-    update_habit(client, token, habit_id, done=True)
+    for habit_id in habit_ids:
+        update_habit(client, token, habit_id, done=True)
     level = get_level(client, token)
-    assert level["total_xp"] == HABIT_XP["hard"]
+    assert level["total_xp"] == 5 * HABIT_XP["hard"]
     assert level["streak"] == 1
     assert level["multiplier"] == 1.0
 
-    update_habit(client, token, habit_id, done=False)
+    # dropping one hard habit falls to 200 base, below the qualifying threshold
+    update_habit(client, token, habit_ids[0], done=False)
     level = get_level(client, token)
-    assert level["total_xp"] == 0
+    assert level["total_xp"] == 4 * HABIT_XP["hard"]
     assert level["streak"] == 0
 
 
@@ -152,21 +166,21 @@ def test_past_day_edit_recomputes_streak_forward(client):
     days = ["2026-01-13", "2026-01-14", "2026-01-15"]
     habit_ids = {}
     for day in days:
-        for description, difficulty in [("workout", "hard"), ("floss", "easy")]:
-            resp = create_habit(client, token, description=description, date=day, difficulty=difficulty, done=True)
-            habit_ids[(day, description)] = json.loads(resp.data)["id"]
+        for i in range(5):  # 5 hard habits = 250 base, a qualifying day
+            resp = create_habit(client, token, description=f"work {i}", date=day, difficulty="hard", done=True)
+            habit_ids[(day, i)] = json.loads(resp.data)["id"]
 
-    # base 60/day, streaks 1/2/3 -> 60 + 66 + 72
+    # base 250/day, streaks 1/2/3 -> 250 + 275 + 300
     level = get_level(client, token)
-    assert level["total_xp"] == 60 + 66 + 72
+    assert level["total_xp"] == 250 + 275 + 300
     assert level["streak"] == 3
     assert level["multiplier"] == streak_multiplier(3)
 
-    # unchecking the middle day's hard habit drops that day below the
-    # qualifying threshold: its streak resets and the last day restarts at 1
-    update_habit(client, token, habit_ids[("2026-01-14", "workout")], done=False)
+    # unchecking one of the middle day's hard habits drops it to 200 base,
+    # below the qualifying threshold: its streak resets and the last day restarts at 1
+    update_habit(client, token, habit_ids[("2026-01-14", 0)], done=False)
     level = get_level(client, token)
-    assert level["total_xp"] == 60 + 10 + 60
+    assert level["total_xp"] == 250 + 200 + 250
     assert level["streak"] == 1
 
 
@@ -204,7 +218,7 @@ def test_worked_time_grants_flat_xp(client):
     assert resp.status_code == 200
     level = get_level(client, token)
     assert level["total_xp"] == 2 * XP_PER_HOUR
-    # work XP alone never qualifies a day for the streak
+    # 2h of work (40 XP) is well below the 250 streak threshold
     assert level["streak"] == 0
 
     # resetting the stopwatch takes the day's work XP back out

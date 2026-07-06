@@ -214,3 +214,9 @@ visibility and goal-balance gaps found in daily use. Deltas from the spec above:
 - **Calibration test updated.** The dedicated-user calibration now excludes goals (they became large,
   occasional bonuses rather than a weekly grind input); the habit + time grind alone still lands level
   100 in the 4–5 year window.
+- **Streak made demanding + now counts worked time.** `STREAK_THRESHOLD` 50 → **250**, and a day now
+  qualifies on its **habit + worked-time XP** (goals excluded), not habit XP alone. The old bar (50 =
+  two medium habits) was a formality; 250 sits near a strong day's output (a full habit list ≈ 240 plus
+  a few tracked hours), so keeping a streak takes a genuinely productive day. Note this reverses the
+  earlier "work alone never counts toward the streak" rule — worked time now contributes to
+  qualification (though clearing 250 on work alone would take ~12.5 h).
