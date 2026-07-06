@@ -261,3 +261,53 @@ h1 {
   text-align: center;
   padding: 24px 0;
 }
+/* spec 0016: per-item breakdown list + calendar section */
+.habit-calendar-section,
+.per-item-list {
+    margin-top: 34px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.habit-calendar-section > p,
+.per-item-list > p {
+    color: #ccc;
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+}
+.per-item-list {
+    gap: 8px;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.per-item-card {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: #262626;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 14px;
+    gap: 12px;
+}
+.per-item-name {
+    flex: 1;
+    text-align: left;
+    color: #eee;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.per-item-stat {
+    color: #bbb;
+    font-variant-numeric: tabular-nums;
+}
+.per-item-pct {
+    color: rgb(0, 230, 122);
+    font-weight: 600;
+    min-width: 44px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}

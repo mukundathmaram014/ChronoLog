@@ -1,6 +1,7 @@
 import {useState, useEffect} from "react";
 import './statisticspage.css';
 import useFetch from "../hooks/useFetch";
+import HabitCalendar from "../Components/HabitCalendar";
 
 // Slice colors for the stopwatch pie: starts from the app's green accent, then
 // hues spaced for distinguishability on the dark background. Cycles if exceeded.
@@ -36,6 +37,8 @@ export function Statistics() {
     const [selectedHabit, setSelectedHabit] = useState("");
     const [selectedStopwatch, setSelectedStopwatch] = useState("");
     const [breakdownData, setBreakdownData] = useState([]);
+    const [combinedData, setCombinedData] = useState(null);
+    const [calendarData, setCalendarData] = useState(null);
 
 
     // fetches the habits and stopwatches for the selector. For "day" these are the
@@ -100,6 +103,33 @@ export function Statistics() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedTimePeriod, selectedStatistics, selectedDate, selectedHabit, selectedStopwatch])
+
+    // fetches the aggregate Total + per-item stats for the combined view (spec 0016)
+    useEffect(() => {
+            fetchWithAuth(`/stats/${selectedStatistics}/all/${selectedDate}/${selectedTimePeriod}/`, {
+                method: "GET"
+                })
+            .then(response => response.json())
+            .then(data => setCombinedData(data))
+            .catch(error => console.error(error))
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedStatistics, selectedDate, selectedTimePeriod])
+
+    // fetches the per-day habit calendar, driven by the current habit selection:
+    // a single habit -> status calendar; "All Habits" -> Total intensity heatmap (spec 0016)
+    useEffect(() => {
+            if (selectedStatistics !== "habits") { setCalendarData(null); return; }
+            const query = selectedHabit ? `?description=${encodeURIComponent(selectedHabit)}` : "";
+            fetchWithAuth(`/stats/habits/calendar/${selectedDate}/${selectedTimePeriod}/${query}`, {
+                method: "GET"
+                })
+            .then(response => response.json())
+            .then(data => setCalendarData(data))
+            .catch(error => console.error(error))
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedStatistics, selectedDate, selectedTimePeriod, selectedHabit])
 
     // fetches the per-stopwatch time breakdown for the pie chart
     useEffect(() => {
@@ -326,6 +356,28 @@ export function Statistics() {
                             </>
                         )}
 
+                        {calendarData && (
+                            <div className="habit-calendar-section">
+                                <p>{selectedHabit
+                                    ? `Consistency — ${selectedHabit}`
+                                    : "Consistency heatmap — all habits"}</p>
+                                <HabitCalendar mode={calendarData.mode} days={calendarData.days} period={selectedTimePeriod} />
+                            </div>
+                        )}
+
+                        {!selectedHabit && combinedData?.items?.length > 0 && (
+                            <div className="per-item-list">
+                                <p>Per-habit breakdown</p>
+                                {combinedData.items.map(item => (
+                                    <div key={item.description} className="per-item-card">
+                                        <span className="per-item-name">{item.description}</span>
+                                        <span className="per-item-stat">{item.completed_habits}/{item.total_habits}</span>
+                                        <span className="per-item-pct">{item.percentage.toFixed(0)}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                     </div>
                 );
             case "stopwatches": 
@@ -353,6 +405,21 @@ export function Statistics() {
                                     <StopwatchPie breakdown={breakdownData} />
                                 </div>
                             </>
+                        )}
+
+                        {!selectedStopwatch && combinedData?.items?.length > 0 && (
+                            <div className="per-item-list">
+                                <p>Per-stopwatch breakdown</p>
+                                {combinedData.items.map(item => {
+                                    const [hrs, mins] = formatTimeString(item.total_time_worked);
+                                    return (
+                                        <div key={item.title} className="per-item-card">
+                                            <span className="per-item-name">{item.title}</span>
+                                            <span className="per-item-stat">{hrs}h {mins}m</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         )}
 
                     </div>
