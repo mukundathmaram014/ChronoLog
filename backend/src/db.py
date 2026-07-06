@@ -15,13 +15,14 @@ class User(db.Model):
     email = db.Column(db.String, nullable = False)
     password_hash = db.Column(db.String, nullable = False)
     homepage_note = db.Column(db.String, nullable = True)
+    total_xp = db.Column(db.Integer, nullable=False, default=0)
 
     def serialize(self):
         """
         Serializing a user to be returned
         """
 
-        return {"id": self.id, "username": self.username, "email": self.email, "homepage_note": self.homepage_note}
+        return {"id": self.id, "username": self.username, "email": self.email, "homepage_note": self.homepage_note, "total_xp": self.total_xp or 0}
 
 
 # Habit model
@@ -37,6 +38,8 @@ class Habit(db.Model):
     date = db.Column(db.Date, nullable=False)
     # 7-bit weekday bitmask: bit i = date.weekday() i (0 = Mon ... 6 = Sun); 127 = every day
     repeat_days = db.Column(db.Integer, nullable=False, default=127)
+    # difficulty tier (easy/medium/hard) mapping to a fixed XP value in utils.py
+    difficulty = db.Column(db.String, nullable=False, default="medium")
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def __init__(self, **kwargs):
@@ -48,6 +51,7 @@ class Habit(db.Model):
         self.done = kwargs.get("done", False)
         self.date = kwargs.get("date", date.today())
         self.repeat_days = kwargs.get("repeat_days", 127)
+        self.difficulty = kwargs.get("difficulty", "medium")
         self.user_id = kwargs.get("user_id")
 
     def serialize(self):
@@ -60,6 +64,7 @@ class Habit(db.Model):
             "done" : self.done,
             "date": self.date.isoformat(),
             "repeat_days": self.repeat_days,
+            "difficulty": self.difficulty,
             "user_id": self.user_id
         }
     
@@ -111,6 +116,84 @@ class Task(db.Model):
             "parent_id": self.parent_id,
             "user_id": self.user_id,
             "subtasks": [subtask.serialize() for subtask in self.subtasks]
+        }
+
+
+# Goal model
+class Goal(db.Model):
+    """
+    Goal model. One-time: completing a goal grants its difficulty XP once on
+    its completed_date; un-completing removes it. No repeating goals.
+    """
+
+    __tablename__ = "goals"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    description = db.Column(db.String, nullable = False)
+    difficulty = db.Column(db.String, nullable=False, default="medium")
+    done = db.Column(db.Boolean, nullable=False, default=False)
+    completed_date = db.Column(db.Date, nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a goal object
+        """
+
+        self.description = kwargs.get("description", "")
+        self.difficulty = kwargs.get("difficulty", "medium")
+        self.done = kwargs.get("done", False)
+        self.completed_date = kwargs.get("completed_date")
+        self.user_id = kwargs.get("user_id")
+
+    def serialize(self):
+        """
+        Serializing a goal to be returned
+        """
+        return {
+            "id": self.id,
+            "description": self.description,
+            "difficulty": self.difficulty,
+            "done": self.done,
+            "completed_date": self.completed_date.isoformat() if self.completed_date else None,
+            "user_id": self.user_id
+        }
+
+
+# DailyXP model
+class DailyXP(db.Model):
+    """
+    Per-user-per-day XP ledger: what each day contributed to User.total_xp,
+    plus that day's streak count. The streak is path-dependent, so editing a
+    past day recomputes that day forward (see xp.recompute_from).
+    """
+
+    __tablename__ = "daily_xp"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    date = db.Column(db.Date, nullable=False)
+    xp_earned = db.Column(db.Integer, nullable=False, default=0)
+    streak = db.Column(db.Integer, nullable=False, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a DailyXP object
+        """
+
+        self.date = kwargs.get("date", date.today())
+        self.xp_earned = kwargs.get("xp_earned", 0)
+        self.streak = kwargs.get("streak", 0)
+        self.user_id = kwargs.get("user_id")
+
+    def serialize(self):
+        """
+        Serializing a DailyXP row to be returned
+        """
+        return {
+            "id": self.id,
+            "date": self.date.isoformat(),
+            "xp_earned": self.xp_earned,
+            "streak": self.streak,
+            "user_id": self.user_id
         }
 
 
