@@ -35,6 +35,7 @@ shouldn't appear.
   `ALTER TABLE habits ADD COLUMN repeat_days INTEGER NOT NULL DEFAULT 127`.
 - `backend/src/routes/habits.py` — create/edit accept `repeat_days`; carry-forward only creates the
   habit when the target day's weekday is in its set; preserve DeletedDay + duplicate guard.
+- `backend/tests/test_habits_carryforward.py` — cover repeat-day persistence and weekday-gated carry-forward.
 - `frontend/src/Pages/habitpage.jsx` — add/edit form: a weekday picker (7 toggles); send `repeat_days`.
 - (Maybe) `frontend/src/Components/HabitItem.jsx` — optional small indicator of repeat days.
 

@@ -128,6 +128,27 @@ def test_repeat_days_default_and_persistence(client):
     assert json.loads(resp.data)["repeat_days"] == MWF
 
 
+def test_edit_repeat_days_persists_for_same_habit(client):
+    token = auth_token(client)
+    resp = create_habit(client, token, "Editable habit", MONDAY.isoformat())
+    habit_id = json.loads(resp.data)["id"]
+
+    resp = update_habit(client, token, habit_id, {"description": "Editable habit", "repeat_days": MWF})
+    assert resp.status_code == 200
+    assert json.loads(resp.data)["repeat_days"] == MWF
+
+    resp = client.get(
+        f"/api/habits/{habit_id}/",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert json.loads(resp.data)["repeat_days"] == MWF
+
+    resp = get_habits(client, token, MONDAY.isoformat())
+    habits = json.loads(resp.data)["habits"]
+    assert len(habits) == 1
+    assert habits[0]["repeat_days"] == MWF
+
+
 def test_repeat_days_rejects_invalid(client):
     token = auth_token(client)
     for bad in (0, 128, -1, "21", True):

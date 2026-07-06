@@ -133,6 +133,7 @@ export function Habit() {
 
   const handleEditHabit = () => {
     if (isFuture){return;}
+    if (isAdding) return;
     if (editingHabitID === null) return;
     if (newRepeatDays === 0) {
       setHabitError("Select at least one repeat day.");
@@ -170,6 +171,17 @@ export function Habit() {
     )
     .catch(error => console.error(error))
     .finally(() => setIsAdding(false))
+  }
+
+  const closeEditHabit = () => {
+    if (editingHabitID === null) {
+      setEditHabit(false);
+      setNewDescription("");
+      setNewRepeatDays(ALL_DAYS);
+      setHabitError("");
+      return;
+    }
+    handleEditHabit();
   }
 
   const handleToggleHabit = (index, currStatus) => {
@@ -281,7 +293,7 @@ export function Habit() {
             <div className = "habit-input">
               <div className = "habit-edit-item">
                 <IoMdClose className = "close-icon"
-                  onClick={() => {setEditHabit(false); setNewDescription(""); setNewRepeatDays(ALL_DAYS); setHabitError("")}}/>
+                  onClick={closeEditHabit}/>
                 <h3>Edit habit</h3>
                 <label>Description</label>
                 <input type= "text" value = {newDescription} 
