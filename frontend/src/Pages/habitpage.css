@@ -203,7 +203,6 @@ h1{
   display: flex;
   gap: 10px;
   align-items: center;
-  justify-content: center;
 }
 
 .habit-difficulty {
@@ -296,7 +295,7 @@ h1{
 .habit-text {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .habit-text p {

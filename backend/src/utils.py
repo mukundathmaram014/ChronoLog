@@ -41,8 +41,10 @@ GOAL_XP = {"easy": 500, "medium": 2000, "hard": 5000, "extreme": 20000}
 XP_PER_HOUR = 20
 STREAK_STEP = 0.1
 STREAK_CAP = 2.0
-# a day's habit base XP must reach this for the day to count toward the streak
-STREAK_THRESHOLD = 50
+# a day's "grind" XP (habits + worked time, no goals) must reach this for the
+# day to count toward the streak. Set near a strong day's output so keeping a
+# streak is demanding, not a formality.
+STREAK_THRESHOLD = 250
 LEVEL_B = 25
 LEVEL_P = 1.5
 
@@ -78,13 +80,17 @@ def compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_str
     Pure day-XP function: the difficulty tiers of a day's completed habits,
     hours worked, tiers of goals completed that day, and the previous day's
     streak -> {"xp_earned", "streak", "multiplier"}. The streak multiplier
-    applies to habit XP only; work and goal XP are flat.
+    applies to habit XP only; work and goal XP are flat. A day qualifies for
+    the streak on its habit + worked-time XP (goals excluded).
     """
     habit_base = sum(HABIT_XP[difficulty] for difficulty in habit_difficulties)
-    streak = prev_streak + 1 if habit_base >= STREAK_THRESHOLD else 0
+    work_xp = hours_worked * XP_PER_HOUR
+    # goals are rare one-off wins and don't carry a daily streak
+    qualifying_xp = habit_base + work_xp
+    streak = prev_streak + 1 if qualifying_xp >= STREAK_THRESHOLD else 0
     multiplier = streak_multiplier(streak)
     goal_xp = sum(GOAL_XP[difficulty] for difficulty in goal_difficulties)
-    xp_earned = round(habit_base * multiplier + hours_worked * XP_PER_HOUR + goal_xp)
+    xp_earned = round(habit_base * multiplier + work_xp + goal_xp)
     return {"xp_earned": xp_earned, "streak": streak, "multiplier": multiplier}
 
 
