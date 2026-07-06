@@ -38,31 +38,47 @@ export function Statistics() {
     const [breakdownData, setBreakdownData] = useState([]);
 
 
-    // fetches habits
+    // fetches the habits and stopwatches for the selector. For "day" these are the
+    // day's own items; for longer periods, the distinct items that existed on any
+    // day within the period. If the previously selected item isn't in the new list,
+    // the selection falls back to the all/total view.
     useEffect(() => {
-        fetchWithAuth(`/habits/${selectedDate}/`, {
-        method: "GET"
-        })
-        .then( response => response.json())
-        .then(data => setHabits(data.habits))
-        .catch(error => console.error(error))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedDate]);
+        if (selectedTimePeriod === "day") {
+            fetchWithAuth(`/habits/${selectedDate}/`, {
+            method: "GET"
+            })
+            .then( response => response.json())
+            .then(data => {
+                setHabits(data.habits);
+                setSelectedHabit(prev => data.habits.some(habit => habit.description === prev) ? prev : "");
+            })
+            .catch(error => console.error(error))
 
-    //fetches stopwatches
-    useEffect(() => {
-
-        fetchWithAuth(`/stopwatches/${selectedDate}/`, {
+            fetchWithAuth(`/stopwatches/${selectedDate}/`, {
+                    method: "GET"
+                    })
+            .then(response => response.json())
+            .then(data => {
+                    setStopwatches((data.stopwatches));
+                    setSelectedStopwatch(prev => data.stopwatches.some(stopwatch => stopwatch.title === prev) ? prev : "");
+                })
+            .catch(error => console.error(error));
+        } else {
+            fetchWithAuth(`/stats/items/${selectedDate}/${selectedTimePeriod}/`, {
                 method: "GET"
                 })
-        .then(response => response.json())
-        .then(data => {
-                setStopwatches((data.stopwatches));
+            .then(response => response.json())
+            .then(data => {
+                setHabits(data.habits.map(description => ({ id: description, description })));
+                setStopwatches(data.stopwatches.map(title => ({ id: title, title })));
+                setSelectedHabit(prev => data.habits.includes(prev) ? prev : "");
+                setSelectedStopwatch(prev => data.stopwatches.includes(prev) ? prev : "");
             })
-        .catch(error => console.error(error));
+            .catch(error => console.error(error));
+        }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedDate]); 
+    }, [selectedDate, selectedTimePeriod]);
 
     useEffect(() => {
             

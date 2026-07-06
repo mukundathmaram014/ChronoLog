@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0017 — Date change drives the statistics period
 
 ## Problem / Goal
@@ -23,13 +27,17 @@ present on the selected day.
    `statistics.py` source.
 
 ## Affected files
-- `backend/src/routes/statistics.py` — the distinct habits/stopwatches present in a given period
-  (date + period), scoped by `user_id`, for populating the selector / combined view. **Fold this into the
-  one shared period-aware source** built with 0016 (per-item stats + total) and consumed by 0015 (pie),
-  rather than a standalone query.
-- `frontend/src/Pages/statisticspage.jsx` — when period ≠ day, populate the dropdown/list from the
-  period's item set instead of the single day's fetch (`:29-52`), keyed on `selectedTimePeriod` +
-  `selectedDate`.
+- `backend/src/routes/statistics.py` — new `GET /stats/items/<date>/<period>/` returning the distinct
+  habit descriptions / stopwatch titles present in the period, scoped by `user_id` (single range query
+  with `DISTINCT`, not a per-day loop). 0016 wasn't built yet at implementation time, so the "shared
+  period-aware source" took the form of a `get_period_range()` helper extracted from and reused by the
+  0015 breakdown endpoint; 0016 should build on both.
+- `frontend/src/Pages/statisticspage.jsx` — the two single-day selector fetches merged into one
+  effect keyed on `selectedTimePeriod` + `selectedDate`: day keeps the existing per-day fetches,
+  longer periods populate the dropdown from `/stats/items/`. A selection that disappears from the new
+  list resets to the All/Total view instead of silently filtering on an absent item.
+- `backend/tests/test_statistics_items.py` — endpoint tests (period membership, distinct collapse,
+  day unchanged, user scoping, invalid period).
 
 ## Approach
 1. Add the period-items source — distinct items across the period — as part of the shared period-aware
