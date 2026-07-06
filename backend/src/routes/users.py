@@ -86,6 +86,35 @@ def refresh():
     new_access_token = create_access_token(identity= str(user_id), additional_claims={"refresh_jti": refresh_jti, "refresh_exp": refresh_exp})
     return success_response({"access_token": new_access_token, "username": username, "email" : email })
 
+@user_routes.route("/note", methods = ["GET"])
+@jwt_required()
+def get_note():
+    """
+    Returns the current user's homepage note
+    """
+
+    user_id = int(get_jwt_identity())
+    user = User.query.filter_by(id = user_id).first()
+    if not user:
+        return failure_response("User not found", 404)
+    return success_response({"homepage_note": user.homepage_note})
+
+@user_routes.route("/note", methods = ["PUT"])
+@jwt_required()
+def update_note():
+    """
+    Updates the current user's homepage note
+    """
+
+    user_id = int(get_jwt_identity())
+    user = User.query.filter_by(id = user_id).first()
+    if not user:
+        return failure_response("User not found", 404)
+    body = json.loads(request.data)
+    user.homepage_note = body.get("homepage_note", "")
+    db.session.commit()
+    return success_response({"homepage_note": user.homepage_note})
+
 @user_routes.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():

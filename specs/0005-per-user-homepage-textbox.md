@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0005 — Per-user editable homepage text box
 
 ## Problem / Goal
