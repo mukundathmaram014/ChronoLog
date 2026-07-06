@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0020 — XP / level system (habits + work time, streaks, goals)
 
 ## Problem / Goal
@@ -93,13 +97,18 @@ vitality stat split — a single XP pool / single level only.
   - a pure **day-XP helper**: given a day's completed-habit difficulties, hours worked, goals completed,
     and the running streak → `{xp_earned, streak, multiplier}` (applies the tier XP, per-hour rate,
     streak rule). Central home for all the fixed XP constants.
-- `backend/src/routes/level.py` (new blueprint under `/api`, or fold into `statistics.py`) — a
-  `@jwt_required()` endpoint returning the user's `total_xp`, derived level + progress, and current
-  streak/multiplier, scoped by `user_id`.
-- `backend/src/routes/habits.py` — accept `difficulty` on create/edit; on any `done` toggle, recompute
-  that day's `DailyXP` + adjust `total_xp` (recompute forward for streak).
-- `backend/src/routes/stopwatch.py` — when a day's worked time changes (stop), recompute that day's
-  `DailyXP` + `total_xp`.
+- `backend/src/xp.py` — **new** (added during build): the DB-touching accrual engine
+  (`recompute_from(user_id, day)` forward-recompute + `current_streak`). Split out of `utils.py`
+  because `db.py` imports `utils.py`, so the pure helpers can't reach the models without a circular
+  import; routes import it directly.
+- `backend/src/routes/level.py` (new blueprint under `/api`) — a `@jwt_required()`
+  `GET /api/level/<date>/` endpoint returning the user's `total_xp`, derived level + progress, and
+  current streak/multiplier, scoped by `user_id`.
+- `backend/src/routes/habits.py` — accept `difficulty` on create/edit (carry-forward inherits it); on
+  any `done` toggle / difficulty change / delete of a done habit, recompute that day's `DailyXP` +
+  adjust `total_xp` (recompute forward for streak).
+- `backend/src/routes/stopwatch.py` — when a day's worked time changes (stop, duration edit, reset,
+  delete), recompute that day's `DailyXP` + `total_xp`.
 - `backend/src/routes/goals.py` — **new** blueprint `goal_routes`: list/create/get/update (toggle done /
   edit description + difficulty)/delete, all `@jwt_required()`, `user_id`-scoped,
   `success_response`/`failure_response`; on complete/uncomplete, adjust that day's `DailyXP` + `total_xp`.
@@ -108,7 +117,10 @@ vitality stat split — a single XP pool / single level only.
 - `frontend/src/Pages/goalpage.jsx` + `goalpage.css` — **new** Goals page: add-goal form (description +
   Easy/Medium/Hard), list with complete/edit/delete, via `useFetch`.
 - `frontend/src/App.js` — protected `/goalpage` route; `frontend/src/Components/Navbar.jsx` — "Goals" link.
-- `frontend/src/Pages/homepage.jsx` — an **XP bar + level** readout (fed by the level endpoint).
+- `frontend/src/Pages/homepage.jsx` + `homepage.css` — an **XP bar + level** readout (fed by the level
+  endpoint); `frontend/src/Pages/habitpage.css` — difficulty-picker styles.
+- `backend/tests/test_xp.py` — **new**: curve/day-XP helper tests, accrual-sync tests (habit toggle,
+  past-day forward recompute, worked time, goals), user isolation, and the calibration simulation.
 
 ## Approach
 1. **Model + migrations.** Add `Habit.difficulty` and `User.total_xp` (ALTER TABLE on `habits` / `users`);
