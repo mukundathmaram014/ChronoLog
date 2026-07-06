@@ -1,0 +1,240 @@
+.task-wrapper{
+  background: #353434;
+  padding: 2%;
+  width: 60%;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 3%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0px 5px 7px rgb(27,27,27);
+}
+
+.task-input{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* dim background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.task-input-item,
+.task-edit-item{
+  position: relative;
+  background-color: #2f2f2f;
+  padding: 25px;
+  border-radius: 10px;
+  width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-input-item h3,
+.task-edit-item h3 {
+  margin-top: 0;
+  color: white;
+}
+
+.task-input-item label,
+.task-edit-item label{
+  font-weight: bold;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.task-input-item input,
+.task-edit-item input{
+  padding: 8px;
+  border: none;
+  border-radius: 5px;
+  width: 250px;
+}
+
+.task-input-item input:focus,
+.task-edit-item input:focus{
+  outline: none;
+  outline: 2px solid rgb(0,230,122)
+}
+
+.task-input-item input[type="date"],
+.task-edit-item input[type="date"]{
+  background: #232323;
+  color: #fff;
+  border: 1.5px solid #444;
+}
+
+.recurrence-select{
+  padding: 8px;
+  border: 1.5px solid #444;
+  border-radius: 5px;
+  width: 266px;
+  background: #232323;
+  color: #fff;
+}
+
+.recurrence-select:focus{
+  outline: none;
+  outline: 2px solid rgb(0,230,122)
+}
+
+.addTaskButton,
+.editTaskButton {
+  margin-top: 10px;
+  background-color: rgb(0,230,122);
+  border: none;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.task-list{
+  display: flex;
+  flex-direction: column;
+}
+
+.task-group{
+  margin-bottom: 20px;
+}
+
+.task-group-title{
+  color: rgb(0,230,122);
+  font-size: 1.3rem;
+  margin: 10px 0;
+  text-align: left;
+}
+
+.task-group-title.overdue-title{
+  color: #ff6b6b;
+}
+
+.task-group-empty{
+  color: #aaa;
+  font-size: 0.95rem;
+  margin: 0 0 10px 0;
+  text-align: left;
+}
+
+.task-date-heading{
+  color: #aaa;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 1px;
+  margin: 6px 0;
+  text-align: left;
+}
+
+.task-block{
+  margin-bottom: 10px;
+}
+
+.task-list-item{
+  background-color: rgb(78, 72, 72);
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* Vertically center everything */
+  padding: 15px 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.task-list-item:hover {
+  background-color: #585252;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+}
+
+.task-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.task-text p {
+  margin: 0;
+  font-size: 1rem;
+  color: white;
+  line-height: 1.4;
+}
+
+.task-meta {
+  font-size: 0.75rem;
+  color: #aaa;
+  letter-spacing: 1px;
+}
+
+.task-list-item.completed .task-text p {
+  color: #aaa;
+  text-decoration: line-through;
+}
+
+.expand-toggle{
+  display: flex;
+  align-items: center;
+  font-size: 20px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.expand-toggle:hover{
+  color: rgb(0,230,122);
+  transform: scale(1.1);
+  transition: transform 0.1s ease;
+}
+
+.subtask-list{
+  margin-left: 45px;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.subtask-list .task-list-item.subtask{
+  background-color: rgb(64, 59, 59);
+  padding: 10px 10px;
+}
+
+.subtask-list .task-list-item.subtask:hover{
+  background-color: #524c4c;
+}
+
+.subtask-add{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.subtask-add input{
+  flex: 1;
+  padding: 8px;
+  border: 1.5px solid #444;
+  border-radius: 5px;
+  background: #232323;
+  color: #fff;
+}
+
+.subtask-add input:focus{
+  outline: none;
+  border-color: rgb(0,230,122);
+}
+
+.addSubtaskButton{
+  background-color: rgb(0,230,122);
+  border: none;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.addSubtaskButton:hover{
+  background-color: rgb(4,196,106);
+}

@@ -19,7 +19,8 @@
 }
 
 .homepage-habitcard,
-.homepage-stopwatchcard {
+.homepage-stopwatchcard,
+.homepage-taskcard {
   min-width: 0;
   width: 100%;
   min-height: 140px;
@@ -37,7 +38,8 @@
 }
 
 .homepage-habitcard h3,
-.homepage-stopwatchcard h3 {
+.homepage-stopwatchcard h3,
+.homepage-taskcard h3 {
   color: #00e67a;
   font-size: 2.3rem;
   font-weight: 600;
@@ -74,6 +76,65 @@ button {
 button:hover {
   background: #00b86b;
   color: #fff;
+}
+
+.homepage-taskcard {
+  grid-column: 1 / -1;
+}
+
+.homepage-task-summary {
+  display: flex;
+  gap: 18px;
+  color: #aaa;
+  font-size: 1.1rem;
+  margin-bottom: 14px;
+}
+
+.homepage-task-overdue-count {
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+.homepage-task-list {
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.homepage-task-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #2f2f2f;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 1rem;
+  text-align: left;
+}
+
+.homepage-task-item.done .homepage-task-description {
+  color: #aaa;
+  text-decoration: line-through;
+}
+
+.homepage-task-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #00e67a;
+  flex-shrink: 0;
+}
+
+.homepage-task-dot.overdue {
+  background: #ff6b6b;
+}
+
+.homepage-task-empty {
+  color: #aaa;
+  margin: 0;
 }
 
 .homepage-quotesection {
