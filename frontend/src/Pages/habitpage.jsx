@@ -24,6 +24,7 @@ import useFetch from "../hooks/useFetch";
 // bit i = weekday i (0 = Mon ... 6 = Sun), matching Python date.weekday(); 127 = every day
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const ALL_DAYS = 127;
+const DIFFICULTY_OPTIONS = ["easy", "medium", "hard"];
 
 export function Habit() {
 
@@ -43,6 +44,7 @@ export function Habit() {
   const [allHabits, setHabits] = useState([]);
   const [newDescription, setNewDescription] = useState("");
   const [newRepeatDays, setNewRepeatDays] = useState(ALL_DAYS);
+  const [newDifficulty, setNewDifficulty] = useState("medium");
   const [isAdding, setIsAdding] = useState(false);
   const [editingHabitID, setEditingHabitID] = useState(null);
   const [today, setToday] = useState(() => (DatetoISOString(new Date())));
@@ -94,7 +96,8 @@ export function Habit() {
       description: newDescription,
       done: false,
       date: selectedDate,
-      repeat_days: newRepeatDays
+      repeat_days: newRepeatDays,
+      difficulty: newDifficulty
     }
     setIsAdding(true);
     fetchWithAuth("/habits/", {
@@ -112,6 +115,7 @@ export function Habit() {
       setHabits(allHabits => [...allHabits, data]);
       setNewDescription("");
       setNewRepeatDays(ALL_DAYS);
+      setNewDifficulty("medium");
       setaddHabit(false);
     }
     )
@@ -143,7 +147,8 @@ export function Habit() {
 
     const newHabit = {
       description: newDescription,
-      repeat_days: newRepeatDays
+      repeat_days: newRepeatDays,
+      difficulty: newDifficulty
     }
 
     setIsAdding(true);
@@ -165,6 +170,7 @@ export function Habit() {
         ));
       setNewDescription("");
       setNewRepeatDays(ALL_DAYS);
+      setNewDifficulty("medium");
       setEditHabit(false);
       setEditingHabitID(null);
     }
@@ -178,6 +184,7 @@ export function Habit() {
       setEditHabit(false);
       setNewDescription("");
       setNewRepeatDays(ALL_DAYS);
+      setNewDifficulty("medium");
       setHabitError("");
       return;
     }
@@ -222,6 +229,21 @@ export function Habit() {
     </>
   );
 
+  const renderDifficultyPicker = () => (
+    <>
+      <label>Difficulty</label>
+      <div className="difficulty-picker">
+        {DIFFICULTY_OPTIONS.map(option => (
+          <button type="button" key={option}
+            className={`difficulty-toggle ${option} ${newDifficulty === option ? 'selected' : ''}`}
+            onClick={() => setNewDifficulty(option)}>
+            {option.charAt(0).toUpperCase() + option.slice(1)}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+
   function handleDragStart(event) {
     const {active} = event;
     
@@ -260,7 +282,7 @@ export function Habit() {
         <h1>My Habits</h1>
         <div className="habit-wrapper">
           <button type = 'button' className = 'primaryBtn'
-              onClick={() => {setaddHabit(true); setNewRepeatDays(ALL_DAYS);}} disabled = {isFuture}>
+              onClick={() => {setaddHabit(true); setNewRepeatDays(ALL_DAYS); setNewDifficulty("medium");}} disabled = {isFuture}>
               <FaPlus className = "plus-icon" />
           </button>
           {addHabit && (
@@ -279,6 +301,7 @@ export function Habit() {
                 }}
                 placeholder="What's the habit"/>
                 {renderWeekdayPicker()}
+                {renderDifficultyPicker()}
                 <button type = 'button' className = 'addHabitButton'
                   onClick={handleAddHabit}
                   disabled = {isAdding || newRepeatDays === 0}
@@ -305,6 +328,7 @@ export function Habit() {
                 }}
                 placeholder="What's the habit"/>
                 {renderWeekdayPicker()}
+                {renderDifficultyPicker()}
                 <button type = 'button' className = 'editHabitButton'
                   onClick={handleEditHabit}
                   disabled = {isAdding || newRepeatDays === 0}
@@ -322,7 +346,7 @@ export function Habit() {
                   key={item.id}
                   item={item}
                   isFuture={isFuture}
-                  onEdit={item => { setEditHabit(true); setNewDescription(item.description); setNewRepeatDays(item.repeat_days ?? ALL_DAYS); setEditingHabitID(item.id); }}
+                  onEdit={item => { setEditHabit(true); setNewDescription(item.description); setNewRepeatDays(item.repeat_days ?? ALL_DAYS); setNewDifficulty(item.difficulty ?? "medium"); setEditingHabitID(item.id); }}
                   onDelete={handleDeleteHabit}
                   onToggle={handleToggleHabit}
                   activeId= {activeId}
@@ -336,7 +360,7 @@ export function Habit() {
         {activeId ? <HabitItem 
             item={allHabits.find(h => h.id === activeId)}
             isFuture={isFuture}
-            onEdit={item => { setEditHabit(true); setNewDescription(item.description); setNewRepeatDays(item.repeat_days ?? ALL_DAYS); setEditingHabitID(item.id); }}
+            onEdit={item => { setEditHabit(true); setNewDescription(item.description); setNewRepeatDays(item.repeat_days ?? ALL_DAYS); setNewDifficulty(item.difficulty ?? "medium"); setEditingHabitID(item.id); }}
             onDelete={handleDeleteHabit}
             onToggle={handleToggleHabit} /> : null}
       </DragOverlay>

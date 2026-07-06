@@ -173,3 +173,58 @@ button:hover {
   margin: 0 auto 32px auto;
 }
 
+.homepage-levelcard {
+  grid-column: 1 / -1;
+  background: #232323;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  padding: 20px 24px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+.homepage-level-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.homepage-level-header h3 {
+  color: #00e67a;
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.homepage-level-streak {
+  color: #e6a700;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.homepage-xp-bar {
+  width: 100%;
+  height: 18px;
+  background: #444;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.homepage-xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00e67a, #00b86b);
+  border-radius: 9px;
+  transition: width 0.5s;
+}
+
+.homepage-xp-label {
+  color: #aaa;
+  font-size: 0.95rem;
+  text-align: right;
+}
+

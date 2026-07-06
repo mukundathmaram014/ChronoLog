@@ -42,6 +42,9 @@ export function Navbar() {
                 <Link to="/taskpage">
                     <button>Tasks</button>
                 </Link>
+                <Link to="/goalpage">
+                    <button>Goals</button>
+                </Link>
                 <Link to="/stopwatchpage">
                     <button>Stopwatch</button>
                 </Link>

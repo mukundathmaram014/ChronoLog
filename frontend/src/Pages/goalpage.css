@@ -1,0 +1,156 @@
+.goal-wrapper{
+  background: #353434;
+  padding: 2%;
+  width: 60%;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 3%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0px 5px 7px rgb(27,27,27);
+}
+
+.goal-input{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* dim background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.goal-input-item,
+.goal-edit-item{
+  position: relative;
+  background-color: #2f2f2f;
+  padding: 25px;
+  border-radius: 10px;
+  width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.goal-input-item h3,
+.goal-edit-item h3 {
+  margin-top: 0;
+  color: white;
+}
+
+.goal-input-item label,
+.goal-edit-item label{
+  font-weight: bold;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.goal-input-item input,
+.goal-edit-item input{
+  padding: 8px;
+  border: none;
+  border-radius: 5px;
+  width: 250px;
+}
+
+.goal-input-item input:focus,
+.goal-edit-item input:focus{
+  outline: none;
+  outline: 2px solid rgb(0,230,122)
+}
+
+.addGoalButton,
+.editGoalButton {
+  margin-top: 10px;
+  background-color: rgb(0,230,122);
+  border: none;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.goal-list{
+  display: flex;
+  flex-direction: column;
+}
+
+.goal-group{
+  margin-bottom: 20px;
+}
+
+.goal-group-title{
+  color: rgb(0,230,122);
+  font-size: 1.3rem;
+  margin: 10px 0;
+  text-align: left;
+}
+
+.goal-group-empty{
+  color: #aaa;
+  font-size: 0.95rem;
+  margin: 0 0 10px 0;
+  text-align: left;
+}
+
+.goal-list-item{
+  background-color: rgb(78, 72, 72);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 10px;
+  border-radius: 5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  margin-bottom: 10px;
+}
+
+.goal-list-item:hover {
+  background-color: #585252;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+}
+
+.goal-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.goal-text p {
+  margin: 0;
+  font-size: 1rem;
+  color: white;
+  line-height: 1.4;
+}
+
+.goal-meta {
+  font-size: 0.75rem;
+  color: #aaa;
+  letter-spacing: 1px;
+}
+
+.goal-difficulty{
+  text-transform: capitalize;
+  font-weight: 600;
+}
+
+.goal-difficulty.easy{
+  color: rgb(0,230,122);
+}
+
+.goal-difficulty.medium{
+  color: #e6a700;
+}
+
+.goal-difficulty.hard{
+  color: #ff6b6b;
+}
+
+.goal-list-item.completed .goal-text p {
+  color: #aaa;
+  text-decoration: line-through;
+}

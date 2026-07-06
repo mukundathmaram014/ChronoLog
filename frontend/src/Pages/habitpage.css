@@ -155,6 +155,43 @@ h1{
   letter-spacing: 1px;
 }
 
+.difficulty-picker {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.difficulty-toggle {
+  flex: 1;
+  padding: 6px 0;
+  background-color: #232323;
+  color: #aaa;
+  border: 1.5px solid #444;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.difficulty-toggle:hover {
+  border-color: rgb(0,230,122);
+}
+
+.difficulty-toggle.selected {
+  background-color: rgb(0,230,122);
+  border-color: rgb(0,230,122);
+  color: white;
+}
+
+.difficulty-toggle.medium.selected {
+  background-color: #e6a700;
+  border-color: #e6a700;
+}
+
+.difficulty-toggle.hard.selected {
+  background-color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
 /* check icon specific styling */
 .plus-icon {
   font-size: 25px;   /* Change size here */

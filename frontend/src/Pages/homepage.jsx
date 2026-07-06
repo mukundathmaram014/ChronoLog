@@ -18,6 +18,7 @@ export function Home() {
     const [habitsData, setHabitsData] = useState(null);
     const [stopwatchesData, setStopwatchesData] = useState(null);
     const [tasksData, setTasksData] = useState({ overdue: [], today: [] });
+    const [levelData, setLevelData] = useState(null);
     const [today, setToday] = useState(() => (DatetoISOString(new Date())));
     const [quote, setQuote] = useState("");
 
@@ -72,6 +73,20 @@ export function Home() {
                 .then(response => response.json())
                 .then(data => {
                     setTasksData({ overdue: data.overdue ?? [], today: data.today ?? [] });
+                })
+                .catch(error => console.error(error))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [today])
+
+    // fetches the user's XP / level readout
+    useEffect(() => {
+
+                fetchWithAuth(`/level/${today}/`, {
+                    method: "GET"
+                    })
+                .then(response => response.json())
+                .then(data => {
+                    setLevelData(data);
                 })
                 .catch(error => console.error(error))
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -227,6 +242,24 @@ export function Home() {
                 <h2>Here's how you're doing today</h2>
             </div>
             <div className = "homepage-cards-grid">
+                <div className = "homepage-levelcard">
+                    <div className = "homepage-level-header">
+                        <h3>Level {levelData?.level ?? 1}</h3>
+                        {(levelData?.streak ?? 0) > 0 && (
+                            <span className="homepage-level-streak">
+                                🔥 {levelData.streak}-day streak · ×{levelData.multiplier.toFixed(1)} XP
+                            </span>
+                        )}
+                    </div>
+                    <div className="homepage-xp-bar">
+                        <div className="homepage-xp-bar-fill"
+                            style={{ width: `${levelData?.xp_to_next ? Math.min((levelData.xp_into_level / levelData.xp_to_next) * 100, 100) : 0}%` }}>
+                        </div>
+                    </div>
+                    <span className="homepage-xp-label">
+                        {levelData?.xp_into_level ?? 0} / {levelData?.xp_to_next ?? 0} XP to level {(levelData?.level ?? 1) + 1}
+                    </span>
+                </div>
                 <div className = "homepage-habitcard">
                     <h3>Habits</h3>
                     <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "28px"}}>
