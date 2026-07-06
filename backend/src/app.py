@@ -7,6 +7,7 @@ from db import db, Stopwatch, DeletedDay, TokenBlocklist
 from flask import Flask, request
 from flask_cors import CORS
 from routes.habits import habit_routes
+from routes.tasks import task_routes
 from routes.stopwatch import stopwatch_routes
 from routes.statistics import statistic_routes
 from routes.users import user_routes
@@ -80,6 +81,7 @@ def create_app(test_config=None):
         ensure_user_homepage_note_column()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
+    app.register_blueprint(task_routes,  url_prefix="/api")
     app.register_blueprint(stopwatch_routes,  url_prefix="/api")
     app.register_blueprint(statistic_routes,  url_prefix="/api")
     app.register_blueprint(user_routes,  url_prefix="/api")

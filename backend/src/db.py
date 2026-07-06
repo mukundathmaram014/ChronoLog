@@ -63,6 +63,57 @@ class Habit(db.Model):
             "user_id": self.user_id
         }
     
+# Task model
+class Task(db.Model):
+    """
+    Task model. Top-level tasks have parent_id = NULL; a sub-task points to its
+    parent (one level of nesting). recurrence is one of none/daily/weekly/monthly.
+    """
+
+    __tablename__ = "tasks"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    description = db.Column(db.String, nullable = False)
+    done = db.Column(db.Boolean, nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    recurrence = db.Column(db.String, nullable=False, default="none")
+    parent_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    # deleting a parent deletes its sub-tasks
+    subtasks = db.relationship(
+        "Task",
+        backref=db.backref("parent", remote_side=[id]),
+        cascade="all, delete-orphan",
+    )
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a task object
+        """
+
+        self.description = kwargs.get("description", "")
+        self.done = kwargs.get("done", False)
+        self.date = kwargs.get("date", date.today())
+        self.recurrence = kwargs.get("recurrence", "none")
+        self.parent_id = kwargs.get("parent_id")
+        self.user_id = kwargs.get("user_id")
+
+    def serialize(self):
+        """
+        Serializing a task to be returned, with sub-tasks nested under the parent
+        """
+        return {
+            "id": self.id,
+            "description" : self.description,
+            "done" : self.done,
+            "date": self.date.isoformat(),
+            "recurrence": self.recurrence,
+            "parent_id": self.parent_id,
+            "user_id": self.user_id,
+            "subtasks": [subtask.serialize() for subtask in self.subtasks]
+        }
+
+
 #stopwatch model
 class Stopwatch(db.Model):
     """
