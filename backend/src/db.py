@@ -14,13 +14,14 @@ class User(db.Model):
     username = db.Column(db.String, nullable = False)
     email = db.Column(db.String, nullable = False)
     password_hash = db.Column(db.String, nullable = False)
+    homepage_note = db.Column(db.String, nullable = True)
 
     def serialize(self):
         """
         Serializing a user to be returned
         """
 
-        return {"id": self.id, "username": self.username, "email": self.email}
+        return {"id": self.id, "username": self.username, "email": self.email, "homepage_note": self.homepage_note}
 
 
 # Habit model

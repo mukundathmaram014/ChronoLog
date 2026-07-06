@@ -18,7 +18,7 @@ export function Home() {
     const [habitsData, setHabitsData] = useState(null);
     const [stopwatchesData, setStopwatchesData] = useState(null);
     const [today, setToday] = useState(() => (DatetoISOString(new Date())));
-    const [quote, setQuote] = useState(() => localStorage.getItem("dailyQuote") || "Daily Quote");
+    const [quote, setQuote] = useState("");
 
     // updates state variable today
     useEffect(() => {
@@ -62,16 +62,28 @@ export function Home() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [today])
 
-    // gets saved quote from local storage
+    // fetches the user's saved homepage note
     useEffect(() => {
-        const savedQuote = localStorage.getItem("dailyQuote");
-        if (savedQuote) setQuote(savedQuote);
-    }, []);
 
-    // stores saved quote in local storage
-    useEffect(() => {
-        localStorage.setItem("dailyQuote", quote);
-    }, [quote]);
+                fetchWithAuth(`/note`, {
+                    method: "GET"
+                    })
+                .then(response => response.json())
+                .then(data => {
+                    setQuote(data?.homepage_note ?? "");
+                })
+                .catch(error => console.error(error))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [])
+
+    // saves the user's homepage note
+    const saveQuote = () => {
+        fetchWithAuth(`/note`, {
+            method: "PUT",
+            body: JSON.stringify({ homepage_note: quote })
+        })
+        .catch(error => console.error(error))
+    }
 
 
     const formatTimeString = (totalMilliSeconds) => {
@@ -222,8 +234,10 @@ export function Home() {
                     <textarea
                         value={quote}
                         onChange={e => setQuote(e.target.value)}
+                        onBlur={saveQuote}
+                        placeholder="Write a note..."
                         rows={2}
-                        className="homepage-quote-input"              
+                        className="homepage-quote-input"
                     />
                 </div>
 
