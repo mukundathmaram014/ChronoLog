@@ -11,6 +11,26 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 statistic_routes = Blueprint('statistics', __name__)
 
+
+def get_period_range(requested_date, time_period):
+    """
+    Returns (start_day, num_days) for the period containing requested_date,
+    or None if time_period is invalid. Shared by the period-aware stats
+    endpoints (specs 0015/0016/0017).
+    """
+
+    if (time_period == "day"):
+        return (requested_date, 1)
+    elif (time_period == "week"):
+        return (requested_date - timedelta(days = requested_date.weekday()), 7)
+    elif (time_period == "month"):
+        return (requested_date.replace(day = 1), calendar.monthrange(requested_date.year, requested_date.month)[1])
+    elif (time_period == "year"):
+        return (requested_date.replace(month = 1, day = 1), 366 if calendar.isleap(requested_date.year) else 365)
+    else:
+        return None
+
+
 @statistic_routes.route("/")
 def test():
     return success_response("hello worldww")
@@ -186,20 +206,10 @@ def get_stopwatches_breakdown(date_string, time_period):
     user_id = int(get_jwt_identity())
     requested_date = date.fromisoformat(date_string)
 
-    if (time_period == "day"):
-        start_day = requested_date
-        num_days = 1
-    elif (time_period == "week"):
-        start_day = requested_date - timedelta(days = requested_date.weekday())
-        num_days = 7
-    elif (time_period == "month"):
-        start_day = requested_date.replace(day = 1)
-        num_days = calendar.monthrange(requested_date.year, requested_date.month)[1]
-    elif (time_period == "year"):
-        start_day = requested_date.replace(month = 1, day = 1)
-        num_days = 366 if calendar.isleap(requested_date.year) else 365
-    else:
+    period_range = get_period_range(requested_date, time_period)
+    if period_range is None:
         return failure_response("Invalid time period")
+    start_day, num_days = period_range
 
     durations = {}
     current_day = start_day
@@ -212,6 +222,43 @@ def get_stopwatches_breakdown(date_string, time_period):
 
     breakdown = [{"title" : title, "duration" : duration} for title, duration in durations.items()]
     return success_response({"breakdown" : breakdown})
+
+
+@statistic_routes.route("/stats/items/<string:date_string>/<string:time_period>/")
+@jwt_required()
+def get_period_items(date_string, time_period):
+    """
+    Endpoint for getting the distinct habits and stopwatches that existed on any
+    day within the selected period, for populating the stats selector (spec 0017).
+    Stopwatches exclude the per-day Total rows; a single "Total Time" entry is
+    prepended instead (the frontend maps it to the no-filter query).
+    """
+
+    user_id = int(get_jwt_identity())
+    requested_date = date.fromisoformat(date_string)
+
+    period_range = get_period_range(requested_date, time_period)
+    if period_range is None:
+        return failure_response("Invalid time period")
+    start_day, num_days = period_range
+    end_day = start_day + timedelta(days = num_days - 1)
+
+    habit_rows = Habit.query.with_entities(Habit.description).filter(
+        Habit.user_id == user_id,
+        Habit.date >= start_day,
+        Habit.date <= end_day,
+    ).distinct().all()
+    habits = sorted(row.description for row in habit_rows)
+
+    stopwatch_rows = Stopwatch.query.with_entities(Stopwatch.title).filter(
+        Stopwatch.user_id == user_id,
+        Stopwatch.isTotal == False,
+        Stopwatch.date >= start_day,
+        Stopwatch.date <= end_day,
+    ).distinct().all()
+    stopwatches = ["Total Time"] + sorted(row.title for row in stopwatch_rows)
+
+    return success_response({"habits" : habits, "stopwatches" : stopwatches})
 
 
 
