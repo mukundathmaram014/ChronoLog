@@ -62,6 +62,8 @@ def get_habits_stats(date_string, time_period):
         days_in_week = 7
 
         for i in range(days_in_week):
+            if current_day_in_week > date.today():
+                break
             query = Habit.query.filter_by(date=current_day_in_week, user_id = user_id)
             if description:
                 query = query.filter_by(description = description)
@@ -76,6 +78,8 @@ def get_habits_stats(date_string, time_period):
         days_in_month = calendar.monthrange(requested_date.year, requested_date.month)[1]
 
         for i in range(days_in_month):
+            if current_day_in_month > date.today():
+                break
             query = Habit.query.filter_by(date=current_day_in_month, user_id = user_id)
             if description:
                 query = query.filter_by(description = description)
@@ -91,6 +95,8 @@ def get_habits_stats(date_string, time_period):
         days_in_year = 366 if calendar.isleap(requested_date.year) else 365
 
         for i in range(days_in_year):
+            if current_day_in_year > date.today():
+                break
             query = Habit.query.filter_by(date=current_day_in_year, user_id = user_id)
             if description:
                 query = query.filter_by(description = description)
@@ -286,6 +292,8 @@ def get_habits_all(date_string, time_period):
     completed_all = 0
     current_day = start_day
     for i in range(num_days):
+        if current_day > date.today() and time_period != "day":
+            break
         for habit in Habit.query.filter_by(date = current_day, user_id = user_id).all():
             counts = per.setdefault(habit.description, [0, 0])
             counts[0] += 1

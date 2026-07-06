@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0010 — Habit stats count days that haven't happened yet
 
 ## Problem / Goal
@@ -19,6 +23,11 @@ route is simply missing that guard.
 
 ## Affected files
 - `backend/src/routes/statistics.py` — `get_habits_stats`, the `week`, `month`, and `year` loops.
+- `backend/src/routes/statistics.py` — `get_habits_all` (added after this spec was written, in spec
+  0016): same missing cutoff, same fix, mirroring `get_stopwatches_all`'s existing guard.
+  (`get_habits_calendar` is left alone — the calendar intentionally renders the full period grid.)
+- `backend/tests/test_statistics_habits_cutoff.py` — new tests for the cutoff (current-period
+  week/month/year, fully-past period unchanged, and the combined `all` endpoint).
 
 ## Approach
 1. In each of the `week`, `month`, `year` loops, add `if current_day_* > date.today(): break` at the
