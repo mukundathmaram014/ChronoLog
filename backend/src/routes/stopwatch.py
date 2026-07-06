@@ -7,6 +7,7 @@ from db import Stopwatch, DeletedDay
 from datetime import datetime, date, timedelta, timezone
 from sqlalchemy import func
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from xp import recompute_from
 
 
 stopwatch_routes = Blueprint('stopwatch', __name__)
@@ -183,8 +184,11 @@ def update_stopwatch(stopwatch_id):
         return failure_response("Total stopwatch is not found")
     total_stopwatch.curr_duration = total_stopwatch.curr_duration + change_in_duration
     total_stopwatch.goal_time = total_stopwatch.goal_time + change_in_goal_time
+    # the day's worked time changed, so its work XP changes
+    if change_in_duration != 0:
+        recompute_from(user_id, requested_date)
     db.session.commit()
-    
+
     stopwatches = [total_stopwatch.serialize(), stopwatch.serialize()]
     return success_response({"stopwatches" : stopwatches})
 
@@ -214,7 +218,12 @@ def delete_stopwatch(stopwatch_id):
         deleted_marker = DeletedDay(date=requested_date, type = "stopwatch", user_id = user_id)
         db.session.add(deleted_marker)
         db.session.commit()
-    
+
+    # the day's worked time changed, so its work XP changes
+    if stopwatch.curr_duration != 0:
+        recompute_from(user_id, requested_date)
+        db.session.commit()
+
     stopwatches = [total_stopwatch.serialize(), stopwatch.serialize()]
     
     
@@ -237,6 +246,8 @@ def stop_stopwatch(stopwatch_id):
     increment = (ensure_utc(stopwatch.end_time) - ensure_utc(stopwatch.interval_start)).total_seconds() * 1000
     stopwatch.curr_duration = stopwatch.curr_duration + increment
     total_stopwatch.curr_duration = total_stopwatch.curr_duration + increment
+    # the day's worked time changed, so its work XP changes
+    recompute_from(user_id, requested_date)
     db.session.commit()
 
     stopwatches = [total_stopwatch.serialize(), stopwatch.serialize()]
@@ -287,6 +298,8 @@ def reset_stopwatch(stopwatch_id):
     # as well so differences between the two curr durations will be the same.
     total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
     stopwatch.curr_duration = 0.0
+    # the day's worked time changed, so its work XP changes
+    recompute_from(user_id, requested_date)
     db.session.commit()
 
     stopwatches = [total_stopwatch.serialize(), stopwatch.serialize()]

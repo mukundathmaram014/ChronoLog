@@ -27,3 +27,65 @@ def ensure_utc(dt):
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+# ---- XP / level system (spec 0020) ----
+# All balancing constants are fixed in code — users only pick a per-item
+# difficulty tier, never how fast they level. Tune these together via the
+# calibration simulation in backend/tests/test_xp.py.
+
+HABIT_XP = {"easy": 10, "medium": 25, "hard": 50}
+GOAL_XP = {"easy": 50, "medium": 100, "hard": 200}
+XP_PER_HOUR = 20
+STREAK_STEP = 0.1
+STREAK_CAP = 2.0
+# a day's habit base XP must reach this for the day to count toward the streak
+STREAK_THRESHOLD = 50
+LEVEL_B = 25
+LEVEL_P = 1.5
+
+VALID_DIFFICULTIES = set(HABIT_XP)
+
+
+def streak_multiplier(streak):
+    """
+    Habit-XP multiplier for a day whose streak count is `streak`.
+    A broken streak (0) gets no boost.
+    """
+    if streak < 1:
+        return 1.0
+    return min(1 + STREAK_STEP * (streak - 1), STREAK_CAP)
+
+
+def compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak):
+    """
+    Pure day-XP function: the difficulty tiers of a day's completed habits,
+    hours worked, tiers of goals completed that day, and the previous day's
+    streak -> {"xp_earned", "streak", "multiplier"}. The streak multiplier
+    applies to habit XP only; work and goal XP are flat.
+    """
+    habit_base = sum(HABIT_XP[difficulty] for difficulty in habit_difficulties)
+    streak = prev_streak + 1 if habit_base >= STREAK_THRESHOLD else 0
+    multiplier = streak_multiplier(streak)
+    goal_xp = sum(GOAL_XP[difficulty] for difficulty in goal_difficulties)
+    xp_earned = round(habit_base * multiplier + hours_worked * XP_PER_HOUR + goal_xp)
+    return {"xp_earned": xp_earned, "streak": streak, "multiplier": multiplier}
+
+
+def level_cost(level):
+    """
+    XP needed to go from `level` to `level + 1` on the fixed curve.
+    """
+    return round(LEVEL_B * level ** LEVEL_P)
+
+
+def level_from_xp(total_xp):
+    """
+    Derive {"level", "xp_into_level", "xp_to_next"} from a running XP total.
+    """
+    remaining = max(0, total_xp)
+    level = 1
+    while remaining >= level_cost(level):
+        remaining -= level_cost(level)
+        level += 1
+    return {"level": level, "xp_into_level": remaining, "xp_to_next": level_cost(level)}

@@ -11,6 +11,8 @@ from routes.tasks import task_routes
 from routes.stopwatch import stopwatch_routes
 from routes.statistics import statistic_routes
 from routes.users import user_routes
+from routes.goals import goal_routes
+from routes.level import level_routes
 from datetime import datetime, timedelta
 from utils import success_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -36,6 +38,22 @@ def ensure_user_homepage_note_column():
     columns = {row[1] for row in result}
     if "homepage_note" not in columns:
         db.session.execute(text("ALTER TABLE users ADD COLUMN homepage_note VARCHAR"))
+        db.session.commit()
+
+
+def ensure_habit_difficulty_column():
+    result = db.session.execute(text("PRAGMA table_info(habits)"))
+    columns = {row[1] for row in result}
+    if "difficulty" not in columns:
+        db.session.execute(text("ALTER TABLE habits ADD COLUMN difficulty VARCHAR NOT NULL DEFAULT 'medium'"))
+        db.session.commit()
+
+
+def ensure_user_total_xp_column():
+    result = db.session.execute(text("PRAGMA table_info(users)"))
+    columns = {row[1] for row in result}
+    if "total_xp" not in columns:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN total_xp INTEGER NOT NULL DEFAULT 0"))
         db.session.commit()
 
 
@@ -79,12 +97,16 @@ def create_app(test_config=None):
         db.create_all()
         ensure_habit_repeat_days_column()
         ensure_user_homepage_note_column()
+        ensure_habit_difficulty_column()
+        ensure_user_total_xp_column()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
     app.register_blueprint(task_routes,  url_prefix="/api")
     app.register_blueprint(stopwatch_routes,  url_prefix="/api")
     app.register_blueprint(statistic_routes,  url_prefix="/api")
     app.register_blueprint(user_routes,  url_prefix="/api")
+    app.register_blueprint(goal_routes,  url_prefix="/api")
+    app.register_blueprint(level_routes,  url_prefix="/api")
 
     # gets all deleted days for a user
     @app.route("/api/deletedday")

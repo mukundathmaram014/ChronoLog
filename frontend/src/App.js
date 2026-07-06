@@ -4,6 +4,7 @@ import { Home } from './Pages/homepage';
 import { Stopwatch } from './Pages/stopwatchpage';
 import { Habit } from './Pages/habitpage';
 import { Tasks } from './Pages/taskpage';
+import { Goals } from './Pages/goalpage';
 import { Layout } from './layout';
 import { Statistics } from './Pages/statisticspage';
 import { LoginPage } from './Pages/loginpage';
@@ -25,6 +26,7 @@ function App() {
           <Route path="/homepage" element={<Home />}/>
           <Route path="/habitpage" element={<Habit />}/>
           <Route path="/taskpage" element={<Tasks />}/>
+          <Route path="/goalpage" element={<Goals />}/>
           <Route path="/stopwatchpage" element={<Stopwatch />}/>
           <Route path="/statisticspage" element={<Statistics />}/>
         </Route>

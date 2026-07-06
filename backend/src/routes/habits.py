@@ -1,5 +1,5 @@
 from flask import Blueprint
-from utils import success_response, failure_response, process_date
+from utils import success_response, failure_response, process_date, VALID_DIFFICULTIES
 import json
 from db import db
 from flask import Flask, request
@@ -7,6 +7,7 @@ from db import Habit, DeletedDay
 from datetime import date, timedelta
 from sqlalchemy import func
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from xp import recompute_from
 
 
 
@@ -22,13 +23,13 @@ def validate_repeat_days(repeat_days):
     """
     return isinstance(repeat_days, int) and not isinstance(repeat_days, bool) and 1 <= repeat_days <= 127
 
-def create_habit_for_date(requested_date, done, description, user_id, repeat_days = 127):
+def create_habit_for_date(requested_date, done, description, user_id, repeat_days = 127, difficulty = "medium"):
 
     duplicate = Habit.query.filter_by(description = description, date = requested_date, user_id = user_id).first()
     if duplicate is not None:
         return failure_response("Habit already exists for this day", 409)
 
-    new_habit = Habit(description = description, done = done, date = requested_date, user_id = user_id, repeat_days = repeat_days)
+    new_habit = Habit(description = description, done = done, date = requested_date, user_id = user_id, repeat_days = repeat_days, difficulty = difficulty)
 
     db.session.add(new_habit)
     db.session.commit()
@@ -98,10 +99,10 @@ def get_habits(date_string):
                 while (temp_date < (requested_date - timedelta(days=1))):
                     temp_date += timedelta(days=1)
                     if repeat_days & (1 << temp_date.weekday()):
-                        create_habit_for_date(requested_date=temp_date, done = False, description=prev_habit.description, user_id = user_id, repeat_days = repeat_days)
+                        create_habit_for_date(requested_date=temp_date, done = False, description=prev_habit.description, user_id = user_id, repeat_days = repeat_days, difficulty = prev_habit.difficulty)
 
                 if repeat_days & (1 << requested_date.weekday()):
-                    new_habit = create_habit_for_date(requested_date=requested_date, done = False, description = prev_habit.description, user_id = user_id, repeat_days = repeat_days)
+                    new_habit = create_habit_for_date(requested_date=requested_date, done = False, description = prev_habit.description, user_id = user_id, repeat_days = repeat_days, difficulty = prev_habit.difficulty)
                     new_habits.append(new_habit)
 
             db.session.commit()
@@ -122,10 +123,16 @@ def create_habit():
     repeat_days = body.get("repeat_days", 127)
     if not validate_repeat_days(repeat_days):
         return failure_response("repeat_days must be an integer between 1 and 127", 400)
-    new_habit = create_habit_for_date(requested_date=requested_date, done = body.get("done", False), description= body.get("description",""), user_id=user_id, repeat_days=repeat_days)
+    difficulty = body.get("difficulty", "medium")
+    if difficulty not in VALID_DIFFICULTIES:
+        return failure_response("difficulty must be one of: easy, medium, hard", 400)
+    new_habit = create_habit_for_date(requested_date=requested_date, done = body.get("done", False), description= body.get("description",""), user_id=user_id, repeat_days=repeat_days, difficulty=difficulty)
     # If result is a failure response, return it directly
     if isinstance(new_habit, tuple):
         return new_habit
+    if new_habit["done"]:
+        recompute_from(user_id, requested_date)
+        db.session.commit()
     return success_response(new_habit, 201)
 
 @habit_routes.route("/habits/<int:habit_id>/")
@@ -166,8 +173,23 @@ def update_habit(habit_id):
     # applies forward only: future carry-forward reads this value; past rows are untouched
     habit.repeat_days = new_repeat_days
 
+    new_difficulty = body.get("difficulty", habit.difficulty)
+    if new_difficulty not in VALID_DIFFICULTIES:
+        return failure_response("difficulty must be one of: easy, medium, hard", 400)
+
+    old_done = habit.done
+    old_difficulty = habit.difficulty
+    old_date = habit.date
+    habit.difficulty = new_difficulty
     habit.done = body.get("done", habit.done)
-    habit.date = body.get("date", habit.date)
+    new_date = body.get("date", habit.date)
+    if isinstance(new_date, str):
+        new_date = date.fromisoformat(new_date)
+    habit.date = new_date
+
+    # a done toggle, or a difficulty/date change while done, changes that day's XP
+    if (habit.done != old_done) or (habit.done and (habit.difficulty != old_difficulty or habit.date != old_date)):
+        recompute_from(user_id, min(old_date, habit.date))
     db.session.commit()
     return success_response(habit.serialize())
 
@@ -182,6 +204,7 @@ def delete_habit(habit_id):
     if habit is None:
         return failure_response("Habit not found")
     habit_date = habit.date
+    was_done = habit.done
     db.session.delete(habit)
     db.session.commit()
 
@@ -190,6 +213,11 @@ def delete_habit(habit_id):
     if (not remaining_habits):
         deleted_marker = DeletedDay(date=habit_date, type = "habit", user_id = user_id)
         db.session.add(deleted_marker)
+        db.session.commit()
+
+    # a deleted done habit no longer contributes to that day's XP
+    if was_done:
+        recompute_from(user_id, habit_date)
         db.session.commit()
 
     return success_response(habit.serialize())
