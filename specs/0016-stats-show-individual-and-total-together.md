@@ -1,3 +1,8 @@
+---
+title: Show individual + total statistics together
+status: built
+---
+
 # 0016 — Show individual + total statistics together
 
 ## Problem / Goal

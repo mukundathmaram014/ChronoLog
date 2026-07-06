@@ -263,3 +263,155 @@ def get_period_items(date_string, time_period):
 
 
     
+
+@statistic_routes.route("/stats/habits/all/<string:date_string>/<string:time_period>/")
+@jwt_required()
+def get_habits_all(date_string, time_period):
+    """
+    Combined habits view (spec 0016): the aggregate total plus per-habit stats
+    for the selected date + period, in one request. Shares the period walk with
+    the other 0015/0016/0017 stats endpoints.
+    """
+
+    user_id = int(get_jwt_identity())
+    requested_date = date.fromisoformat(date_string)
+
+    period_range = get_period_range(requested_date, time_period)
+    if period_range is None:
+        return failure_response("Invalid time period")
+    start_day, num_days = period_range
+
+    per = {}  # description -> [total, completed]
+    total_all = 0
+    completed_all = 0
+    current_day = start_day
+    for i in range(num_days):
+        for habit in Habit.query.filter_by(date = current_day, user_id = user_id).all():
+            counts = per.setdefault(habit.description, [0, 0])
+            counts[0] += 1
+            total_all += 1
+            if habit.done:
+                counts[1] += 1
+                completed_all += 1
+        current_day += timedelta(days = 1)
+
+    items = []
+    for description in sorted(per):
+        total_habits, completed_habits = per[description]
+        items.append({
+            "description": description,
+            "total_habits": total_habits,
+            "completed_habits": completed_habits,
+            "percentage": (completed_habits / total_habits * 100) if total_habits > 0 else 0,
+        })
+    total = {
+        "total_habits": total_all,
+        "completed_habits": completed_all,
+        "percentage": (completed_all / total_all * 100) if total_all > 0 else 0,
+    }
+    return success_response({"total": total, "items": items})
+
+
+@statistic_routes.route("/stats/stopwatches/all/<string:date_string>/<string:time_period>/")
+@jwt_required()
+def get_stopwatches_all(date_string, time_period):
+    """
+    Combined stopwatches view (spec 0016): the aggregate Total plus per-stopwatch
+    time worked / goal for the selected date + period, in one request.
+    """
+
+    user_id = int(get_jwt_identity())
+    requested_date = date.fromisoformat(date_string)
+
+    period_range = get_period_range(requested_date, time_period)
+    if period_range is None:
+        return failure_response("Invalid time period")
+    start_day, num_days = period_range
+
+    per = {}  # title -> [duration, goal]
+    total_time = 0
+    total_goal = 0
+    days_with_data = 0
+    current_day = start_day
+    for i in range(num_days):
+        if current_day > date.today() and time_period != "day":
+            break
+        total_row = Stopwatch.query.filter_by(date = current_day, isTotal = True, user_id = user_id).first()
+        if total_row:
+            total_time += total_row.curr_duration
+            total_goal += total_row.goal_time
+            days_with_data += 1
+        for stopwatch in Stopwatch.query.filter_by(date = current_day, isTotal = False, user_id = user_id).all():
+            counts = per.setdefault(stopwatch.title, [0, 0])
+            counts[0] += stopwatch.curr_duration
+            counts[1] += stopwatch.goal_time
+        current_day += timedelta(days = 1)
+
+    items = [
+        {"title": title, "total_time_worked": duration, "total_goal_time": goal}
+        for title, (duration, goal) in sorted(per.items())
+    ]
+    total = {
+        "total_time_worked": total_time,
+        "total_goal_time": total_goal,
+        "average_time_worked_per_day": (total_time / days_with_data) if days_with_data > 0 else total_time,
+    }
+    return success_response({"total": total, "items": items})
+
+
+@statistic_routes.route("/stats/habits/calendar/<string:date_string>/<string:time_period>/")
+@jwt_required()
+def get_habits_calendar(date_string, time_period):
+    """
+    Per-day habit calendar over the selected window (spec 0016). Read-only over
+    existing Habit rows; a single pass over the period.
+
+    - ?description=<habit>  -> single-habit STATUS: {mode:"status", start, days:[{date, status}]}
+      status in {done, missed, not-scheduled, no-data}, classified from the row's
+      `done` flag and its `repeat_days` weekday bit.
+    - no description        -> Total INTENSITY: {mode:"intensity", start, days:[{date, completed, scheduled}]}
+      counts over all the user's habits scheduled that date; frontend derives
+      intensity = completed / scheduled (scheduled == 0 renders neutral).
+    """
+
+    user_id = int(get_jwt_identity())
+    requested_date = date.fromisoformat(date_string)
+
+    period_range = get_period_range(requested_date, time_period)
+    if period_range is None:
+        return failure_response("Invalid time period")
+    start_day, num_days = period_range
+    description = request.args.get("description")
+
+    days = []
+    current_day = start_day
+    for i in range(num_days):
+        weekday_bit = 1 << current_day.weekday()
+        if description:
+            habit = Habit.query.filter_by(
+                date = current_day, description = description, user_id = user_id).first()
+            if habit is None:
+                status = "no-data"
+            elif not (habit.repeat_days & weekday_bit):
+                status = "not-scheduled"
+            elif habit.done:
+                status = "done"
+            else:
+                status = "missed"
+            days.append({"date": current_day.isoformat(), "status": status})
+        else:
+            scheduled = 0
+            completed = 0
+            for habit in Habit.query.filter_by(date = current_day, user_id = user_id).all():
+                if habit.repeat_days & weekday_bit:
+                    scheduled += 1
+                    if habit.done:
+                        completed += 1
+            days.append({"date": current_day.isoformat(), "scheduled": scheduled, "completed": completed})
+        current_day += timedelta(days = 1)
+
+    return success_response({
+        "mode": "status" if description else "intensity",
+        "start": start_day.isoformat(),
+        "days": days,
+    })
