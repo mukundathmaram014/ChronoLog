@@ -298,6 +298,16 @@ def test_level_readout_includes_rank(client):
     assert get_level(client, token)["rank"] == "E"
 
 
+def test_level_readout_includes_day_xp(client):
+    token = auth_token(client)
+    assert get_level(client, token)["day_xp"] == 0
+    # XP earned today shows up on today's readout
+    resp = create_goal(client, token, description="ship it", difficulty="easy")
+    goal_id = json.loads(resp.data)["id"]
+    update_goal(client, token, goal_id, done=True, date=TODAY)
+    assert get_level(client, token)["day_xp"] == GOAL_XP["easy"]
+
+
 def test_xp_and_goals_are_user_scoped(client):
     token_a = auth_token(client, username="usera")
     token_b = auth_token(client, username="userb")

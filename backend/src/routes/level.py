@@ -3,7 +3,7 @@ from utils import success_response, level_from_xp, streak_multiplier, rank_from_
 from db import db, User
 from datetime import date
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from xp import current_streak
+from xp import current_streak, day_xp
 
 
 level_routes = Blueprint('level', __name__)
@@ -14,8 +14,8 @@ level_routes = Blueprint('level', __name__)
 def get_level(date_string):
     """
     Endpoint for the user's XP/level readout: running XP total, derived level
-    + progress on the fixed curve, and the current streak/multiplier as of
-    the given (client-local) date.
+    + progress on the fixed curve, the XP earned on the given day, and the
+    current streak/multiplier as of the given (client-local) date.
     """
     user_id = int(get_jwt_identity())
     today = date.fromisoformat(date_string)
@@ -29,6 +29,7 @@ def get_level(date_string):
         "rank": rank_from_level(progress["level"]),
         "xp_into_level": progress["xp_into_level"],
         "xp_to_next": progress["xp_to_next"],
+        "day_xp": day_xp(user_id, today),
         "streak": streak,
         "multiplier": streak_multiplier(streak),
     })
