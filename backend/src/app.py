@@ -57,6 +57,14 @@ def ensure_user_total_xp_column():
         db.session.commit()
 
 
+def ensure_stopwatch_goal_overridden_column():
+    result = db.session.execute(text("PRAGMA table_info(stopwatches)"))
+    columns = {row[1] for row in result}
+    if "goal_overridden" not in columns:
+        db.session.execute(text("ALTER TABLE stopwatches ADD COLUMN goal_overridden BOOLEAN NOT NULL DEFAULT 0"))
+        db.session.commit()
+
+
 def create_app(test_config=None):
     db_filename = "ChronoLog.db"
     app = Flask(__name__)
@@ -99,6 +107,7 @@ def create_app(test_config=None):
         ensure_user_homepage_note_column()
         ensure_habit_difficulty_column()
         ensure_user_total_xp_column()
+        ensure_stopwatch_goal_overridden_column()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
     app.register_blueprint(task_routes,  url_prefix="/api")

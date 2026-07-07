@@ -6,11 +6,19 @@ export const StopwatchItem = forwardRef(({item, isFuture, onEdit, onStart, onSto
        
             if (item.isTotal === true){
                 return (
-                    <div className = "total-stopwatch-item" key = {item.id} ref = {ref}>
+                    <div className = "total-stopwatch-item" key = {item.id} ref = {ref}
+                         style={{ cursor: isFuture ? "default" : "pointer" }}
+                         onClick={() => {if (isFuture) return; onEdit(item)}}>
                         <p>Total Time Worked: </p>
                         <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "50px" }}>
-                                <CircularProgressTotal time ={getElapsed(item)} goal_time = {item.goal_time}/> 
-                        </div>  
+                                <CircularProgressTotal time ={getElapsed(item)} goal_time = {item.goal_time}/>
+                        </div>
+                        <div className="goal-time">
+                            {item.goal_time > 0 ? (() => {
+                                const [goalHours, goalMinutes] = formatTimeString(item.goal_time);
+                                return <>Daily goal: {goalHours}h {goalMinutes}m{item.goal_overridden ? " (custom)" : ""}</>;
+                            })() : <>No daily goal</>}
+                        </div>
                     </div>
                 )
             } else {

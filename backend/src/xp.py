@@ -30,14 +30,10 @@ def _day_inputs(user_id, day):
         goal.difficulty
         for goal in Goal.query.filter_by(user_id=user_id, done=True, completed_date=day).all()
     ]
-    # sum of the day's real stopwatches' goal times (exclude the Total row and
-    # no-goal stopwatches, whose goal_time is 0), in hours
-    goal_ms = db.session.query(func.coalesce(func.sum(Stopwatch.goal_time), 0)).filter(
-        Stopwatch.user_id == user_id,
-        Stopwatch.date == day,
-        Stopwatch.isTotal == False,
-        Stopwatch.goal_time > 0,
-    ).scalar()
+    # the day's total goal time is the Total row's goal_time -- the sum of the
+    # individual stopwatch goals by default, or the user's override (spec 0023);
+    # drives the goal-time bonus + overtime split
+    goal_ms = total_stopwatch.goal_time if total_stopwatch else 0
     goal_hours = (goal_ms or 0) / MS_PER_HOUR
     return habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done
 

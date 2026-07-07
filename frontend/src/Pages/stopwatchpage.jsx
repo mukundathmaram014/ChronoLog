@@ -50,6 +50,8 @@ export function Stopwatch() {
     const [inputHours, setInputHours] = useState(1);
     const [inputMinutes, setInputMinutes] = useState(0);
     const [noGoal, setNoGoal] = useState(false);
+    const [editingIsTotal, setEditingIsTotal] = useState(false);
+    const [matchSum, setMatchSum] = useState(true);
     const [currentHours, setCurrentHours] = useState(0);
     const [currentMinutes, setCurrentMinutes] = useState(0);
     const [currentSeconds, setCurrentSeconds] = useState(0);
@@ -385,11 +387,14 @@ export function Stopwatch() {
         const inputTimeString = `${String(safeGoalHours).padStart(2, '0')}:${String(safeGoalMinutes).padStart(2, '0')}`;
         const newDuration = (safeCurrHours * 3600000) + (safeCurrMinutes * 60000) + (safeCurrSeconds * 1000) + (safeCurrCentiseconds * 10)
 
-        const newStopwatch = {
-            title: stopwatchTitle,
-            goal_time: noGoal ? null : inputTimeString,
-            curr_duration: newDuration
-        }
+        // Editing the Total sets the daily goal: "match sum" clears the override,
+        // otherwise the entered time is a custom override. Its elapsed isn't edited.
+        // Editing a child sends its own goal (null = no goal) and current time.
+        const newStopwatch = editingIsTotal
+            ? (matchSum
+                ? { title: stopwatchTitle, match_sum: true }
+                : { title: stopwatchTitle, goal_time: inputTimeString })
+            : { title: stopwatchTitle, goal_time: noGoal ? null : inputTimeString, curr_duration: newDuration };
 
         setIsAdding(true);
 
@@ -413,6 +418,8 @@ export function Stopwatch() {
             setInputHours(1);
             setInputMinutes(0);
             setNoGoal(false);
+            setEditingIsTotal(false);
+            setMatchSum(true);
             setCurrentHours(0);
             setCurrentMinutes(0);
             setCurrentSeconds(0);
@@ -448,23 +455,31 @@ export function Stopwatch() {
         }
     }
 
-    // opens the edit form for a stopwatch (pausing it first if running), seeding
-    // the goal inputs and the "no goal" toggle from its stored goal_time (0 = no goal)
+    // opens the edit form for a stopwatch (pausing it first if running), seeding the
+    // goal inputs. For the Total row, seeds the "match sum of goals" toggle from
+    // goal_overridden; for a child, seeds the "no goal" toggle from its goal_time.
     const openEditStopwatch = async (item) => {
-        if (item.end_time === null) {
+        // pause a running child before editing its time; the Total's goal edit
+        // doesn't touch its timer, so don't stop it (avoids desyncing a running child)
+        if (!item.isTotal && item.end_time === null) {
             await handleStop(item.id, item.end_time);
         }
         setEditStopwatch(true);
         setStopwatchTitle(item.title);
         setEditingStopwatchID(item.id);
-        setNoGoal(!item.goal_time);
+        setEditingIsTotal(item.isTotal);
+        if (item.isTotal) {
+            setMatchSum(!item.goal_overridden);
+        } else {
+            setNoGoal(!item.goal_time);
+        }
         const [hours, minutes] = formatTimeString(item.goal_time || 3600000);
         setInputHours(Number(hours));
         setInputMinutes(Number(minutes));
     }
 
     function CircularProgress({time, goal_time, size = 330, strokeWidth = 50, bgColor = "#444" }) {
-        const percentage = goal_time > 0 ? (time / goal_time) * 100 : 100 // 0 goal = no goal, render full
+        const percentage = (time / (goal_time > 0 ? goal_time : 3600000)) * 100 // no goal: circle on a 1h visual cycle
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - ((percentage % 100) / 100) * circumference;
@@ -525,7 +540,7 @@ export function Stopwatch() {
     }
 
     function CircularProgressTotal({time, goal_time, size = 550, strokeWidth = 80, bgColor = "#444" }) {
-        const percentage = goal_time > 0 ? (time / goal_time) * 100 : 100 // 0 goal = no goal, render full
+        const percentage = (time / (goal_time > 0 ? goal_time : 3600000)) * 100 // no goal: circle on a 1h visual cycle
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - ((percentage % 100) / 100) * circumference;
@@ -639,22 +654,33 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-edit-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setNoGoal(false); setStopwatchError("");}}/>
-                      <h3>Edit Stopwatch</h3>
-                      <label>Title: </label>
-                      <input type= "text" value = {stopwatchTitle} 
-                      onChange={(e) => setStopwatchTitle(e.target.value) }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter"){
-                          handleEditStopwatch();
-                        }
-                      }}
-                      placeholder="What's the stopwatch for"/>
-                      <label style={{ marginTop: "18px", display: "block" }}>Goal Time:</label>
-                      <label className="no-goal-toggle">
-                        <input type="checkbox" checked={noGoal} onChange={e => setNoGoal(e.target.checked)} />
-                        No goal
-                      </label>
+                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setNoGoal(false); setEditingIsTotal(false); setMatchSum(true); setStopwatchError("");}}/>
+                      <h3>{editingIsTotal ? "Set Daily Goal" : "Edit Stopwatch"}</h3>
+                      {!editingIsTotal && (
+                        <>
+                          <label>Title: </label>
+                          <input type= "text" value = {stopwatchTitle}
+                          onChange={(e) => setStopwatchTitle(e.target.value) }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter"){
+                              handleEditStopwatch();
+                            }
+                          }}
+                          placeholder="What's the stopwatch for"/>
+                        </>
+                      )}
+                      <label style={{ marginTop: "18px", display: "block" }}>{editingIsTotal ? "Daily Goal:" : "Goal Time:"}</label>
+                      {editingIsTotal ? (
+                        <label className="no-goal-toggle">
+                          <input type="checkbox" checked={matchSum} onChange={e => setMatchSum(e.target.checked)} />
+                          Match sum of stopwatch goals
+                        </label>
+                      ) : (
+                        <label className="no-goal-toggle">
+                          <input type="checkbox" checked={noGoal} onChange={e => setNoGoal(e.target.checked)} />
+                          No goal
+                        </label>
+                      )}
                       <div className = "goal-time-inputs">
                         <label htmlFor="goal-hours">Hours:</label>
                         <input
@@ -663,7 +689,7 @@ export function Stopwatch() {
                             min = "0"
                             max = "23"
                             value={inputHours}
-                            disabled={noGoal}
+                            disabled={editingIsTotal ? matchSum : noGoal}
                             onChange={e => setInputHours(e.target.value)}
                             onKeyDown={(e) => {
                             if (e.key === "Enter"){
@@ -678,13 +704,15 @@ export function Stopwatch() {
                             min="0"
                             max="59"
                             value={inputMinutes}
-                            disabled={noGoal}
+                            disabled={editingIsTotal ? matchSum : noGoal}
                             onChange={e => setInputMinutes(e.target.value)}
                             onKeyDown={e => {
                                 if (e.key === "Enter") handleEditStopwatch();
                             }}
                         />
                       </div>
+                      {!editingIsTotal && (
+                        <>
                       <label style={{ marginTop: "18px", display: "block" }}>Current Time:</label>
                       <div className = "current-time-inputs">
                         <label htmlFor="current-hours">Hours:</label>
@@ -738,6 +766,8 @@ export function Stopwatch() {
                             }}
                         />
                       </div>
+                        </>
+                      )}
                       <button type = 'button' className = 'editStopwatchButton'
                         onClick={handleEditStopwatch}
                         disabled = {isAdding}
