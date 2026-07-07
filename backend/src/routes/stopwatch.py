@@ -39,6 +39,25 @@ def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user
     stopwatches.append(new_stopwatch.serialize())
     return stopwatches
 
+def finalize_stale_stopwatches(user_id):
+    """
+    Freeze any stopwatch left running on a past day (e.g. the tab closed before
+    the pagehide stop landed): set end_time = interval_start so curr_duration is
+    left unchanged and no overnight time is credited. The Total starts/stops in
+    lockstep with its child, so it gets frozen by the same sweep, keeping the
+    pair consistent. No curr_duration changes, so the day's work XP is already
+    correct — recompute_from must not be called here.
+    """
+    stale_stopwatches = Stopwatch.query.filter(
+        Stopwatch.user_id == user_id,
+        Stopwatch.end_time.is_(None),
+        Stopwatch.date < date.today(),
+    ).all()
+    for stopwatch in stale_stopwatches:
+        stopwatch.end_time = ensure_utc(stopwatch.interval_start)
+    if stale_stopwatches:
+        db.session.commit()
+
 #only converts when in form HH:MM
 def convert_time_string_to_milliseconds(time_string):
     goal_time_milli = (int(time_string[0:2]) * 3600000) + (int(time_string[3:5]) * 60000) # 3600000 milliseconds in an hour and 60000 milliseconds in a minute
@@ -56,6 +75,9 @@ def get_stopwatches(date_string):
     """
     user_id = int(get_jwt_identity())
     requested_date = date.fromisoformat(date_string)
+
+    # stopwatches stranded running on earlier days would otherwise accrue forever
+    finalize_stale_stopwatches(user_id)
 
     day_stopwatches = Stopwatch.query.filter_by(date=requested_date, user_id = user_id).all()
     stopwatches = [stopwatch.serialize() for stopwatch in day_stopwatches]
