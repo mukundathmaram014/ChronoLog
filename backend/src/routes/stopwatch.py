@@ -56,13 +56,13 @@ def get_stopwatches(date_string):
     """
     user_id = int(get_jwt_identity())
     requested_date = date.fromisoformat(date_string)
-    stopwatches = []
 
-    for stopwatch in Stopwatch.query.filter_by(date=requested_date, user_id = user_id).all():
-        stopwatches.append(stopwatch.serialize())
-    
-    # gets previous days stopwatches if empty
-    if not stopwatches:
+    day_stopwatches = Stopwatch.query.filter_by(date=requested_date, user_id = user_id).all()
+    stopwatches = [stopwatch.serialize() for stopwatch in day_stopwatches]
+
+    # gets previous days stopwatches if the day has no regular ones — either
+    # truly empty or holding only a leftover Total
+    if all(stopwatch.isTotal for stopwatch in day_stopwatches):
         deleted_marker = DeletedDay.query.filter_by(date=requested_date, type = "stopwatch", user_id = user_id).first()
         #dosent repopulate if user intentionally deleted everything
         if not deleted_marker:
@@ -79,31 +79,38 @@ def get_stopwatches(date_string):
                         prev_stopwatches = []
                         break
                     prev_stopwatches = Stopwatch.query.filter_by(date=prev_date, user_id = user_id).all()
-                    
+
+            carried = [prev_stopwatch for prev_stopwatch in prev_stopwatches if not prev_stopwatch.isTotal]
+
+            # create_stopwatch_for_date adds each carried goal onto an existing
+            # Total, so zero a leftover Total's goal first — a non-overridden
+            # Total goal is the sum of the day's stopwatch goals, and this day
+            # has none yet
+            existing_total = next((stopwatch for stopwatch in day_stopwatches if stopwatch.isTotal), None)
+            if carried and existing_total is not None and not existing_total.goal_overridden:
+                existing_total.goal_time = 0
 
             new_stopwatches = []
 
             #repopulates today with previous day stopwatches
-            total_added = False
-            for prev_stopwatch in prev_stopwatches:
-                if not prev_stopwatch.isTotal:
-                    
-                    # repopulates days in between
-                    temp_date = prev_date
-                    while (temp_date < (requested_date - timedelta(days=1))):
-                        temp_date += timedelta(days=1)
-                        create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id = user_id)
-                      
-                    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id= user_id)
-         
-                    #only adds total stopwatch once
-                    if not total_added:
-                        new_stopwatches.append(stopwatches[0])
-                        total_added = True
-                    new_stopwatches.append(stopwatches[1])
-            
+            for prev_stopwatch in carried:
+
+                # repopulates days in between
+                temp_date = prev_date
+                while (temp_date < (requested_date - timedelta(days=1))):
+                    temp_date += timedelta(days=1)
+                    create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id = user_id)
+
+                created = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id= user_id)
+                # a (body, code) failure tuple means a duplicate title — nothing was created
+                if not isinstance(created, tuple):
+                    new_stopwatches.append(created[1])
+
             db.session.commit()
-            stopwatches = new_stopwatches
+            if new_stopwatches:
+                # serialize the Total once, after every carried goal is folded in
+                total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
+                stopwatches = [total_stopwatch.serialize()] + new_stopwatches
 
 
     
