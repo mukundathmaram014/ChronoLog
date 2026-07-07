@@ -448,7 +448,9 @@ export function Stopwatch() {
         if (isFuture) {
             return 0;
         }
-        if (stopwatch.end_time != null){
+        // only a stopwatch dated today may tick live; a past-day one with a null
+        // end_time is stale (left running when the tab closed) and stays frozen
+        if (stopwatch.end_time != null || stopwatch.date !== today){
             return stopwatch.curr_duration;
         } else {
             return stopwatch.curr_duration + (Date.now() - new Date(stopwatch.interval_start));
