@@ -40,6 +40,8 @@ class Habit(db.Model):
     repeat_days = db.Column(db.Integer, nullable=False, default=127)
     # difficulty tier (easy/medium/hard) mapping to a fixed XP value in utils.py
     difficulty = db.Column(db.String, nullable=False, default="medium")
+    # display order within a (user, date) list; new rows append at the end
+    position = db.Column(db.Integer, nullable=False, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def __init__(self, **kwargs):
@@ -52,6 +54,7 @@ class Habit(db.Model):
         self.date = kwargs.get("date", date.today())
         self.repeat_days = kwargs.get("repeat_days", 127)
         self.difficulty = kwargs.get("difficulty", "medium")
+        self.position = kwargs.get("position", 0)
         self.user_id = kwargs.get("user_id")
 
     def serialize(self):
@@ -65,6 +68,7 @@ class Habit(db.Model):
             "date": self.date.isoformat(),
             "repeat_days": self.repeat_days,
             "difficulty": self.difficulty,
+            "position": self.position,
             "user_id": self.user_id
         }
     
@@ -215,6 +219,9 @@ class Stopwatch(db.Model):
     # (Total row only) True once the user sets a custom daily goal; while False the
     # Total's goal_time tracks the sum of the day's individual stopwatch goals.
     goal_overridden = db.Column(db.Boolean, nullable = False, default = False)
+    # display order within a (user, date) list; new rows append. The Total row
+    # keeps 0 — it never participates in ordering (spec 0004).
+    position = db.Column(db.Integer, nullable=False, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def __init__(self, **kwargs):
@@ -231,6 +238,7 @@ class Stopwatch(db.Model):
         self.isTotal = kwargs.get("isTotal", False)
         self.goal_time = kwargs.get("goal_time", 3600000) # defaults to one hour
         self.goal_overridden = kwargs.get("goal_overridden", False)
+        self.position = kwargs.get("position", 0)
         self.user_id = kwargs.get("user_id")
 
     def serialize(self):
@@ -249,6 +257,7 @@ class Stopwatch(db.Model):
             "isTotal": self.isTotal,
             "goal_time": self.goal_time,
             "goal_overridden": self.goal_overridden,
+            "position": self.position,
             "user_id": self.user_id
         }
     

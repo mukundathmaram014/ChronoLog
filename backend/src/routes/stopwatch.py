@@ -18,7 +18,10 @@ def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user
     if duplicate is not None:
         return failure_response("Stopwatch already exists for this day", 409)
     stopwatches = []
-    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time, user_id = user_id)
+    # new rows append at the end of that day's list (the Total is excluded from ordering)
+    max_position = db.session.query(func.max(Stopwatch.position)).filter(Stopwatch.user_id == user_id, Stopwatch.date == requested_date, Stopwatch.isTotal == False).scalar()
+    position = 0 if max_position is None else max_position + 1
+    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time, user_id = user_id, position = position)
 
     if Stopwatch.query.filter_by(date=requested_date, user_id = user_id).first() is None:
         # creating total time stopwatch
@@ -58,7 +61,8 @@ def get_stopwatches(date_string):
     requested_date = date.fromisoformat(date_string)
     stopwatches = []
 
-    for stopwatch in Stopwatch.query.filter_by(date=requested_date, user_id = user_id).all():
+    # Total first, then the user's saved order
+    for stopwatch in Stopwatch.query.filter_by(date=requested_date, user_id = user_id).order_by(Stopwatch.isTotal.desc(), Stopwatch.position, Stopwatch.id).all():
         stopwatches.append(stopwatch.serialize())
     
     # gets previous days stopwatches if empty
@@ -78,7 +82,7 @@ def get_stopwatches(date_string):
                     if prev_deleted:
                         prev_stopwatches = []
                         break
-                    prev_stopwatches = Stopwatch.query.filter_by(date=prev_date, user_id = user_id).all()
+                    prev_stopwatches = Stopwatch.query.filter_by(date=prev_date, user_id = user_id).order_by(Stopwatch.isTotal.desc(), Stopwatch.position, Stopwatch.id).all()
                     
 
             new_stopwatches = []
@@ -130,6 +134,32 @@ def create_stopwatch():
     if isinstance(stopwatches, tuple):
         return stopwatches
     return success_response({"stopwatches" : stopwatches})
+
+@stopwatch_routes.route("/stopwatches/reorder/", methods=["PATCH"])
+@jwt_required()
+def reorder_stopwatches():
+    """
+    Endpoint for persisting a user's drag-reordering of a day's stopwatches.
+    Body: {"date": "...", "order": [stopwatch ids in display order]}
+    The Total stopwatch never participates: its id is ignored if sent.
+    """
+    user_id = int(get_jwt_identity())
+    body = json.loads(request.data)
+    requested_date = process_date(request)
+    order = body.get("order")
+    if not isinstance(order, list):
+        return failure_response("order must be a list of stopwatch ids", 400)
+
+    stopwatches = Stopwatch.query.filter_by(date=requested_date, isTotal=False, user_id = user_id).all()
+    stopwatches_by_id = {stopwatch.id: stopwatch for stopwatch in stopwatches}
+    for index, stopwatch_id in enumerate(order):
+        stopwatch = stopwatches_by_id.get(stopwatch_id)
+        if stopwatch is not None:
+            stopwatch.position = index
+    db.session.commit()
+
+    stopwatches.sort(key=lambda stopwatch: (stopwatch.position, stopwatch.id))
+    return success_response({"stopwatches": [stopwatch.serialize() for stopwatch in stopwatches]})
 
 @stopwatch_routes.route("/stopwatches/<int:stopwatch_id>/")
 @jwt_required()
