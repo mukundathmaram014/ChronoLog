@@ -26,9 +26,11 @@ def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user
         db.session.add(total_stopwatch)
         db.session.commit()
     else:
-        # adds to total stopwatch's goal time if already exists
+        # adds to total stopwatch's goal time if already exists, unless the user
+        # has manually overridden the Total's goal (spec 0023)
         total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
-        total_stopwatch.goal_time = total_stopwatch.goal_time + goal_time
+        if not total_stopwatch.goal_overridden:
+            total_stopwatch.goal_time = total_stopwatch.goal_time + goal_time
         db.session.commit()
 
     db.session.add(new_stopwatch)
@@ -173,6 +175,26 @@ def update_stopwatch(stopwatch_id):
     stopwatch.date = body.get("date", stopwatch.date)
     stopwatch.isTotal = body.get("isTotal", stopwatch.isTotal)
 
+    requested_date = stopwatch.date
+
+    # Editing the Total row itself: its goal becomes a manual override, unless the
+    # request asks to match the sum of the individual stopwatch goals (spec 0023).
+    if stopwatch.isTotal:
+        if body.get("match_sum"):
+            stopwatch.goal_overridden = False
+            children = Stopwatch.query.filter_by(date = requested_date, isTotal = False, user_id = user_id).all()
+            stopwatch.goal_time = sum(child.goal_time for child in children)
+        elif "goal_time" in body:
+            goal_time_raw = body["goal_time"]
+            stopwatch.goal_time = 0 if goal_time_raw is None else convert_time_string_to_milliseconds(goal_time_raw)
+            stopwatch.goal_overridden = True
+        # a curr_duration edit on the Total still changes the day's work XP
+        if change_in_duration != 0:
+            recompute_from(user_id, requested_date)
+        db.session.commit()
+        return success_response({"stopwatches" : [stopwatch.serialize(), stopwatch.serialize()]})
+
+    # Editing a child stopwatch: sync its goal/time into the Total.
     # goal_time absent -> keep; explicit null -> "no goal" (0); else parse "HH:MM"
     if "goal_time" in body:
         goal_time_raw = body["goal_time"]
@@ -182,13 +204,13 @@ def update_stopwatch(stopwatch_id):
     change_in_goal_time = new_goal_time - stopwatch.goal_time
     stopwatch.goal_time = new_goal_time
 
-    # updates total stopwatch with changes
-    requested_date = stopwatch.date
     total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
     if total_stopwatch is None:
         return failure_response("Total stopwatch is not found")
     total_stopwatch.curr_duration = total_stopwatch.curr_duration + change_in_duration
-    total_stopwatch.goal_time = total_stopwatch.goal_time + change_in_goal_time
+    # only fold the child's goal into the Total while the Total isn't overridden
+    if not total_stopwatch.goal_overridden:
+        total_stopwatch.goal_time = total_stopwatch.goal_time + change_in_goal_time
     # the day's worked time changed, so its work XP changes
     if change_in_duration != 0:
         recompute_from(user_id, requested_date)
@@ -212,7 +234,9 @@ def delete_stopwatch(stopwatch_id):
     if (stopwatch.end_time is None):
         total_stopwatch.end_time = datetime.now(timezone.utc) #stops total stopwatch if stopwatch being deleted was running
     total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
-    total_stopwatch.goal_time = total_stopwatch.goal_time - stopwatch.goal_time
+    # only remove the child's goal from the Total while the Total isn't overridden
+    if not total_stopwatch.goal_overridden:
+        total_stopwatch.goal_time = total_stopwatch.goal_time - stopwatch.goal_time
     db.session.delete(stopwatch)
     db.session.commit()
 

@@ -327,6 +327,59 @@ def test_no_goal_stopwatch_stores_zero_and_skips_overtime(client):
     assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR
 
 
+def _post_stopwatch(client, token, title, goal_time="01:00"):
+    resp = client.post(
+        "/api/stopwatches/",
+        data=json.dumps({"title": title, "date": TODAY, "goal_time": goal_time}),
+        content_type="application/json",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    data = json.loads(resp.data)["stopwatches"]
+    return data[0], data[1]  # (total, new)
+
+
+def _put_stopwatch(client, token, sw_id, **fields):
+    resp = client.put(
+        f"/api/stopwatches/{sw_id}/",
+        data=json.dumps(fields),
+        content_type="application/json",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    return json.loads(resp.data)["stopwatches"][0]  # total
+
+
+def test_total_goal_defaults_to_sum_then_holds_an_override(client):
+    token = auth_token(client)
+    total, _ = _post_stopwatch(client, token, "study", "02:00")
+    # default: Total goal = sum of individual goals (2h), not overridden
+    assert total["goal_time"] == 2 * 3600000
+    assert total["goal_overridden"] is False
+
+    # override the Total goal to 5h
+    total = _put_stopwatch(client, token, total["id"], goal_time="05:00")
+    assert total["goal_time"] == 5 * 3600000
+    assert total["goal_overridden"] is True
+
+    # adding another stopwatch must NOT change the overridden Total
+    total2, _ = _post_stopwatch(client, token, "reading", "01:00")
+    assert total2["goal_time"] == 5 * 3600000
+
+    # match_sum clears the override -> back to the live sum (2h + 1h = 3h)
+    total = _put_stopwatch(client, token, total["id"], match_sum=True)
+    assert total["goal_time"] == 3 * 3600000
+    assert total["goal_overridden"] is False
+
+
+def test_total_goal_override_drives_xp(client):
+    token = auth_token(client)
+    total, study = _post_stopwatch(client, token, "study", "02:00")
+    # override the daily total to 3h (vs the 2h sum)
+    _put_stopwatch(client, token, total["id"], goal_time="03:00")
+    # log exactly 3h -> hits the 3h override: flat 3h work + goal bonus, no overtime
+    _put_stopwatch(client, token, study["id"], curr_duration=3 * 3600000)
+    assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR + GOAL_TIME_BONUS
+
+
 def test_goal_complete_uncomplete_and_delete(client):
     token = auth_token(client)
     resp = create_goal(client, token, description="run a marathon", difficulty="medium")
