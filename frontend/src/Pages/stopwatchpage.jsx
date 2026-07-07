@@ -59,6 +59,9 @@ export function Stopwatch() {
     const isFuture = (new Date(selectedDate)) > (new Date(today));
     const intervalRef = useRef(null);
     const defaultTitleRef = useRef(document.title);
+    // title of the stopwatch that was running at midnight; the data effect starts
+    // its fresh copy on the new day (midnight rollover hand-off)
+    const rolloverTitleRef = useRef(null);
     const [stopwatchError, setStopwatchError] = useState("");
     const location = useLocation();
     
@@ -77,12 +80,22 @@ export function Stopwatch() {
     );
     
 
-    // updates state variable today but not selecteday
+    // midnight rollover: remember which stopwatch was running (by title), then
+    // advance today AND selectedDate. The data effect below finalizes the old
+    // day (stop persists its time up to ~00:00), fetches the new day (carry-
+    // forward creates fresh rows at 0), and restarts the remembered stopwatch
+    // so it keeps running, focused, counting up from 0 under the new day.
     useEffect(() => {
         const now = new Date();
         const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now //midnight next day
         const timeout = setTimeout(() => {
-            setToday(DatetoISOString(new Date()));
+            const running = allStopwatchesRef.current.find(
+                sw => sw.end_time === null && !sw.isTotal
+            );
+            rolloverTitleRef.current = running ? running.title : null;
+            const newToday = DatetoISOString(new Date());
+            setToday(newToday);
+            setSelectedDate(newToday);
         }, msUntilMidnight);
 
         return () => clearTimeout(timeout);
@@ -113,8 +126,33 @@ export function Stopwatch() {
                 })
             .then(response => response.json())
             .then(data => {
-                setRunningId(null);
                 setStopwatches((data.stopwatches));
+                // midnight hand-off: restart the stopwatch that was running when
+                // the day rolled over — its fresh copy counts up from 0 on the new day
+                const rolloverTitle = rolloverTitleRef.current;
+                rolloverTitleRef.current = null;
+                const match = (rolloverTitle === null || dateToFetch !== today) ? null :
+                    data.stopwatches.find(sw => !sw.isTotal && sw.title === rolloverTitle);
+                if (match) {
+                    setRunningId(match.id);
+                    clearInterval(intervalRef.current);
+                    intervalRef.current = setInterval(() => {
+                        setTick(tick => tick + 1);
+                    }, 10);
+                    fetchWithAuth(`/stopwatches/start/${match.id}/`, {
+                        method: "PATCH"
+                    })
+                    .then(response => response.json())
+                    .then(started => {
+                        setStopwatches(allStopwatches =>
+                            allStopwatches.map(stopwatch =>
+                                (stopwatch.isTotal) ? started.stopwatches[0] :
+                             (stopwatch.id === started.stopwatches[1].id) ? started.stopwatches[1] : stopwatch)); // updates total stopwatch and stopwatch that rolled over
+                    })
+                    .catch(error => console.error(error));
+                } else {
+                    setRunningId(null);
+                }
             })
             .catch(error => console.error(error));
             });
