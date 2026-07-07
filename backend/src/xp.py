@@ -16,14 +16,14 @@ MS_PER_HOUR = 3600000.0
 def _day_inputs(user_id, day):
     """
     The XP inputs for one user-day: completed-habit difficulty tiers, hours
-    worked (from the day's Total stopwatch), completed-goal tiers, and the day's
+    worked (from the day's Total stopwatch), completed-goal tiers, the day's
     total goal hours (sum of the day's individual stopwatch goal times, for the
-    overtime work-XP boost).
+    overtime work-XP boost), and whether every habit that day is done (for the
+    all-habits bonus).
     """
-    habit_difficulties = [
-        habit.difficulty
-        for habit in Habit.query.filter_by(user_id=user_id, date=day, done=True).all()
-    ]
+    day_habits = Habit.query.filter_by(user_id=user_id, date=day).all()
+    habit_difficulties = [habit.difficulty for habit in day_habits if habit.done]
+    all_habits_done = bool(day_habits) and all(habit.done for habit in day_habits)
     total_stopwatch = Stopwatch.query.filter_by(user_id=user_id, date=day, isTotal=True).first()
     hours_worked = (total_stopwatch.curr_duration / MS_PER_HOUR) if total_stopwatch else 0.0
     goal_difficulties = [
@@ -39,7 +39,7 @@ def _day_inputs(user_id, day):
         Stopwatch.goal_time > 0,
     ).scalar()
     goal_hours = (goal_ms or 0) / MS_PER_HOUR
-    return habit_difficulties, hours_worked, goal_difficulties, goal_hours
+    return habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done
 
 
 def _last_activity_date(user_id):
@@ -74,8 +74,8 @@ def recompute_from(user_id, day):
     delta = 0
     current = day
     while current <= end:
-        habit_difficulties, hours_worked, goal_difficulties, goal_hours = _day_inputs(user_id, current)
-        result = compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak, goal_hours)
+        habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done = _day_inputs(user_id, current)
+        result = compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak, goal_hours, all_habits_done)
         row = DailyXP.query.filter_by(user_id=user_id, date=current).first()
         old_xp = row.xp_earned if row else 0
         if row is not None:

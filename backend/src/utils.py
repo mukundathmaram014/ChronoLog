@@ -41,6 +41,10 @@ GOAL_XP = {"easy": 500, "medium": 2000, "hard": 5000, "extreme": 20000}
 XP_PER_HOUR = 20
 # hours worked beyond the day's total goal time earn this higher rate (spec 0012)
 XP_PER_HOUR_OVERTIME = 30
+# flat bonus for completing every one of the day's habits
+ALL_HABITS_BONUS = 25
+# flat bonus for working at least the day's total goal time
+GOAL_TIME_BONUS = 25
 STREAK_STEP = 0.1
 STREAK_CAP = 2.0
 # a day's "grind" XP (habits + worked time, no goals) must reach this for the
@@ -77,15 +81,18 @@ def streak_multiplier(streak):
     return min(1 + STREAK_STEP * (streak - 1), STREAK_CAP)
 
 
-def compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak, goal_hours=0):
+def compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak, goal_hours=0, all_habits_done=False):
     """
     Pure day-XP function: the difficulty tiers of a day's completed habits,
     hours worked, tiers of goals completed that day, the previous day's streak,
-    and the day's total goal hours -> {"xp_earned", "streak", "multiplier"}.
-    The streak multiplier applies to habit XP only; work and goal XP are flat.
-    Worked time earns XP_PER_HOUR up to the day's goal hours and the higher
-    XP_PER_HOUR_OVERTIME beyond it (goal_hours = 0 -> no overtime). A day
-    qualifies for the streak on its habit + worked-time XP (goals excluded).
+    the day's total goal hours, and whether every habit that day was completed
+    -> {"xp_earned", "streak", "multiplier"}. The streak multiplier applies to
+    habit XP only; work, goal, and the flat bonuses are flat. Worked time earns
+    XP_PER_HOUR up to the day's goal hours and the higher XP_PER_HOUR_OVERTIME
+    beyond it (goal_hours = 0 -> no overtime). Completing all of the day's
+    habits adds a flat ALL_HABITS_BONUS; working at least the day's goal time
+    adds a flat GOAL_TIME_BONUS. A day qualifies for the streak on its habit +
+    worked-time XP (goals excluded).
     """
     habit_base = sum(HABIT_XP[difficulty] for difficulty in habit_difficulties)
     # standard rate up to the day's total goal time, overtime rate beyond it
@@ -101,7 +108,11 @@ def compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_str
     streak = prev_streak + 1 if qualifying_xp >= STREAK_THRESHOLD else 0
     multiplier = streak_multiplier(streak)
     goal_xp = sum(GOAL_XP[difficulty] for difficulty in goal_difficulties)
-    xp_earned = round(habit_base * multiplier + work_xp + goal_xp)
+    bonus = ALL_HABITS_BONUS if all_habits_done else 0
+    # reaching the day's total goal time (when one is set) earns a flat bonus
+    if goal_hours and goal_hours > 0 and hours_worked >= goal_hours:
+        bonus += GOAL_TIME_BONUS
+    xp_earned = round(habit_base * multiplier + work_xp + goal_xp + bonus)
     return {"xp_earned": xp_earned, "streak": streak, "multiplier": multiplier}
 
 

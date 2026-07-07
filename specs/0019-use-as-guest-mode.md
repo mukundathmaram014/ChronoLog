@@ -1,3 +1,5 @@
+Spec 0005 landed `User.homepage_note` in `db.py`, `/note` GET/PUT routes in `users.py`, and a `useFetch`-based note load in `homepage.jsx` — all files spec 0019 touches or interacts with. The spec needs updates: its `users.py`/`db.py` edits now stack on 0005's, the `users` table has a second pending `ALTER TABLE` to coordinate, and the guest purge/serialize story should account for the new column. Here is the revised file:
+
 # 0019 — "Use as guest" mode
 
 ## Problem / Goal
@@ -12,6 +14,10 @@ habits/stopwatches/stats, so the app is explorable before sign-up.
   `auth?.username`; `AuthProvider` (`frontend/src/context/AuthProvider.js`) hydrates auth from the
   refresh-cookie flow on mount.
 - Because everything is per-user and server-persisted, "guest" needs a clear data story.
+- **Spec 0005 (built)** added `User.homepage_note` (nullable String, included in `User.serialize()`),
+  `@jwt_required()` GET/PUT `/note` routes in `users.py`, and a `useFetch`-based note load/save in
+  `homepage.jsx`. A guest is a real `User`, so the note feature works for guests unchanged; but this
+  spec's `db.py`/`users.py` edits land on top of 0005's — branch from a base that includes it.
 
 ## Decisions (made)
 1. **Ephemeral backend guest user.** "Use as guest" provisions a throwaway `User` (+ access/refresh
@@ -26,20 +32,31 @@ habits/stopwatches/stats, so the app is explorable before sign-up.
 
 ## Affected files
 - `backend/src/routes/users.py` — a guest entry endpoint (e.g. `/guest`) that provisions a guest `User`
-  and issues access/refresh tokens like `login`; mark guests (e.g. an `is_guest` flag on `User`).
-- `backend/src/db.py` — (likely) `User.is_guest` + serialize. **Schema change** — see Risks.
+  and issues access/refresh tokens like `login`; mark guests (e.g. an `is_guest` flag on `User`). The
+  file now also contains the `/note` GET/PUT routes from spec 0005 — add `/guest` alongside them
+  (nothing about `/note` needs to change; it's `user_id`-scoped and works for guests as-is). Note
+  `User.username`/`email` are `nullable=False` and `register` enforces uniqueness — generate
+  non-colliding placeholder credentials for guests.
+- `backend/src/db.py` — `User.is_guest` + include it in `User.serialize()` (which, since 0005, also
+  returns `homepage_note`). **Schema change** — the **second** pending `ALTER TABLE` on `users` after
+  0005's `homepage_note`; see Risks.
 - Guest cleanup — a purge path for expired guests (and their habits/stopwatches/deleted-days/tokens).
+  The homepage note lives on the `User` row itself, so deleting the guest `User` covers it — no extra
+  table to purge.
 - `frontend/src/Pages/loginpage.jsx` (+ signup) — a "Use as guest" button calling the guest endpoint and
   populating `auth`.
 - `frontend/src/context/AuthProvider.js` / `RequireAuth.js` — allow a guest session to satisfy the auth
   gate; surface guest state (e.g. a banner / "sign up to keep your data").
+- `frontend/src/Pages/homepage.jsx` — **no change expected**: since 0005 it loads/saves the note via
+  `useFetch` against the authed user, which works for a guest session; just verify it during testing.
 
 ## Approach
 1. Backend: a `/guest` endpoint provisions an ephemeral guest `User` (marked `is_guest`) + access/refresh
-   tokens; everything else (habits/stopwatch/stats) works unchanged via normal `user_id` scoping.
+   tokens; everything else (habits/stopwatch/stats, homepage note) works unchanged via normal `user_id`
+   scoping.
 2. Frontend: "Use as guest" enters an authed-but-guest session; show guest status and a sign-up nudge.
 3. Add the TTL purge for guest accounts + their data (~7 days), covering habits, stopwatches,
-   deleted-days, and tokens.
+   deleted-days, and tokens (the guest's `User` row, including its homepage note, goes with it).
 
 ## Acceptance criteria
 - A visitor can enter the app as a guest and use habits/stopwatches/stats without registering.
@@ -50,6 +67,7 @@ habits/stopwatches/stats, so the app is explorable before sign-up.
 - "Use as guest" → land in the app authed; create habits/stopwatches; confirm they persist for the
   session and are scoped to the guest.
 - Confirm a guest can't see another user's data.
+- Confirm the guest homepage (including the 0005 note box) loads and saves without errors.
 - Confirm the cleanup path removes an expired guest and its data.
 
 ## Risk
@@ -58,7 +76,11 @@ habits/stopwatches/stats, so the app is explorable before sign-up.
 
 ## Risks & notes
 - **SQLite migration** for `User.is_guest` (no Alembic; `create_all` won't alter `users`) — `ALTER
-  TABLE` + backfill existing users to non-guest.
+  TABLE users ADD COLUMN is_guest BOOLEAN` + backfill existing users to non-guest. This is the second
+  hand-applied `ALTER TABLE` on `users` after 0005's `homepage_note` (same pattern as specs
+  0003/0012/0005) — apply it after/alongside 0005's migration and call out the exact statement in the PR.
 - Touches auth — keep token handling identical to the real flow (refresh cookie, blocklist on logout) so
   guest sessions don't weaken security.
 - Without cleanup, guest accounts accumulate — the TTL/purge isn't optional.
+- Coordinate with spec 0005's branch: this spec edits the same regions of `db.py` (`User` model /
+  `serialize()`) and `users.py`; branching from a base without 0005 merged will conflict.
