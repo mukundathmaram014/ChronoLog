@@ -2,6 +2,7 @@ import json
 
 from conftest import auth_token
 from utils import (
+    ALL_HABITS_BONUS,
     GOAL_XP,
     HABIT_XP,
     LEVEL_B,
@@ -132,11 +133,13 @@ def test_habit_toggle_updates_total_and_streak(client):
     for habit_id in habit_ids:
         update_habit(client, token, habit_id, done=True)
     level = get_level(client, token)
-    assert level["total_xp"] == 5 * HABIT_XP["hard"]
+    # all 5 habits done -> base + all-habits bonus
+    assert level["total_xp"] == 5 * HABIT_XP["hard"] + ALL_HABITS_BONUS
     assert level["streak"] == 1
     assert level["multiplier"] == 1.0
 
-    # dropping one hard habit falls to 200 base, below the qualifying threshold
+    # dropping one hard habit falls to 200 base (below threshold) and forfeits
+    # the all-habits bonus (no longer all done)
     update_habit(client, token, habit_ids[0], done=False)
     level = get_level(client, token)
     assert level["total_xp"] == 4 * HABIT_XP["hard"]
@@ -147,10 +150,11 @@ def test_habit_difficulty_change_while_done_adjusts_total(client):
     token = auth_token(client)
     resp = create_habit(client, token, description="reading", date=TODAY, difficulty="hard", done=True)
     habit_id = json.loads(resp.data)["id"]
-    assert get_level(client, token)["total_xp"] == HABIT_XP["hard"]
+    # the day's only habit is done -> base + all-habits bonus
+    assert get_level(client, token)["total_xp"] == HABIT_XP["hard"] + ALL_HABITS_BONUS
 
     update_habit(client, token, habit_id, difficulty="medium")
-    assert get_level(client, token)["total_xp"] == HABIT_XP["medium"]
+    assert get_level(client, token)["total_xp"] == HABIT_XP["medium"] + ALL_HABITS_BONUS
 
 
 def test_habit_difficulty_validation(client):
@@ -162,6 +166,29 @@ def test_habit_difficulty_validation(client):
     assert update_habit(client, token, habit_id, difficulty="brutal").status_code == 400
 
 
+def test_all_habits_bonus_helper():
+    # completing every habit adds the flat bonus on top of the day's XP
+    base = compute_day_xp(["medium"], 0, [], 0)["xp_earned"]
+    assert compute_day_xp(["medium"], 0, [], 0, all_habits_done=True)["xp_earned"] == base + ALL_HABITS_BONUS
+    # the bonus is flat (not streak-multiplied): 5 hard at a capped 2.0x + flat bonus
+    assert compute_day_xp(["hard"] * 5, 0, [], 30, all_habits_done=True)["xp_earned"] == (
+        round(5 * HABIT_XP["hard"] * streak_multiplier(31)) + ALL_HABITS_BONUS
+    )
+
+
+def test_all_habits_bonus_over_the_api(client):
+    token = auth_token(client)
+    ids = []
+    for i in range(2):
+        resp = create_habit(client, token, description=f"h{i}", date=TODAY, difficulty="medium", done=True)
+        ids.append(json.loads(resp.data)["id"])
+    # both habits done -> 2 * medium + all-habits bonus
+    assert get_level(client, token)["total_xp"] == 2 * HABIT_XP["medium"] + ALL_HABITS_BONUS
+    # undo one -> no longer all done, bonus removed
+    update_habit(client, token, ids[0], done=False)
+    assert get_level(client, token)["total_xp"] == HABIT_XP["medium"]
+
+
 def test_past_day_edit_recomputes_streak_forward(client):
     token = auth_token(client)
     days = ["2026-01-13", "2026-01-14", "2026-01-15"]
@@ -171,17 +198,18 @@ def test_past_day_edit_recomputes_streak_forward(client):
             resp = create_habit(client, token, description=f"work {i}", date=day, difficulty="hard", done=True)
             habit_ids[(day, i)] = json.loads(resp.data)["id"]
 
-    # base 250/day, streaks 1/2/3 -> 250 + 275 + 300
+    # base 250/day, streaks 1/2/3 -> 250 + 275 + 300; each day is all-done (+bonus)
     level = get_level(client, token)
-    assert level["total_xp"] == 250 + 275 + 300
+    assert level["total_xp"] == (250 + 275 + 300) + 3 * ALL_HABITS_BONUS
     assert level["streak"] == 3
     assert level["multiplier"] == streak_multiplier(3)
 
-    # unchecking one of the middle day's hard habits drops it to 200 base,
-    # below the qualifying threshold: its streak resets and the last day restarts at 1
+    # unchecking one of the middle day's hard habits drops it to 200 base (below
+    # the threshold) and forfeits that day's bonus: streak resets and the last day
+    # restarts at 1; days 1 and 3 keep their all-habits bonus
     update_habit(client, token, habit_ids[("2026-01-14", 0)], done=False)
     level = get_level(client, token)
-    assert level["total_xp"] == 250 + 200 + 250
+    assert level["total_xp"] == (250 + 200 + 250) + 2 * ALL_HABITS_BONUS
     assert level["streak"] == 1
 
 
@@ -189,7 +217,8 @@ def test_deleting_done_habit_removes_its_xp(client):
     token = auth_token(client)
     resp = create_habit(client, token, description="workout", date=TODAY, difficulty="hard", done=True)
     habit_id = json.loads(resp.data)["id"]
-    assert get_level(client, token)["total_xp"] == HABIT_XP["hard"]
+    # the day's only habit is done -> base + all-habits bonus
+    assert get_level(client, token)["total_xp"] == HABIT_XP["hard"] + ALL_HABITS_BONUS
 
     resp = client.delete(
         f"/api/habits/{habit_id}/",
@@ -370,7 +399,8 @@ def test_xp_and_goals_are_user_scoped(client):
     resp = create_goal(client, token_a, description="secret goal")
     goal_id = json.loads(resp.data)["id"]
 
-    assert get_level(client, token_a)["total_xp"] == HABIT_XP["hard"]
+    # user A's only habit is done -> base + all-habits bonus
+    assert get_level(client, token_a)["total_xp"] == HABIT_XP["hard"] + ALL_HABITS_BONUS
     level_b = get_level(client, token_b)
     assert level_b["total_xp"] == 0
     assert level_b["streak"] == 0
