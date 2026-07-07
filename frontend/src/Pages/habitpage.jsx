@@ -69,7 +69,7 @@ export function Habit() {
   // updates state variable today but not selecteday
   useEffect(() => {
     const now = new Date();
-    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDay() + 1, 0, 0, 0, 0) //midnight next day
+    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now //midnight next day
 
     const timeout = setTimeout(() => {
       setToday(DatetoISOString(new Date()));

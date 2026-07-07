@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0007 — Running stopwatch rolls over to the next day at midnight
 
 ## Problem / Goal
