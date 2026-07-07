@@ -81,6 +81,15 @@ def ensure_stopwatch_goal_overridden_column():
         db.session.commit()
 
 
+def ensure_stopwatch_is_recurring_column():
+    result = db.session.execute(text("PRAGMA table_info(stopwatches)"))
+    columns = {row[1] for row in result}
+    if "is_recurring" not in columns:
+        # existing rows default to recurring = the pre-flag "everything carries forward" behavior
+        db.session.execute(text("ALTER TABLE stopwatches ADD COLUMN is_recurring BOOLEAN NOT NULL DEFAULT 1"))
+        db.session.commit()
+
+
 def create_app(test_config=None):
     db_filename = "ChronoLog.db"
     app = Flask(__name__)
@@ -127,6 +136,7 @@ def create_app(test_config=None):
         ensure_user_is_guest_column()
         ensure_user_created_at_column()
         purge_expired_guests()
+        ensure_stopwatch_is_recurring_column()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
     app.register_blueprint(task_routes,  url_prefix="/api")

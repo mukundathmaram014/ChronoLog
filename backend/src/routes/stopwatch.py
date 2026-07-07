@@ -12,13 +12,13 @@ from xp import recompute_from
 
 stopwatch_routes = Blueprint('stopwatch', __name__)
 
-def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user_id):
+def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user_id, is_recurring = True):
 
     duplicate = Stopwatch.query.filter_by(title = title, date = requested_date, user_id = user_id).first()
     if duplicate is not None:
         return failure_response("Stopwatch already exists for this day", 409)
     stopwatches = []
-    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time, user_id = user_id)
+    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time, user_id = user_id, is_recurring = is_recurring)
 
     if Stopwatch.query.filter_by(date=requested_date, user_id = user_id).first() is None:
         # creating total time stopwatch
@@ -67,6 +67,26 @@ def convert_time_string_to_milliseconds(time_string):
 def test():
     return success_response("hello worldhh")
 
+@stopwatch_routes.route("/stopwatches/titles/")
+@jwt_required()
+def get_previous_stopwatch_titles():
+    """
+    Endpoint for getting the user's distinct prior stopwatch titles (+ most recent
+    goal time), most-recent first, to feed the add-form "reuse previous" dropdown
+    """
+    user_id = int(get_jwt_identity())
+    rows = (Stopwatch.query
+            .filter_by(user_id = user_id, isTotal = False)
+            .order_by(Stopwatch.date.desc(), Stopwatch.id.desc())
+            .all())
+    seen = set()
+    titles = []
+    for stopwatch in rows:
+        if stopwatch.title not in seen:
+            seen.add(stopwatch.title)
+            titles.append({"title": stopwatch.title, "goal_time": stopwatch.goal_time})
+    return success_response({"titles": titles})
+
 @stopwatch_routes.route("/stopwatches/<string:date_string>/")
 @jwt_required()
 def get_stopwatches(date_string):
@@ -102,7 +122,7 @@ def get_stopwatches(date_string):
                         break
                     prev_stopwatches = Stopwatch.query.filter_by(date=prev_date, user_id = user_id).all()
 
-            carried = [prev_stopwatch for prev_stopwatch in prev_stopwatches if not prev_stopwatch.isTotal]
+            carried = [prev_stopwatch for prev_stopwatch in prev_stopwatches if not prev_stopwatch.isTotal and prev_stopwatch.is_recurring]
 
             # create_stopwatch_for_date adds each carried goal onto an existing
             # Total, so zero a leftover Total's goal first — a non-overridden
@@ -114,20 +134,19 @@ def get_stopwatches(date_string):
 
             new_stopwatches = []
 
-            #repopulates today with previous day stopwatches
+            #repopulates today with previous day stopwatches (only recurring ones carry forward)
             for prev_stopwatch in carried:
 
                 # repopulates days in between
                 temp_date = prev_date
                 while (temp_date < (requested_date - timedelta(days=1))):
                     temp_date += timedelta(days=1)
-                    create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id = user_id)
+                    create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id = user_id, is_recurring = True)
 
-                created = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id= user_id)
+                created = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id= user_id, is_recurring = True)
                 # a (body, code) failure tuple means a duplicate title — nothing was created
                 if not isinstance(created, tuple):
                     new_stopwatches.append(created[1])
-
             db.session.commit()
             if new_stopwatches:
                 # serialize the Total once, after every carried goal is folded in
@@ -153,7 +172,7 @@ def create_stopwatch():
     goal_time_raw = body.get("goal_time", "01:00")
     goal_time_milli = 0 if goal_time_raw is None else convert_time_string_to_milliseconds(goal_time_raw)
 
-    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now(timezone.utc)), goal_time= goal_time_milli, user_id=user_id) 
+    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now(timezone.utc)), goal_time= goal_time_milli, user_id=user_id, is_recurring= bool(body.get("is_recurring", True)))
     
     # If result is a failure response, return it directly
     if isinstance(stopwatches, tuple):
@@ -224,6 +243,8 @@ def update_stopwatch(stopwatch_id):
         return success_response({"stopwatches" : [stopwatch.serialize(), stopwatch.serialize()]})
 
     # Editing a child stopwatch: sync its goal/time into the Total.
+    stopwatch.is_recurring = bool(body.get("is_recurring", stopwatch.is_recurring))
+
     # goal_time absent -> keep; explicit null -> "no goal" (0); else parse "HH:MM"
     if "goal_time" in body:
         goal_time_raw = body["goal_time"]
