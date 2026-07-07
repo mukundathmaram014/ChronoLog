@@ -259,16 +259,22 @@ export function Habit() {
   
   function handleDragEnd(event) {
     const {active, over} = event;
-    
-    if (active.id !== over.id) {
-      setHabits((prevHabits) => {
-        const oldIndex = prevHabits.findIndex(habit => habit.id === active.id);
-        const newIndex = prevHabits.findIndex(habit => habit.id === over.id);
-        
-        return arrayMove(prevHabits, oldIndex, newIndex);
-      });
+
+    if (over && active.id !== over.id) {
+      const oldIndex = allHabits.findIndex(habit => habit.id === active.id);
+      const newIndex = allHabits.findIndex(habit => habit.id === over.id);
+      const reordered = arrayMove(allHabits, oldIndex, newIndex);
+      setHabits(reordered);
+
+      if (!isFuture) {
+        fetchWithAuth("/habits/reorder/", {
+          method: "PATCH",
+          body: JSON.stringify({ date: selectedDate, order: reordered.map(habit => habit.id) })
+        })
+        .catch(error => console.error(error));
+      }
     }
-    
+
     setActiveId(null);
   }
 

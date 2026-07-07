@@ -685,15 +685,21 @@ export function Stopwatch() {
         const {active, over} = event;
 
         if (over && active.id !== over.id) {
-        setStopwatches((prevStopwatches) => {
-            const total = prevStopwatches.find(stopwatch => stopwatch.isTotal);
-            const rest = prevStopwatches.filter(stopwatch => !stopwatch.isTotal);
+            const total = allStopwatches.find(stopwatch => stopwatch.isTotal);
+            const rest = allStopwatches.filter(stopwatch => !stopwatch.isTotal);
             const oldIndex = rest.findIndex(stopwatch => stopwatch.id === active.id);
             const newIndex = rest.findIndex(stopwatch => stopwatch.id === over.id);
             const reordered = arrayMove(rest, oldIndex, newIndex);
+            setStopwatches(total ? [total, ...reordered] : reordered);
 
-            return total ? [total, ...reordered] : reordered;
-        });
+            // the Total is never sent in the reorder payload
+            if (!isFuture) {
+                fetchWithAuth("/stopwatches/reorder/", {
+                    method: "PATCH",
+                    body: JSON.stringify({ date: selectedDate, order: reordered.map(stopwatch => stopwatch.id) })
+                })
+                .catch(error => console.error(error));
+            }
         }
 
         setActiveId(null);

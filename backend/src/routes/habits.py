@@ -29,7 +29,11 @@ def create_habit_for_date(requested_date, done, description, user_id, repeat_day
     if duplicate is not None:
         return failure_response("Habit already exists for this day", 409)
 
-    new_habit = Habit(description = description, done = done, date = requested_date, user_id = user_id, repeat_days = repeat_days, difficulty = difficulty)
+    # new rows append at the end of that day's list
+    max_position = db.session.query(func.max(Habit.position)).filter(Habit.user_id == user_id, Habit.date == requested_date).scalar()
+    position = 0 if max_position is None else max_position + 1
+
+    new_habit = Habit(description = description, done = done, date = requested_date, user_id = user_id, repeat_days = repeat_days, difficulty = difficulty, position = position)
 
     db.session.add(new_habit)
     db.session.commit()
@@ -45,7 +49,7 @@ def get_habits(date_string):
     requested_date = date.fromisoformat(date_string)
 
     habits = []
-    for habit in Habit.query.filter_by(date=requested_date, user_id = user_id).all():
+    for habit in Habit.query.filter_by(date=requested_date, user_id = user_id).order_by(Habit.position, Habit.id).all():
         habits.append(habit.serialize())
 
     #gets previous days habits if empty
@@ -70,7 +74,7 @@ def get_habits(date_string):
                     prev_deleted = DeletedDay.query.filter_by(date=prev_date, type="habit", user_id = user_id).first()
                     if prev_deleted:
                         break
-                    day_habits = Habit.query.filter_by(date=prev_date, user_id = user_id).all()
+                    day_habits = Habit.query.filter_by(date=prev_date, user_id = user_id).order_by(Habit.position, Habit.id).all()
                     if day_habits and first_filled_date is None:
                         first_filled_date = prev_date
                     for day_habit in day_habits:
@@ -134,6 +138,31 @@ def create_habit():
         recompute_from(user_id, requested_date)
         db.session.commit()
     return success_response(new_habit, 201)
+
+@habit_routes.route("/habits/reorder/", methods=["PATCH"])
+@jwt_required()
+def reorder_habits():
+    """
+    Endpoint for persisting a user's drag-reordering of a day's habits.
+    Body: {"date": "...", "order": [habit ids in display order]}
+    """
+    user_id = int(get_jwt_identity())
+    body = json.loads(request.data)
+    requested_date = process_date(request)
+    order = body.get("order")
+    if not isinstance(order, list):
+        return failure_response("order must be a list of habit ids", 400)
+
+    habits = Habit.query.filter_by(date=requested_date, user_id = user_id).all()
+    habits_by_id = {habit.id: habit for habit in habits}
+    for index, habit_id in enumerate(order):
+        habit = habits_by_id.get(habit_id)
+        if habit is not None:
+            habit.position = index
+    db.session.commit()
+
+    habits.sort(key=lambda habit: (habit.position, habit.id))
+    return success_response({"habits": [habit.serialize() for habit in habits]})
 
 @habit_routes.route("/habits/<int:habit_id>/")
 @jwt_required()
