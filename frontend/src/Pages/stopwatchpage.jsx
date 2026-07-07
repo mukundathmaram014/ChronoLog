@@ -58,6 +58,10 @@ export function Stopwatch() {
     const [currentCentiseconds, setCurrentCentiseconds] = useState(0);
     const isFuture = (new Date(selectedDate)) > (new Date(today));
     const intervalRef = useRef(null);
+    // client-clock anchor for the running interval, captured when the start response
+    // arrives; getElapsed uses it instead of the server's interval_start so the live
+    // display doesn't drift by the client/server clock skew (spec 0006)
+    const intervalStartClientRef = useRef(null);
     const defaultTitleRef = useRef(document.title);
     const [stopwatchError, setStopwatchError] = useState("");
     const location = useLocation();
@@ -114,6 +118,7 @@ export function Stopwatch() {
             .then(response => response.json())
             .then(data => {
                 setRunningId(null);
+                intervalStartClientRef.current = null;
                 setStopwatches((data.stopwatches));
             })
             .catch(error => console.error(error));
@@ -271,6 +276,7 @@ export function Stopwatch() {
                 allStopwatches.map(stopwatch => stopwatch.isTotal ? data.stopwatches[0] : stopwatch)); // update total stopwatch)
             if (runningId === index) {
                 clearInterval(intervalRef.current);
+                intervalStartClientRef.current = null;
                 setRunningId(null);
             }
         } catch (error) {
@@ -297,9 +303,10 @@ export function Stopwatch() {
                     method: "PATCH"
                 })
                 const data = await response.json();
-                setStopwatches(allStopwatches => 
-                    allStopwatches.map(stopwatch => 
-                        (stopwatch.isTotal) ? data.stopwatches[0] : 
+                intervalStartClientRef.current = Date.now();
+                setStopwatches(allStopwatches =>
+                    allStopwatches.map(stopwatch =>
+                        (stopwatch.isTotal) ? data.stopwatches[0] :
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that started
 
             } catch(error){
@@ -327,6 +334,7 @@ export function Stopwatch() {
                         (stopwatch.isTotal) ? data.stopwatches[0] : 
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that stopped
                 clearInterval(intervalRef.current);
+                intervalStartClientRef.current = null;
                 if (tick === 0){}; // just to avoid compiled with warnings. remove later
 
              } catch (error){
@@ -358,6 +366,7 @@ export function Stopwatch() {
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that reset
             if (runningId === index){
                     clearInterval(intervalRef.current);
+                    intervalStartClientRef.current = null;
                     setRunningId(null);
                 }
         } catch (error){
@@ -450,7 +459,13 @@ export function Stopwatch() {
         }
         if (stopwatch.end_time != null){
             return stopwatch.curr_duration;
+        } else if (intervalStartClientRef.current != null) {
+            // both the running stopwatch and the Total share the same interval, so
+            // one anchor covers both (only one stopwatch can run at a time)
+            return stopwatch.curr_duration + (Date.now() - intervalStartClientRef.current);
         } else {
+            // no anchor (e.g. a stopwatch left running by a previous session):
+            // fall back to the server timestamp
             return stopwatch.curr_duration + (Date.now() - new Date(stopwatch.interval_start));
         }
     }
