@@ -39,6 +39,8 @@ HABIT_XP = {"easy": 10, "medium": 25, "hard": 50}
 # so they dwarf a single habit. "extreme" is the rare, life-changing tier.
 GOAL_XP = {"easy": 500, "medium": 2000, "hard": 5000, "extreme": 20000}
 XP_PER_HOUR = 20
+# hours worked beyond the day's total goal time earn this higher rate (spec 0012)
+XP_PER_HOUR_OVERTIME = 30
 STREAK_STEP = 0.1
 STREAK_CAP = 2.0
 # a day's "grind" XP (habits + worked time, no goals) must reach this for the
@@ -75,16 +77,25 @@ def streak_multiplier(streak):
     return min(1 + STREAK_STEP * (streak - 1), STREAK_CAP)
 
 
-def compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak):
+def compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak, goal_hours=0):
     """
     Pure day-XP function: the difficulty tiers of a day's completed habits,
-    hours worked, tiers of goals completed that day, and the previous day's
-    streak -> {"xp_earned", "streak", "multiplier"}. The streak multiplier
-    applies to habit XP only; work and goal XP are flat. A day qualifies for
-    the streak on its habit + worked-time XP (goals excluded).
+    hours worked, tiers of goals completed that day, the previous day's streak,
+    and the day's total goal hours -> {"xp_earned", "streak", "multiplier"}.
+    The streak multiplier applies to habit XP only; work and goal XP are flat.
+    Worked time earns XP_PER_HOUR up to the day's goal hours and the higher
+    XP_PER_HOUR_OVERTIME beyond it (goal_hours = 0 -> no overtime). A day
+    qualifies for the streak on its habit + worked-time XP (goals excluded).
     """
     habit_base = sum(HABIT_XP[difficulty] for difficulty in habit_difficulties)
-    work_xp = hours_worked * XP_PER_HOUR
+    # standard rate up to the day's total goal time, overtime rate beyond it
+    if goal_hours and goal_hours > 0:
+        normal_hours = min(hours_worked, goal_hours)
+        overtime_hours = max(0.0, hours_worked - goal_hours)
+    else:
+        normal_hours = hours_worked
+        overtime_hours = 0.0
+    work_xp = normal_hours * XP_PER_HOUR + overtime_hours * XP_PER_HOUR_OVERTIME
     # goals are rare one-off wins and don't carry a daily streak
     qualifying_xp = habit_base + work_xp
     streak = prev_streak + 1 if qualifying_xp >= STREAK_THRESHOLD else 0

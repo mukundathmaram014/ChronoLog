@@ -128,7 +128,7 @@ export function Home() {
     };
 
     function CircularProgressTotal({time, goal_time, size = 280, strokeWidth = 40, bgColor = "#444" }) {
-        const percentage = (time / goal_time) * 100 ?? 0 
+        const percentage = goal_time > 0 ? (time / goal_time) * 100 : 100 // 0 goal = no goal, render full
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - ((percentage % 100) / 100) * circumference;

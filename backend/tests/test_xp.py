@@ -7,6 +7,7 @@ from utils import (
     LEVEL_B,
     LEVEL_P,
     XP_PER_HOUR,
+    XP_PER_HOUR_OVERTIME,
     compute_day_xp,
     level_cost,
     level_from_xp,
@@ -200,9 +201,10 @@ def test_deleting_done_habit_removes_its_xp(client):
 
 def test_worked_time_grants_flat_xp(client):
     token = auth_token(client)
+    # a 2h goal so working exactly 2h is at-goal (no overtime), i.e. flat XP
     resp = client.post(
         "/api/stopwatches/",
-        data=json.dumps({"title": "study", "date": TODAY}),
+        data=json.dumps({"title": "study", "date": TODAY, "goal_time": "02:00"}),
         content_type="application/json",
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -230,6 +232,58 @@ def test_worked_time_grants_flat_xp(client):
     )
     assert resp.status_code == 200
     assert get_level(client, token)["total_xp"] == 0
+
+
+def test_overtime_work_xp_helper():
+    # goal 6h, worked 5h: all standard, no overtime
+    assert compute_day_xp([], 5.0, [], 0, goal_hours=6.0)["xp_earned"] == round(5 * XP_PER_HOUR)
+    # goal 6h, worked 8h: 6h standard + 2h overtime
+    assert compute_day_xp([], 8.0, [], 0, goal_hours=6.0)["xp_earned"] == round(
+        6 * XP_PER_HOUR + 2 * XP_PER_HOUR_OVERTIME
+    )
+    # no goal set (0h): flat standard rate even on a long day
+    assert compute_day_xp([], 8.0, [], 0, goal_hours=0)["xp_earned"] == round(8 * XP_PER_HOUR)
+
+
+def test_overtime_work_xp_over_the_stopwatch_api(client):
+    token = auth_token(client)
+    # day's total goal = 2h
+    resp = client.post(
+        "/api/stopwatches/",
+        data=json.dumps({"title": "study", "date": TODAY, "goal_time": "02:00"}),
+        content_type="application/json",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    stopwatch = json.loads(resp.data)["stopwatches"][1]
+    # log 3h of work -> 2h standard + 1h overtime
+    client.put(
+        f"/api/stopwatches/{stopwatch['id']}/",
+        data=json.dumps({"curr_duration": 3 * 3600000}),
+        content_type="application/json",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert get_level(client, token)["total_xp"] == 2 * XP_PER_HOUR + 1 * XP_PER_HOUR_OVERTIME
+
+
+def test_no_goal_stopwatch_stores_zero_and_skips_overtime(client):
+    token = auth_token(client)
+    # a "no goal" stopwatch is stored as goal_time 0
+    resp = client.post(
+        "/api/stopwatches/",
+        data=json.dumps({"title": "reading", "date": TODAY, "goal_time": None}),
+        content_type="application/json",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    stopwatch = json.loads(resp.data)["stopwatches"][1]
+    assert stopwatch["goal_time"] == 0
+    # with no goal set, the day's goal is 0h -> no overtime, flat standard rate
+    client.put(
+        f"/api/stopwatches/{stopwatch['id']}/",
+        data=json.dumps({"curr_duration": 3 * 3600000}),
+        content_type="application/json",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR
 
 
 def test_goal_complete_uncomplete_and_delete(client):

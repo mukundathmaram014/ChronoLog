@@ -16,7 +16,9 @@ MS_PER_HOUR = 3600000.0
 def _day_inputs(user_id, day):
     """
     The XP inputs for one user-day: completed-habit difficulty tiers, hours
-    worked (from the day's Total stopwatch), and completed-goal tiers.
+    worked (from the day's Total stopwatch), completed-goal tiers, and the day's
+    total goal hours (sum of the day's individual stopwatch goal times, for the
+    overtime work-XP boost).
     """
     habit_difficulties = [
         habit.difficulty
@@ -28,7 +30,16 @@ def _day_inputs(user_id, day):
         goal.difficulty
         for goal in Goal.query.filter_by(user_id=user_id, done=True, completed_date=day).all()
     ]
-    return habit_difficulties, hours_worked, goal_difficulties
+    # sum of the day's real stopwatches' goal times (exclude the Total row and
+    # no-goal stopwatches, whose goal_time is 0), in hours
+    goal_ms = db.session.query(func.coalesce(func.sum(Stopwatch.goal_time), 0)).filter(
+        Stopwatch.user_id == user_id,
+        Stopwatch.date == day,
+        Stopwatch.isTotal == False,
+        Stopwatch.goal_time > 0,
+    ).scalar()
+    goal_hours = (goal_ms or 0) / MS_PER_HOUR
+    return habit_difficulties, hours_worked, goal_difficulties, goal_hours
 
 
 def _last_activity_date(user_id):
@@ -63,8 +74,8 @@ def recompute_from(user_id, day):
     delta = 0
     current = day
     while current <= end:
-        habit_difficulties, hours_worked, goal_difficulties = _day_inputs(user_id, current)
-        result = compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak)
+        habit_difficulties, hours_worked, goal_difficulties, goal_hours = _day_inputs(user_id, current)
+        result = compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak, goal_hours)
         row = DailyXP.query.filter_by(user_id=user_id, date=current).first()
         old_xp = row.xp_earned if row else 0
         if row is not None:

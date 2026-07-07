@@ -397,6 +397,20 @@ h1{
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
+.no-goal-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 0.95rem;
+  margin: 8px 0;
+  cursor: pointer;
+}
+.no-goal-toggle input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
 .goal-time-inputs {
   display: flex;
   align-items: center;
