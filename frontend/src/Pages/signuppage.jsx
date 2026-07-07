@@ -1,7 +1,8 @@
 import {useState, useEffect, useRef} from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {faCheck, faTimes, faInfoCircle} from "@fortawesome/free-solid-svg-icons";
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
+import useAuth from "../hooks/useAuth";
 import './signuppage.css';
 
 const USER_REGEX = /^[A-z][A-z0-9-_]{3,23}$/;
@@ -9,6 +10,9 @@ const PWD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%]).{8,24}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function SignupPage(){
+
+  const {setAuth} = useAuth();
+  const navigate = useNavigate();
 
   const userRef = useRef();
   const errRef = useRef();
@@ -96,8 +100,33 @@ export function SignupPage(){
     };
   }
 
+  const handleGuest = async () => {
+    try{
+        const response = await fetch(`/api/guest`, {
+            method: "POST",
+            credentials: "include"
+        });
 
-    
+        const data = await response.json();
+        if (data.access_token){
+            const access_token = data.access_token
+            let username = data.user.username
+            let email = data.user.email
+            setAuth({username, email, access_token, isGuest: true})
+            navigate("/homepage", {replace : true});
+        }
+        else {
+            setErrMsg(data.error || "Could not start a guest session");
+            throw new Error("Guest login failed")
+        }
+    } catch(error){
+        errRef.current.focus();
+        console.error(error);
+    };
+  }
+
+
+
     return (
         <>
             {Success ? (
@@ -212,6 +241,12 @@ export function SignupPage(){
                       Already registered?<br />
                       <span className="line">
                           <Link to="/loginpage">Log In</Link>
+                      </span>
+                  </p>
+                  <p>
+                      Just exploring?<br />
+                      <span className="line">
+                          <button type="button" className="guest-link" onClick={handleGuest}>Use as guest</button>
                       </span>
                   </p>
                 </div>

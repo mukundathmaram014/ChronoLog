@@ -10,7 +10,7 @@ from routes.habits import habit_routes
 from routes.tasks import task_routes
 from routes.stopwatch import stopwatch_routes
 from routes.statistics import statistic_routes
-from routes.users import user_routes
+from routes.users import user_routes, purge_expired_guests
 from routes.goals import goal_routes
 from routes.level import level_routes
 from datetime import datetime, timedelta
@@ -54,6 +54,22 @@ def ensure_user_total_xp_column():
     columns = {row[1] for row in result}
     if "total_xp" not in columns:
         db.session.execute(text("ALTER TABLE users ADD COLUMN total_xp INTEGER NOT NULL DEFAULT 0"))
+        db.session.commit()
+
+
+def ensure_user_is_guest_column():
+    result = db.session.execute(text("PRAGMA table_info(users)"))
+    columns = {row[1] for row in result}
+    if "is_guest" not in columns:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN is_guest BOOLEAN NOT NULL DEFAULT 0"))
+        db.session.commit()
+
+
+def ensure_user_created_at_column():
+    result = db.session.execute(text("PRAGMA table_info(users)"))
+    columns = {row[1] for row in result}
+    if "created_at" not in columns:
+        db.session.execute(text("ALTER TABLE users ADD COLUMN created_at TIMESTAMP"))
         db.session.commit()
 
 
@@ -108,6 +124,9 @@ def create_app(test_config=None):
         ensure_habit_difficulty_column()
         ensure_user_total_xp_column()
         ensure_stopwatch_goal_overridden_column()
+        ensure_user_is_guest_column()
+        ensure_user_created_at_column()
+        purge_expired_guests()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
     app.register_blueprint(task_routes,  url_prefix="/api")
