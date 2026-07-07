@@ -36,8 +36,7 @@ pushing past the day's committed target. This extends the XP engine (spec 0020).
    `work_xp = normal_hours * 20 + overtime_hours * OVERTIME`, where
    `overtime_hours = max(0, worked_hours − goal_hours)` and `normal_hours = worked_hours − overtime_hours`.
    Overtime XP is flat (not streak-multiplied), like all work XP.
-   **Open decision — the overtime rate:** proposed **`XP_PER_HOUR_OVERTIME = 30` (1.5×)**; the alternative
-   is `40` (2×). Tune alongside the calibration sim.
+   **Overtime rate (decided): `XP_PER_HOUR_OVERTIME = 30` (1.5×).**
 5. **"Total goal time" for XP = sum of *set* goal times only.** No-goal stopwatches contribute **0** to
    the XP threshold — a stopwatch with no committed target shouldn't raise the bar you have to clear.
    This deliberately differs from the display Total (Decision 3), where a no-goal stopwatch contributes
