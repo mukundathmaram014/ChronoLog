@@ -1,4 +1,5 @@
 import { Navbar } from "./Components/Navbar"
+import { InstallPrompt } from "./Components/InstallPrompt"
 import { Outlet } from "react-router-dom"
 
 export function Layout() {
@@ -8,6 +9,7 @@ export function Layout() {
             <main>
                 <Outlet/>
             </main>
+            <InstallPrompt/>
         </>
     )
 }

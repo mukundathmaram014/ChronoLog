@@ -238,3 +238,28 @@
 .addSubtaskButton:hover{
   background-color: rgb(4,196,106);
 }
+
+/* phone widths: let the list and popups use the full screen */
+@media (max-width: 600px) {
+  .task-wrapper {
+    width: 92%;
+    padding: 4%;
+    box-sizing: border-box;
+  }
+
+  .task-input-item,
+  .task-edit-item {
+    width: min(300px, 82vw);
+  }
+
+  .task-input-item input,
+  .task-edit-item input,
+  .recurrence-select {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .subtask-list {
+    margin-left: 20px;
+  }
+}

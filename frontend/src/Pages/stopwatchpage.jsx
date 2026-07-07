@@ -8,6 +8,7 @@ import {
   KeyboardSensor,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -60,7 +61,13 @@ export function Stopwatch() {
     
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 5 },
+        }),
+        // touch devices without pointer events; a short hold distinguishes drag from scroll
+        useSensor(TouchSensor, {
+            activationConstraint: { delay: 200, tolerance: 8 },
+        }),
         useSensor(KeyboardSensor, {
         coordinateGetter: sortableKeyboardCoordinates,
         })
