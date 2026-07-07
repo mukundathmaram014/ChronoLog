@@ -215,6 +215,8 @@ class Stopwatch(db.Model):
     # (Total row only) True once the user sets a custom daily goal; while False the
     # Total's goal_time tracks the sum of the day's individual stopwatch goals.
     goal_overridden = db.Column(db.Boolean, nullable = False, default = False)
+    # recurring stopwatches carry forward to future days; non-recurring are one-off
+    is_recurring = db.Column(db.Boolean, nullable = False, default = True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def __init__(self, **kwargs):
@@ -231,6 +233,7 @@ class Stopwatch(db.Model):
         self.isTotal = kwargs.get("isTotal", False)
         self.goal_time = kwargs.get("goal_time", 3600000) # defaults to one hour
         self.goal_overridden = kwargs.get("goal_overridden", False)
+        self.is_recurring = kwargs.get("is_recurring", True)
         self.user_id = kwargs.get("user_id")
 
     def serialize(self):
@@ -249,6 +252,7 @@ class Stopwatch(db.Model):
             "isTotal": self.isTotal,
             "goal_time": self.goal_time,
             "goal_overridden": self.goal_overridden,
+            "is_recurring": self.is_recurring,
             "user_id": self.user_id
         }
     

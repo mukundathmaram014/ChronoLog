@@ -50,6 +50,8 @@ export function Stopwatch() {
     const [inputHours, setInputHours] = useState(1);
     const [inputMinutes, setInputMinutes] = useState(0);
     const [noGoal, setNoGoal] = useState(false);
+    const [isRecurring, setIsRecurring] = useState(true);
+    const [previousTitles, setPreviousTitles] = useState([]);
     const [editingIsTotal, setEditingIsTotal] = useState(false);
     const [matchSum, setMatchSum] = useState(true);
     const [currentHours, setCurrentHours] = useState(0);
@@ -217,7 +219,8 @@ export function Stopwatch() {
         const newStopwatch = {
             title : stopwatchTitle,
             date : selectedDate,
-            goal_time : noGoal ? null : inputTimeString
+            goal_time : noGoal ? null : inputTimeString,
+            is_recurring : isRecurring
         }
         setIsAdding(true);
 
@@ -248,11 +251,23 @@ export function Stopwatch() {
             setInputHours(1);
             setInputMinutes(0);
             setNoGoal(false);
+            setIsRecurring(true);
         } catch (error) {
             console.error(error);
         }  finally {
             setIsAdding(false);
         }
+    }
+
+    // "reuse previous" dropdown: prefills the add form with a prior title + its goal
+    const prefillFromPrevious = (title) => {
+        const previous = previousTitles.find(p => p.title === title);
+        if (!previous) return;
+        setStopwatchTitle(previous.title);
+        setNoGoal(!previous.goal_time);
+        const [hours, minutes] = formatTimeString(previous.goal_time || 3600000);
+        setInputHours(Number(hours));
+        setInputMinutes(Number(minutes));
     }
 
     const deleteStopwatch = async (index) => {
@@ -394,7 +409,7 @@ export function Stopwatch() {
             ? (matchSum
                 ? { title: stopwatchTitle, match_sum: true }
                 : { title: stopwatchTitle, goal_time: inputTimeString })
-            : { title: stopwatchTitle, goal_time: noGoal ? null : inputTimeString, curr_duration: newDuration };
+            : { title: stopwatchTitle, goal_time: noGoal ? null : inputTimeString, curr_duration: newDuration, is_recurring: isRecurring };
 
         setIsAdding(true);
 
@@ -418,6 +433,7 @@ export function Stopwatch() {
             setInputHours(1);
             setInputMinutes(0);
             setNoGoal(false);
+            setIsRecurring(true);
             setEditingIsTotal(false);
             setMatchSum(true);
             setCurrentHours(0);
@@ -472,6 +488,7 @@ export function Stopwatch() {
             setMatchSum(!item.goal_overridden);
         } else {
             setNoGoal(!item.goal_time);
+            setIsRecurring(item.is_recurring);
         }
         const [hours, minutes] = formatTimeString(item.goal_time || 3600000);
         setInputHours(Number(hours));
@@ -646,7 +663,14 @@ export function Stopwatch() {
         <h1>Stopwatches</h1>
         <div className="stopwatches">
         <div className = "header">
-            <button className = "primaryBtn" onClick = {() => {setAddingStopwatch(true); setNoGoal(false); setInputHours(1); setInputMinutes(0);}} disabled = {isFuture}>
+            <button className = "primaryBtn" onClick = {() => {
+                setAddingStopwatch(true); setNoGoal(false); setInputHours(1); setInputMinutes(0); setIsRecurring(true);
+                // feeds the "reuse previous" dropdown with the user's distinct prior titles
+                fetchWithAuth(`/stopwatches/titles/`, { method: "GET" })
+                    .then(response => response.json())
+                    .then(data => setPreviousTitles(data.titles))
+                    .catch(error => console.error(error));
+            }} disabled = {isFuture}>
                 <FaPlus className = "plus-icon" />
             </button>
         </div>
@@ -654,7 +678,7 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-edit-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setNoGoal(false); setEditingIsTotal(false); setMatchSum(true); setStopwatchError("");}}/>
+                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setNoGoal(false); setIsRecurring(true); setEditingIsTotal(false); setMatchSum(true); setStopwatchError("");}}/>
                       <h3>{editingIsTotal ? "Set Daily Goal" : "Edit Stopwatch"}</h3>
                       {!editingIsTotal && (
                         <>
@@ -713,6 +737,10 @@ export function Stopwatch() {
                       </div>
                       {!editingIsTotal && (
                         <>
+                      <label className="no-goal-toggle">
+                        <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} />
+                        Recurring (carries forward to future days)
+                      </label>
                       <label style={{ marginTop: "18px", display: "block" }}>Current Time:</label>
                       <div className = "current-time-inputs">
                         <label htmlFor="current-hours">Hours:</label>
@@ -782,8 +810,24 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-input-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setAddingStopwatch(false); setNoGoal(false); setStopwatchError("")}}/>
+                        onClick={() => {setAddingStopwatch(false); setNoGoal(false); setIsRecurring(true); setStopwatchError("")}}/>
                       <h3>Add a New Stopwatch</h3>
+                      {previousTitles.length > 0 && (
+                        <>
+                          <label htmlFor="reuse-previous">Reuse previous: </label>
+                          <select
+                            id="reuse-previous"
+                            className="reuse-previous-select"
+                            value=""
+                            onChange={e => prefillFromPrevious(e.target.value)}
+                          >
+                            <option value="" disabled>Select a previous stopwatch…</option>
+                            {previousTitles.map(previous => (
+                              <option key={previous.title} value={previous.title}>{previous.title}</option>
+                            ))}
+                          </select>
+                        </>
+                      )}
                       <label>Title: </label>
                       <input type= "text" value = {stopwatchTitle} 
                       onChange={(e) => setStopwatchTitle(e.target.value) }
@@ -830,6 +874,10 @@ export function Stopwatch() {
                             }}
                         />
                       </div>
+                      <label className="no-goal-toggle">
+                        <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} />
+                        Recurring (carries forward to future days)
+                      </label>
                       <button type = 'button' className = 'addStopwatchButton'
                         onClick={addStopwatch}
                         disabled = {isAdding}
