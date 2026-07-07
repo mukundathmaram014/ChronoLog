@@ -16,13 +16,16 @@ class User(db.Model):
     password_hash = db.Column(db.String, nullable = False)
     homepage_note = db.Column(db.String, nullable = True)
     total_xp = db.Column(db.Integer, nullable=False, default=0)
+    is_guest = db.Column(db.Boolean, nullable=False, default=False)
+    # needed for the guest TTL purge; nullable because pre-existing rows have no value
+    created_at = db.Column(db.DateTime(timezone=True), nullable=True, default=lambda: datetime.now(timezone.utc))
 
     def serialize(self):
         """
         Serializing a user to be returned
         """
 
-        return {"id": self.id, "username": self.username, "email": self.email, "homepage_note": self.homepage_note, "total_xp": self.total_xp or 0}
+        return {"id": self.id, "username": self.username, "email": self.email, "homepage_note": self.homepage_note, "total_xp": self.total_xp or 0, "is_guest": bool(self.is_guest)}
 
 
 # Habit model

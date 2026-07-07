@@ -1,15 +1,40 @@
 from flask import Blueprint
-from utils import success_response, failure_response, process_date
+from utils import success_response, failure_response, process_date, ensure_utc
 import json
-from db import db, User, TokenBlocklist
+import os
+import secrets
+from db import db, User, Habit, Task, Goal, DailyXP, Stopwatch, DeletedDay, TokenBlocklist
 from flask import Flask, request
 from sqlalchemy import func
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity, set_refresh_cookies, decode_token, get_jwt, unset_jwt_cookies
 from flask import make_response
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 user_routes = Blueprint('user', __name__)
+
+# guest accounts and all their data are purged this many days after creation
+GUEST_TTL_DAYS = int(os.environ.get("GUEST_TTL_DAYS", "7"))
+
+
+def purge_expired_guests():
+    """
+    Deletes guest users older than GUEST_TTL_DAYS along with all their data.
+    Runs at app startup and whenever a new guest is provisioned.
+    """
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=GUEST_TTL_DAYS)
+    expired = []
+    for user in User.query.filter_by(is_guest=True).all():
+        created = ensure_utc(user.created_at)
+        if created is not None and created < cutoff:
+            expired.append(user)
+    for user in expired:
+        for model in (Habit, Task, Goal, DailyXP, Stopwatch, DeletedDay, TokenBlocklist):
+            model.query.filter_by(user_id=user.id).delete()
+        db.session.delete(user)
+    if expired:
+        db.session.commit()
 
 def revoke_token(jti: str, ttype: str, user_id: int, exp_epoch: int):
     if not jti:
@@ -68,6 +93,35 @@ def login():
         return resp
     return failure_response("Invalid credentials", 401)
 
+@user_routes.route("/guest", methods = ["POST"])
+def guest():
+    """
+    Provisions a throwaway guest user and logs it in like a normal user.
+    Guest accounts and their data are purged GUEST_TTL_DAYS after creation.
+    """
+
+    purge_expired_guests()
+
+    while True:
+        username = f"guest-{secrets.token_hex(4)}"
+        if not User.query.filter_by(username = username).first():
+            break
+    # reserved TLD: can never collide with a real registered email
+    email = f"{username}@guest.invalid"
+    # random password, never disclosed — guests re-enter via the refresh cookie only
+    user = User(username = username, email = email, password_hash = generate_password_hash(secrets.token_urlsafe(32)), is_guest = True)
+    db.session.add(user)
+    db.session.commit()
+
+    refresh_token = create_refresh_token(identity = str(user.id))
+    refresh_decoded = decode_token(refresh_token)
+    refresh_jti = refresh_decoded["jti"]
+    refresh_exp = refresh_decoded["exp"]  # epoch seconds
+    access_token = create_access_token(identity= str(user.id), additional_claims={"refresh_jti": refresh_jti, "refresh_exp": refresh_exp})
+    resp = make_response(success_response({"user": user.serialize(), "access_token": access_token}, 201))
+    set_refresh_cookies(resp, refresh_token)
+    return resp
+
 @user_routes.route("/refresh", methods = ["POST"])
 @jwt_required(refresh=True)
 def refresh():
@@ -84,7 +138,7 @@ def refresh():
     username = user.username
     email = user.email
     new_access_token = create_access_token(identity= str(user_id), additional_claims={"refresh_jti": refresh_jti, "refresh_exp": refresh_exp})
-    return success_response({"access_token": new_access_token, "username": username, "email" : email })
+    return success_response({"access_token": new_access_token, "username": username, "email" : email, "is_guest": bool(user.is_guest) })
 
 @user_routes.route("/note", methods = ["GET"])
 @jwt_required()

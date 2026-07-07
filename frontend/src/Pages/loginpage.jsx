@@ -67,8 +67,37 @@ export function LoginPage(){
     };
   }
 
+  const handleGuest = async () => {
+    try{
+        const response = await fetch(`/api/guest`, {
+            method: "POST",
+            credentials: "include"
+        });
 
-    
+        const data = await response.json();
+        if (data.access_token){
+            const access_token = data.access_token
+            let username = data.user.username
+            let email = data.user.email
+            setAuth({username, email, access_token, isGuest: true})
+            if (from === "/"){
+                navigate("/homepage", {replace : true});
+            } else {
+                navigate(from, {replace : true});
+            }
+        }
+        else {
+            setErrMsg(data.error || "Could not start a guest session");
+            throw new Error("Guest login failed")
+        }
+    } catch(error){
+        errRef.current.focus();
+        console.error(error);
+    };
+  }
+
+
+
     return (
             <div className="Login-box">
                 <p ref={errRef} className={errMsg ? "errmsg" : "offscreen"} aria-live="assertive">{errMsg}</p>
@@ -103,6 +132,12 @@ export function LoginPage(){
                     Need an Account?<br />
                     <span className="line">
                         <Link to="/">Sign Up</Link>
+                    </span>
+                </p>
+                <p>
+                    Just exploring?<br />
+                    <span className="line">
+                        <button type="button" className="guest-link" onClick={handleGuest}>Use as guest</button>
                     </span>
                 </p>
             </div>

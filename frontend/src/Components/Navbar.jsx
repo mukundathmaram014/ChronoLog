@@ -64,6 +64,13 @@ export function Navbar() {
                 </div>
             </div>
 
+            {auth.isGuest && (
+                <div className="guest-banner">
+                    You're using ChronoLog as a guest — guest data is deleted after 7 days.{" "}
+                    <Link to="/">Sign up</Link> to keep your data.
+                </div>
+            )}
+
         {/* Profile Popup Overlay */}
             {showProfilePopup && (
                 <div className="profile-overlay">

@@ -55,6 +55,24 @@ body {
   text-decoration: none;
 }
 
+/* "Use as guest" — styled like the log-in link, but it's a button */
+.guest-link {
+  background: none;
+  border: none;
+  color: #00e67a;
+  text-decoration: underline;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 0 0 0 4px;
+}
+
+.guest-link:hover {
+  color: #00b86b;
+  text-decoration: none;
+}
+
 .Signup-form {
   width: 100%;
   display: flex;

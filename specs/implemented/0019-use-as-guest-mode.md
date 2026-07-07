@@ -1,4 +1,6 @@
-Spec 0005 landed `User.homepage_note` in `db.py`, `/note` GET/PUT routes in `users.py`, and a `useFetch`-based note load in `homepage.jsx` — all files spec 0019 touches or interacts with. The spec needs updates: its `users.py`/`db.py` edits now stack on 0005's, the `users` table has a second pending `ALTER TABLE` to coordinate, and the guest purge/serialize story should account for the new column. Here is the revised file:
+---
+status: built
+---
 
 # 0019 — "Use as guest" mode
 
@@ -30,25 +32,31 @@ habits/stopwatches/stats, so the app is explorable before sign-up.
 3. **Expiry/cleanup:** guests and all their data are **purged on a TTL** — default ~7 days (adjustable);
    no special feature limits beyond that. Cleanup is mandatory (see Risks), not optional.
 
-## Affected files
-- `backend/src/routes/users.py` — a guest entry endpoint (e.g. `/guest`) that provisions a guest `User`
-  and issues access/refresh tokens like `login`; mark guests (e.g. an `is_guest` flag on `User`). The
-  file now also contains the `/note` GET/PUT routes from spec 0005 — add `/guest` alongside them
-  (nothing about `/note` needs to change; it's `user_id`-scoped and works for guests as-is). Note
-  `User.username`/`email` are `nullable=False` and `register` enforces uniqueness — generate
-  non-colliding placeholder credentials for guests.
-- `backend/src/db.py` — `User.is_guest` + include it in `User.serialize()` (which, since 0005, also
-  returns `homepage_note`). **Schema change** — the **second** pending `ALTER TABLE` on `users` after
-  0005's `homepage_note`; see Risks.
-- Guest cleanup — a purge path for expired guests (and their habits/stopwatches/deleted-days/tokens).
-  The homepage note lives on the `User` row itself, so deleting the guest `User` covers it — no extra
-  table to purge.
-- `frontend/src/Pages/loginpage.jsx` (+ signup) — a "Use as guest" button calling the guest endpoint and
-  populating `auth`.
-- `frontend/src/context/AuthProvider.js` / `RequireAuth.js` — allow a guest session to satisfy the auth
-  gate; surface guest state (e.g. a banner / "sign up to keep your data").
-- `frontend/src/Pages/homepage.jsx` — **no change expected**: since 0005 it loads/saves the note via
-  `useFetch` against the authed user, which works for a guest session; just verify it during testing.
+## Affected files (as built)
+- `backend/src/routes/users.py` — `POST /guest` provisions a guest `User` (`guest-<hex>` username,
+  `@guest.invalid` email, random never-disclosed password) and issues access/refresh tokens exactly like
+  `login`; `purge_expired_guests()` (TTL via `GUEST_TTL_DAYS` env, default 7 days) runs at startup and on
+  each guest provisioning; `/refresh` now also returns `is_guest` so the frontend can re-hydrate guest
+  state. `/note` unchanged — it's `user_id`-scoped and works for guests as-is.
+- `backend/src/db.py` — `User.is_guest` **and `User.created_at`** (the TTL purge needs a creation
+  timestamp, which `User` lacked — a deviation from the original spec); `is_guest` added to
+  `User.serialize()`. **Schema change** — two `ALTER TABLE`s on `users`; see Risks.
+- `backend/src/app.py` — `ensure_user_is_guest_column()` / `ensure_user_created_at_column()` startup
+  migrations (same PRAGMA pattern as earlier specs) + startup call to `purge_expired_guests()`.
+- Guest purge covers **all** per-user tables — the repo grew since this spec was written, so that's
+  habits, tasks, goals, daily_xp, stopwatches, deleted-days, and token_blocklist. The homepage note
+  lives on the `User` row itself, so deleting the guest `User` covers it.
+- `frontend/src/Pages/loginpage.jsx` / `signuppage.jsx` (+ their `.css`) — a "Use as guest" link calling
+  `/guest` and populating `auth` (with `isGuest: true`).
+- `frontend/src/context/AuthProvider.js` — hydrates `isGuest` from the `/refresh` response.
+- `frontend/src/Components/RequireAuth.js` — **no change needed**: guests have a `username`, so the
+  existing gate passes.
+- `frontend/src/Components/Navbar.jsx` / `Navbar.css` — guest banner on every protected page
+  ("guest data is deleted after 7 days — sign up to keep your data").
+- `frontend/src/Pages/homepage.jsx` — no change, as predicted.
+- `backend/tests/test_guest.py` — new: guest entry, credential uniqueness, habit use, isolation from
+  registered users, homepage note, TTL purge (expired guest + data removed; regular users and fresh
+  guests spared).
 
 ## Approach
 1. Backend: a `/guest` endpoint provisions an ephemeral guest `User` (marked `is_guest`) + access/refresh
@@ -75,10 +83,11 @@ habits/stopwatches/stats, so the app is explorable before sign-up.
 - **Review attention:** High — security-sensitive (keep token handling identical to the real flow), a prod migration, and guest-data isolation + mandatory cleanup; review closely.
 
 ## Risks & notes
-- **SQLite migration** for `User.is_guest` (no Alembic; `create_all` won't alter `users`) — `ALTER
-  TABLE users ADD COLUMN is_guest BOOLEAN` + backfill existing users to non-guest. This is the second
-  hand-applied `ALTER TABLE` on `users` after 0005's `homepage_note` (same pattern as specs
-  0003/0012/0005) — apply it after/alongside 0005's migration and call out the exact statement in the PR.
+- **SQLite migration** for `User.is_guest` and `User.created_at` (no Alembic; `create_all` won't alter
+  `users`). As built, these are self-applied at startup via the repo's `ensure_*_column()` PRAGMA
+  pattern in `app.py`: `ALTER TABLE users ADD COLUMN is_guest BOOLEAN NOT NULL DEFAULT 0` (backfills
+  existing users to non-guest) and `ALTER TABLE users ADD COLUMN created_at TIMESTAMP` (NULL for
+  pre-existing rows — the purge skips guests without a timestamp, and non-guests are never purged).
 - Touches auth — keep token handling identical to the real flow (refresh cookie, blocklist on logout) so
   guest sessions don't weaken security.
 - Without cleanup, guest accounts accumulate — the TTL/purge isn't optional.
