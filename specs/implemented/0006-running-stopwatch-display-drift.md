@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0006 — Running stopwatch shows ~2s more than the stopped value
 
 ## Problem / Goal
@@ -29,6 +33,9 @@ committing to a fix.
   file was recently modified by spec 0022 (PWA), which shifted line numbers but did not change the
   elapsed-time logic — `getElapsed` and `handleStart` are intact as described above. Rebase/branch
   from current `main` so the PWA changes are present.
+- As built: the same file also gained small edits in `handleStop`, `handleReset`, `deleteStopwatch`,
+  and the date-change fetch effect, which clear the new client-clock anchor
+  (`intervalStartClientRef`) when the running interval ends.
 
 ## Approach (pending confirmation)
 Preferred: anchor the live delta to a **client-side** timestamp captured when the start response
