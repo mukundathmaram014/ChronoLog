@@ -49,6 +49,7 @@ export function Stopwatch() {
     const [selectedDate, setSelectedDate] = useState(today);
     const [inputHours, setInputHours] = useState(1);
     const [inputMinutes, setInputMinutes] = useState(0);
+    const [noGoal, setNoGoal] = useState(false);
     const [currentHours, setCurrentHours] = useState(0);
     const [currentMinutes, setCurrentMinutes] = useState(0);
     const [currentSeconds, setCurrentSeconds] = useState(0);
@@ -214,7 +215,7 @@ export function Stopwatch() {
         const newStopwatch = {
             title : stopwatchTitle,
             date : selectedDate,
-            goal_time : inputTimeString
+            goal_time : noGoal ? null : inputTimeString
         }
         setIsAdding(true);
 
@@ -244,6 +245,7 @@ export function Stopwatch() {
             setAddingStopwatch(false);
             setInputHours(1);
             setInputMinutes(0);
+            setNoGoal(false);
         } catch (error) {
             console.error(error);
         }  finally {
@@ -385,7 +387,7 @@ export function Stopwatch() {
 
         const newStopwatch = {
             title: stopwatchTitle,
-            goal_time: inputTimeString,
+            goal_time: noGoal ? null : inputTimeString,
             curr_duration: newDuration
         }
 
@@ -410,6 +412,7 @@ export function Stopwatch() {
             setStopwatchTitle("");
             setInputHours(1);
             setInputMinutes(0);
+            setNoGoal(false);
             setCurrentHours(0);
             setCurrentMinutes(0);
             setCurrentSeconds(0);
@@ -445,8 +448,23 @@ export function Stopwatch() {
         }
     }
 
+    // opens the edit form for a stopwatch (pausing it first if running), seeding
+    // the goal inputs and the "no goal" toggle from its stored goal_time (0 = no goal)
+    const openEditStopwatch = async (item) => {
+        if (item.end_time === null) {
+            await handleStop(item.id, item.end_time);
+        }
+        setEditStopwatch(true);
+        setStopwatchTitle(item.title);
+        setEditingStopwatchID(item.id);
+        setNoGoal(!item.goal_time);
+        const [hours, minutes] = formatTimeString(item.goal_time || 3600000);
+        setInputHours(Number(hours));
+        setInputMinutes(Number(minutes));
+    }
+
     function CircularProgress({time, goal_time, size = 330, strokeWidth = 50, bgColor = "#444" }) {
-        const percentage = (time / goal_time) * 100 ?? 0 
+        const percentage = goal_time > 0 ? (time / goal_time) * 100 : 100 // 0 goal = no goal, render full
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - ((percentage % 100) / 100) * circumference;
@@ -507,7 +525,7 @@ export function Stopwatch() {
     }
 
     function CircularProgressTotal({time, goal_time, size = 550, strokeWidth = 80, bgColor = "#444" }) {
-        const percentage = (time / goal_time) * 100 ?? 0 
+        const percentage = goal_time > 0 ? (time / goal_time) * 100 : 100 // 0 goal = no goal, render full
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - ((percentage % 100) / 100) * circumference;
@@ -613,7 +631,7 @@ export function Stopwatch() {
         <h1>Stopwatches</h1>
         <div className="stopwatches">
         <div className = "header">
-            <button className = "primaryBtn" onClick = {() => setAddingStopwatch(true)} disabled = {isFuture}>
+            <button className = "primaryBtn" onClick = {() => {setAddingStopwatch(true); setNoGoal(false); setInputHours(1); setInputMinutes(0);}} disabled = {isFuture}>
                 <FaPlus className = "plus-icon" />
             </button>
         </div>
@@ -621,7 +639,7 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-edit-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setStopwatchError("");}}/>
+                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setNoGoal(false); setStopwatchError("");}}/>
                       <h3>Edit Stopwatch</h3>
                       <label>Title: </label>
                       <input type= "text" value = {stopwatchTitle} 
@@ -633,6 +651,10 @@ export function Stopwatch() {
                       }}
                       placeholder="What's the stopwatch for"/>
                       <label style={{ marginTop: "18px", display: "block" }}>Goal Time:</label>
+                      <label className="no-goal-toggle">
+                        <input type="checkbox" checked={noGoal} onChange={e => setNoGoal(e.target.checked)} />
+                        No goal
+                      </label>
                       <div className = "goal-time-inputs">
                         <label htmlFor="goal-hours">Hours:</label>
                         <input
@@ -641,6 +663,7 @@ export function Stopwatch() {
                             min = "0"
                             max = "23"
                             value={inputHours}
+                            disabled={noGoal}
                             onChange={e => setInputHours(e.target.value)}
                             onKeyDown={(e) => {
                             if (e.key === "Enter"){
@@ -655,6 +678,7 @@ export function Stopwatch() {
                             min="0"
                             max="59"
                             value={inputMinutes}
+                            disabled={noGoal}
                             onChange={e => setInputMinutes(e.target.value)}
                             onKeyDown={e => {
                                 if (e.key === "Enter") handleEditStopwatch();
@@ -728,7 +752,7 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-input-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setAddingStopwatch(false); setStopwatchError("")}}/>
+                        onClick={() => {setAddingStopwatch(false); setNoGoal(false); setStopwatchError("")}}/>
                       <h3>Add a New Stopwatch</h3>
                       <label>Title: </label>
                       <input type= "text" value = {stopwatchTitle} 
@@ -740,6 +764,10 @@ export function Stopwatch() {
                       }}
                       placeholder="What's the stopwatch for"/>
                       <label style={{ marginTop: "18px", display: "block" }}>Goal Time:</label>
+                      <label className="no-goal-toggle">
+                        <input type="checkbox" checked={noGoal} onChange={e => setNoGoal(e.target.checked)} />
+                        No goal
+                      </label>
                       <div className = "goal-time-inputs">
                         <label htmlFor="goal-hours">Hours:</label>
                         <input
@@ -748,6 +776,7 @@ export function Stopwatch() {
                             min = "0"
                             max = "23"
                             value={inputHours}
+                            disabled={noGoal}
                             onChange={e => setInputHours(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter"){
@@ -762,14 +791,15 @@ export function Stopwatch() {
                             min="0"
                             max="59"
                             value={inputMinutes}
+                            disabled={noGoal}
                             onChange={e => setInputMinutes(e.target.value)}
                             onKeyDown={e => {
                                 if (e.key === "Enter"){
                                     addStopwatch();
-                                } 
+                                }
                             }}
                         />
-                      </div> 
+                      </div>
                       <button type = 'button' className = 'addStopwatchButton'
                         onClick={addStopwatch}
                         disabled = {isAdding}
@@ -784,13 +814,7 @@ export function Stopwatch() {
             <StopwatchItem
                 item={totalStopwatch}
                 isFuture={isFuture}
-                onEdit={async item => {if (item.end_time === null){
-                                                await handleStop(item.id, item.end_time);
-                                            }
-                                        setEditStopwatch(true); setStopwatchTitle(item.title);
-                                        setEditingStopwatchID(item.id); const [hours, minutes] = formatTimeString(item.goal_time);
-                                        setInputHours(Number(hours));
-                                        setInputMinutes(Number(minutes)); }}
+                onEdit={openEditStopwatch}
                 onStart = {handleStart}
                 onStop = {handleStop}
                 onReset = {handleReset}
@@ -808,13 +832,7 @@ export function Stopwatch() {
                 key={item.id}
                 item={item}
                 isFuture={isFuture}
-                onEdit={async item => {if (item.end_time === null){
-                                                await handleStop(item.id, item.end_time);
-                                            }
-                                        setEditStopwatch(true); setStopwatchTitle(item.title);
-                                        setEditingStopwatchID(item.id); const [hours, minutes] = formatTimeString(item.goal_time);
-                                        setInputHours(Number(hours));
-                                        setInputMinutes(Number(minutes)); }}
+                onEdit={openEditStopwatch}
                 onStart = {handleStart}
                 onStop = {handleStop}
                 onReset = {handleReset}
@@ -835,13 +853,7 @@ export function Stopwatch() {
             {activeId ? <StopwatchItem 
                 item={allStopwatches.find(s => s.id === activeId)}
                 isFuture={isFuture}
-                onEdit={async item => {if (item.end_time === null){
-                                                await handleStop(item.id, item.end_time);
-                                            }
-                                        setEditStopwatch(true); setStopwatchTitle(item.title);
-                                        setEditingStopwatchID(item.id); const [hours, minutes] = formatTimeString(item.goal_time);
-                                        setInputHours(Number(hours));
-                                        setInputMinutes(Number(minutes)); }}
+                onEdit={openEditStopwatch}
                 onStart = {handleStart}
                 onStop = {handleStop}
                 onReset = {handleReset}

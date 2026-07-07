@@ -118,8 +118,9 @@ def create_stopwatch():
     requested_date = process_date(request)
     stopwatches = []
 
-    goal_time_string = body.get("goal_time", "01:00") # goal time defaults to one hour
-    goal_time_milli = convert_time_string_to_milliseconds(goal_time_string)
+    # goal time defaults to one hour; an explicit null means "no goal" (stored as 0)
+    goal_time_raw = body.get("goal_time", "01:00")
+    goal_time_milli = 0 if goal_time_raw is None else convert_time_string_to_milliseconds(goal_time_raw)
 
     stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now(timezone.utc)), goal_time= goal_time_milli, user_id=user_id) 
     
@@ -171,9 +172,13 @@ def update_stopwatch(stopwatch_id):
 
     stopwatch.date = body.get("date", stopwatch.date)
     stopwatch.isTotal = body.get("isTotal", stopwatch.isTotal)
-    goal_time_string = body.get("goal_time")
 
-    new_goal_time = convert_time_string_to_milliseconds(goal_time_string) if goal_time_string else stopwatch.goal_time
+    # goal_time absent -> keep; explicit null -> "no goal" (0); else parse "HH:MM"
+    if "goal_time" in body:
+        goal_time_raw = body["goal_time"]
+        new_goal_time = 0 if goal_time_raw is None else convert_time_string_to_milliseconds(goal_time_raw)
+    else:
+        new_goal_time = stopwatch.goal_time
     change_in_goal_time = new_goal_time - stopwatch.goal_time
     stopwatch.goal_time = new_goal_time
 
