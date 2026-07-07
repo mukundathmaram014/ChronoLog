@@ -3,6 +3,7 @@ import json
 from conftest import auth_token
 from utils import (
     ALL_HABITS_BONUS,
+    GOAL_TIME_BONUS,
     GOAL_XP,
     HABIT_XP,
     LEVEL_B,
@@ -248,8 +249,9 @@ def test_worked_time_grants_flat_xp(client):
     )
     assert resp.status_code == 200
     level = get_level(client, token)
-    assert level["total_xp"] == 2 * XP_PER_HOUR
-    # 2h of work (40 XP) is well below the 250 streak threshold
+    # worked exactly the 2h goal -> flat work XP + goal-time bonus
+    assert level["total_xp"] == 2 * XP_PER_HOUR + GOAL_TIME_BONUS
+    # the qualifying XP (habits + work, 40) is well below the 250 streak threshold
     assert level["streak"] == 0
 
     # resetting the stopwatch takes the day's work XP back out
@@ -266,12 +268,21 @@ def test_worked_time_grants_flat_xp(client):
 def test_overtime_work_xp_helper():
     # goal 6h, worked 5h: all standard, no overtime
     assert compute_day_xp([], 5.0, [], 0, goal_hours=6.0)["xp_earned"] == round(5 * XP_PER_HOUR)
-    # goal 6h, worked 8h: 6h standard + 2h overtime
+    # goal 6h, worked 8h: 6h standard + 2h overtime + goal-time bonus (goal met)
     assert compute_day_xp([], 8.0, [], 0, goal_hours=6.0)["xp_earned"] == round(
-        6 * XP_PER_HOUR + 2 * XP_PER_HOUR_OVERTIME
+        6 * XP_PER_HOUR + 2 * XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS
     )
     # no goal set (0h): flat standard rate even on a long day
     assert compute_day_xp([], 8.0, [], 0, goal_hours=0)["xp_earned"] == round(8 * XP_PER_HOUR)
+
+
+def test_goal_time_bonus_helper():
+    # reaching the day's goal time adds the flat bonus (no overtime at exactly goal)
+    assert compute_day_xp([], 2.0, [], 0, goal_hours=2.0)["xp_earned"] == round(2 * XP_PER_HOUR) + GOAL_TIME_BONUS
+    # under the goal -> no bonus
+    assert compute_day_xp([], 1.5, [], 0, goal_hours=2.0)["xp_earned"] == round(1.5 * XP_PER_HOUR)
+    # no goal set -> no bonus
+    assert compute_day_xp([], 5.0, [], 0, goal_hours=0)["xp_earned"] == round(5 * XP_PER_HOUR)
 
 
 def test_overtime_work_xp_over_the_stopwatch_api(client):
@@ -291,7 +302,8 @@ def test_overtime_work_xp_over_the_stopwatch_api(client):
         content_type="application/json",
         headers={"Authorization": f"Bearer {token}"},
     )
-    assert get_level(client, token)["total_xp"] == 2 * XP_PER_HOUR + 1 * XP_PER_HOUR_OVERTIME
+    # 2h standard + 1h overtime + goal-time bonus (worked past the 2h goal)
+    assert get_level(client, token)["total_xp"] == 2 * XP_PER_HOUR + 1 * XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS
 
 
 def test_no_goal_stopwatch_stores_zero_and_skips_overtime(client):

@@ -105,15 +105,16 @@ export function Navbar() {
                                     <li><span>All habits done (bonus)</span><span>+25</span></li>
                                     <li><span>Tracked time</span><span>+20 / hour</span></li>
                                     <li><span>Tracked time — past daily goal</span><span>+30 / hour</span></li>
+                                    <li><span>Hit daily goal time (bonus)</span><span>+25</span></li>
                                     <li><span>Goal — Easy</span><span>+500</span></li>
                                     <li><span>Goal — Medium</span><span>+2,000</span></li>
                                     <li><span>Goal — Hard</span><span>+5,000</span></li>
                                     <li><span>Goal — Extreme</span><span>+20,000</span></li>
                                 </ul>
                                 <p className="xp-rules-note">
-                                    Finish every habit for a day to earn the bonus. Your daily goal is the
-                                    sum of your stopwatch goal times — hours logged past it earn the higher
-                                    overtime rate.
+                                    Finish every habit for a day, or log at least your daily goal time, to
+                                    earn those bonuses. Your daily goal is the sum of your stopwatch goal
+                                    times — hours logged past it also earn the higher overtime rate.
                                 </p>
 
                                 <h3>Streak</h3>

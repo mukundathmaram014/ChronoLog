@@ -10,12 +10,14 @@ now wants the post-midnight time counted under the next day, starting from 0.)
 
 ## Current behavior / root cause
 `stopwatchpage.jsx` schedules a timeout to update `today` at midnight
-(`frontend/src/Pages/stopwatchpage.jsx:70-78`). The main data effect depends on
-`[selectedDate, today, isFuture]` (line 115), so when `today` flips at midnight that effect re-runs,
+(`frontend/src/Pages/stopwatchpage.jsx:71-79`). The main data effect depends on
+`[selectedDate, today, isFuture]` (line 116), so when `today` flips at midnight that effect re-runs,
 calls `stopRunning()` and refetches — which resets `runningId` to `null`, dropping the focused styling
 (`focused-stopwatch` vs `not-focused-stopwatch` in `StopwatchItem.jsx:18`). So today the rollover both
 stops the run and loses focus. We're replacing that accidental teardown with an **intentional
-day-boundary hand-off**.
+day-boundary hand-off**. (Line numbers re-verified after spec **0022** (installable PWA) landed — it
+touched `stopwatchpage.jsx` and `habitpage.jsx`, shifting references slightly, but the rollover logic
+itself is unchanged.)
 
 ## Desired behavior
 At the midnight boundary (D → D+1), for the running (non-Total) stopwatch:
@@ -48,7 +50,11 @@ At the midnight boundary (D → D+1), for the running (non-Total) stopwatch:
   tearing down the running stopwatch, on rollover (a) **stop** the running stopwatch (persists D's time),
   (b) advance `selectedDate` to the new `today`, (c) after D+1's stopwatches load (carry-forward creates
   them fresh at 0), **auto-start** the one matching the previously-running stopwatch and set `runningId`
-  (focus). Also fix the two `getDay`→`getDate` bugs noted below.
+  (focus). Note this file was modified by spec **0022** (PWA polish); the midnight effect is now at
+  lines 71–79 and the data effect at 81–116.
+- `frontend/src/Pages/homepage.jsx`, `frontend/src/Pages/habitpage.jsx`,
+  `frontend/src/Pages/taskpage.jsx` — fix their broken `msUntilMidnight` computations (see Risks &
+  notes; `taskpage.jsx` is a page added since this spec was first written and inherits the same bug).
 - `backend/src/routes/stopwatch.py` — **no change needed** for the chosen frontend approach (it reuses
   the existing stop / carry-forward / start). A small backend split/rollover endpoint is only a fallback
   if exact-midnight atomicity ever proves necessary.
@@ -80,6 +86,9 @@ At the midnight boundary (D → D+1), for the running (non-Total) stopwatch:
   focus is preserved, and no user action was needed.
 - Verify old-day + new-day durations sum to ≈ the total time run (no large gap/overlap).
 - Switch dates via the picker and confirm the running stopwatch still stops.
+- Since the app is now an installable PWA with a service worker (spec **0022**), verify the rollover in
+  the installed/standalone app too — it's the same page code, but a long-lived installed window is the
+  most likely place a tab sits open across midnight.
 
 ## Risk
 - **Involvement:** Moderate — reworks the midnight handler into a finalize-then-restart hand-off across
@@ -91,10 +100,14 @@ At the midnight boundary (D → D+1), for the running (non-Total) stopwatch:
   and that a manual day switch still stops.
 
 ## Risks & notes
-- Related minor bug to fix while here: `homepage.jsx:26` and `habitpage.jsx:60` compute `msUntilMidnight`
-  with `now.getDay()` (day-of-week) instead of `getDate()` (day-of-month), so their midnight rollover
-  fires at the wrong time. `stopwatchpage.jsx:72` already uses `getDate()` correctly. Worth correcting
-  the two pages in this PR or a tiny follow-up.
+- Related minor bugs to fix while here — the other pages' midnight timeouts are broken in **two** ways
+  (`stopwatchpage.jsx:73` is the only correct one):
+  1. `homepage.jsx:28`, `habitpage.jsx:65`, and `taskpage.jsx:39` compute `msUntilMidnight` with
+     `now.getDay()` (day-of-week) instead of `getDate()` (day-of-month).
+  2. Those same three lines also **omit the `- now` subtraction**, so `msUntilMidnight` is a `Date`
+     object (coerced to epoch milliseconds) rather than a delay — the timeout effectively never fires.
+  Fix both in this PR or a tiny follow-up. (`goalpage.jsx`, also added since this spec was written, has
+  no midnight timeout — nothing to fix there.)
 - **No double counting at the boundary:** finalize D crediting up to 00:00 and start D+1 from 00:00, so
   the same second isn't counted twice (or dropped).
 - Coordinate with **0008** (closed-tab stale finalize) and **0009** (carry-forward must create the new
