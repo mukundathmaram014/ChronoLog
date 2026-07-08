@@ -112,7 +112,7 @@ export function Navbar() {
                                     <li><span>All habits done (bonus)</span><span>+25</span></li>
                                     <li><span>Tracked time</span><span>+20 / hour</span></li>
                                     <li><span>Tracked time — past daily goal</span><span>+30 / hour</span></li>
-                                    <li><span>Hit daily goal time (bonus)</span><span>+25</span></li>
+                                    <li><span>Hit daily goal time (bonus)</span><span>+50</span></li>
                                     <li><span>Goal — Easy</span><span>+500</span></li>
                                     <li><span>Goal — Medium</span><span>+2,000</span></li>
                                     <li><span>Goal — Hard</span><span>+5,000</span></li>
