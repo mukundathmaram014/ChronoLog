@@ -43,8 +43,8 @@ XP_PER_HOUR = 20
 XP_PER_HOUR_OVERTIME = 30
 # flat bonus for completing every one of the day's habits
 ALL_HABITS_BONUS = 25
-# flat bonus for working at least the day's total goal time
-GOAL_TIME_BONUS = 25
+# flat bonus for working at least the day's total goal time (a hard habit's worth)
+GOAL_TIME_BONUS = 50
 STREAK_STEP = 0.1
 STREAK_CAP = 2.0
 # a day's "grind" XP (habits + worked time, no goals) must reach this for the
