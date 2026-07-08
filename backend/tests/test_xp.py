@@ -81,41 +81,46 @@ def test_level_curve_first_levels():
 
 
 def test_day_xp_helper_sums_sources_and_ramps_multiplier():
-    # a qualifying day needs habit + work XP >= STREAK_THRESHOLD (250);
-    # 5 hard habits = 250 base clears it on its own. Fresh streak: no boost yet
-    result = compute_day_xp(["hard"] * 5, 0, [], 0)
+    # a day qualifies at >= 85% of its max; 5 hard habits all done (max 250) is
+    # 100%. Fresh streak: no boost yet
+    result = compute_day_xp(["hard"] * 5, 0, [], 0, max_habit_xp=250)
     assert result == {"xp_earned": 250, "streak": 1, "multiplier": 1.0}
 
     # multiplier ramps with the running streak (habit XP only)
-    result = compute_day_xp(["hard"] * 5, 0, [], 5)
+    result = compute_day_xp(["hard"] * 5, 0, [], 5, max_habit_xp=250)
     assert result["streak"] == 6
     assert result["multiplier"] == 1.5
     assert result["xp_earned"] == 375
 
     # and caps at 2.0
-    result = compute_day_xp(["hard"] * 5, 0, [], 30)
+    result = compute_day_xp(["hard"] * 5, 0, [], 30, max_habit_xp=250)
     assert result["multiplier"] == 2.0
     assert result["xp_earned"] == 500
 
     # work and goal XP are flat (not streak-multiplied)
-    result = compute_day_xp(["hard"] * 5, 1.0, ["easy"], 30)
+    result = compute_day_xp(["hard"] * 5, 1.0, ["easy"], 30, max_habit_xp=250)
     assert result["xp_earned"] == HABIT_XP["hard"] * 5 * 2 + XP_PER_HOUR + GOAL_XP["easy"]
 
 
 def test_day_xp_helper_non_qualifying_day_resets_streak():
-    # a light day (one easy habit + 2h work = 50 grind XP) is below the
-    # threshold: streak resets, but the day's flat XP still counts
-    result = compute_day_xp(["easy"], 2.0, ["medium"], 7)
+    # only 1 of a possible 8h goal's worth done + one easy habit of many: well
+    # under 85%, streak resets, but the day's flat XP still counts
+    result = compute_day_xp(["easy"], 2.0, ["medium"], 7, goal_hours=8.0, max_habit_xp=200)
     assert result["streak"] == 0
     assert result["multiplier"] == 1.0
     assert result["xp_earned"] == HABIT_XP["easy"] + 2 * XP_PER_HOUR + GOAL_XP["medium"]
 
 
-def test_work_counts_toward_streak_qualification():
-    # habits alone below threshold (4 hard = 200), but habits + work clear it
-    assert compute_day_xp(["hard"] * 4, 0, [], 0)["streak"] == 0
-    assert compute_day_xp(["hard"] * 4, 2.5, [], 0)["streak"] == 1  # 200 + 50 = 250
-    # goals never count toward qualification, however large
+def test_streak_threshold_is_percentage_of_max():
+    # all habits done + full goal time = 100% -> qualifies
+    assert compute_day_xp(["hard"] * 3, 6.0, [], 0, goal_hours=6.0, max_habit_xp=150)["streak"] == 1
+    # a small miss still clears 85% (all habits, ~1h short of a 6h goal)
+    assert compute_day_xp(["hard"] * 3, 5.0, [], 0, goal_hours=6.0, max_habit_xp=150)["streak"] == 1
+    # a big miss breaks it (only 1 of 3 hard habits, even with full work)
+    assert compute_day_xp(["hard"] * 1, 6.0, [], 0, goal_hours=6.0, max_habit_xp=150)["streak"] == 0
+    # overtime can't cover skipped habits (work is capped at the goal for the streak)
+    assert compute_day_xp(["hard"] * 1, 20.0, [], 0, goal_hours=6.0, max_habit_xp=150)["streak"] == 0
+    # a day with nothing to do (max 0) can't be completed -> no streak
     assert compute_day_xp([], 0, ["extreme"], 0)["streak"] == 0
 
 
@@ -172,7 +177,7 @@ def test_all_habits_bonus_helper():
     base = compute_day_xp(["medium"], 0, [], 0)["xp_earned"]
     assert compute_day_xp(["medium"], 0, [], 0, all_habits_done=True)["xp_earned"] == base + ALL_HABITS_BONUS
     # the bonus is flat (not streak-multiplied): 5 hard at a capped 2.0x + flat bonus
-    assert compute_day_xp(["hard"] * 5, 0, [], 30, all_habits_done=True)["xp_earned"] == (
+    assert compute_day_xp(["hard"] * 5, 0, [], 30, all_habits_done=True, max_habit_xp=250)["xp_earned"] == (
         round(5 * HABIT_XP["hard"] * streak_multiplier(31)) + ALL_HABITS_BONUS
     )
 
@@ -251,8 +256,8 @@ def test_worked_time_grants_flat_xp(client):
     level = get_level(client, token)
     # worked exactly the 2h goal -> flat work XP + goal-time bonus
     assert level["total_xp"] == 2 * XP_PER_HOUR + GOAL_TIME_BONUS
-    # the qualifying XP (habits + work, 40) is well below the 250 streak threshold
-    assert level["streak"] == 0
+    # no habits and the goal fully met = 100% of the day's possible XP -> streak qualifies
+    assert level["streak"] == 1
 
     # resetting the stopwatch takes the day's work XP back out
     resp = client.patch(
@@ -487,13 +492,14 @@ def test_calibration_dedicated_user_reaches_level_100_in_4_to_5_years():
     in ~4-5 years, with any goals only accelerating past that floor.
     """
     habits = ["easy"] * 3 + ["medium"] * 3 + ["hard"] * 3
+    max_habit_xp = sum(HABIT_XP[d] for d in habits)  # all habits done each day
     total_xp = 0
     streak = 0
     level_100_day = None
     level_after_30_days = None
 
     for day in range(1, 365 * 6 + 1):
-        result = compute_day_xp(habits, 5.5, [], streak)
+        result = compute_day_xp(habits, 5.5, [], streak, max_habit_xp=max_habit_xp)
         streak = result["streak"]
         total_xp += result["xp_earned"]
         if day == 30:

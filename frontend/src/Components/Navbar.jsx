@@ -126,9 +126,11 @@ export function Navbar() {
 
                                 <h3>Streak</h3>
                                 <p className="xp-rules-note">
-                                    Reach at least 250 XP from habits + tracked time in a day to keep your
-                                    streak going. Each streak day adds ×0.1 to your habit XP, up to ×2.0 —
-                                    miss a day and it resets.
+                                    Keep your streak by completing at least 85% of a day's possible XP —
+                                    essentially all your habits plus your goal time (you can miss a habit
+                                    or two, or about an hour of work). Worked time counts only up to your
+                                    goal. Each streak day adds ×0.1 to your habit XP, up to ×2.0 — miss a
+                                    day and it resets.
                                 </p>
 
                                 <h3>Ranks</h3>
