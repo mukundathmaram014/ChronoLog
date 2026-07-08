@@ -8,7 +8,7 @@ from datetime import timedelta
 from sqlalchemy import func
 
 from db import db, Habit, Stopwatch, Goal, DailyXP, User
-from utils import compute_day_xp
+from utils import compute_day_xp, HABIT_XP
 
 MS_PER_HOUR = 3600000.0
 
@@ -24,6 +24,8 @@ def _day_inputs(user_id, day):
     day_habits = Habit.query.filter_by(user_id=user_id, date=day).all()
     habit_difficulties = [habit.difficulty for habit in day_habits if habit.done]
     all_habits_done = bool(day_habits) and all(habit.done for habit in day_habits)
+    # max habit XP if every one of the day's habits were done (for the streak %)
+    max_habit_xp = sum(HABIT_XP[habit.difficulty] for habit in day_habits)
     total_stopwatch = Stopwatch.query.filter_by(user_id=user_id, date=day, isTotal=True).first()
     hours_worked = (total_stopwatch.curr_duration / MS_PER_HOUR) if total_stopwatch else 0.0
     goal_difficulties = [
@@ -35,7 +37,7 @@ def _day_inputs(user_id, day):
     # drives the goal-time bonus + overtime split
     goal_ms = total_stopwatch.goal_time if total_stopwatch else 0
     goal_hours = (goal_ms or 0) / MS_PER_HOUR
-    return habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done
+    return habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done, max_habit_xp
 
 
 def _last_activity_date(user_id):
@@ -70,8 +72,8 @@ def recompute_from(user_id, day):
     delta = 0
     current = day
     while current <= end:
-        habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done = _day_inputs(user_id, current)
-        result = compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak, goal_hours, all_habits_done)
+        habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done, max_habit_xp = _day_inputs(user_id, current)
+        result = compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak, goal_hours, all_habits_done, max_habit_xp)
         row = DailyXP.query.filter_by(user_id=user_id, date=current).first()
         old_xp = row.xp_earned if row else 0
         if row is not None:
