@@ -69,7 +69,7 @@ export function Habit() {
   // updates state variable today but not selecteday
   useEffect(() => {
     const now = new Date();
-    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDay() + 1, 0, 0, 0, 0) //midnight next day
+    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now //midnight next day
 
     const timeout = setTimeout(() => {
       setToday(DatetoISOString(new Date()));
@@ -259,16 +259,22 @@ export function Habit() {
   
   function handleDragEnd(event) {
     const {active, over} = event;
-    
-    if (active.id !== over.id) {
-      setHabits((prevHabits) => {
-        const oldIndex = prevHabits.findIndex(habit => habit.id === active.id);
-        const newIndex = prevHabits.findIndex(habit => habit.id === over.id);
-        
-        return arrayMove(prevHabits, oldIndex, newIndex);
-      });
+
+    if (over && active.id !== over.id) {
+      const oldIndex = allHabits.findIndex(habit => habit.id === active.id);
+      const newIndex = allHabits.findIndex(habit => habit.id === over.id);
+      const reordered = arrayMove(allHabits, oldIndex, newIndex);
+      setHabits(reordered);
+
+      if (!isFuture) {
+        fetchWithAuth("/habits/reorder/", {
+          method: "PATCH",
+          body: JSON.stringify({ date: selectedDate, order: reordered.map(habit => habit.id) })
+        })
+        .catch(error => console.error(error));
+      }
     }
-    
+
     setActiveId(null);
   }
 

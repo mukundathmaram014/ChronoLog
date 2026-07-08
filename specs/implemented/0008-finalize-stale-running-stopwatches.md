@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0008 — Stopwatch left running on a past day runs forever
 
 ## Problem / Goal
@@ -40,6 +44,8 @@ change, the day's work-time XP is already correct and no `recompute_from` call i
   elapsed when the stopwatch's `date` equals `selectedDate`/`today`; otherwise return `curr_duration`.
   (The browser-tab title effect at `stopwatchpage.jsx:173-185` goes through `getElapsed` and picks up
   the guard for free.)
+- `backend/tests/test_stopwatch_stale_finalize.py` — (added during build) regression tests: a stale
+  running stopwatch is frozen on fetch with no XP delta; today's running stopwatch is untouched.
 
 ## Approach
 1. Backend: when listing stopwatches for a date, sweep the user's stopwatches with `end_time IS NULL`

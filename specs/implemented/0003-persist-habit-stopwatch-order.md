@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0003 — Persist habit & stopwatch order across reloads
 
 ## Problem / Goal

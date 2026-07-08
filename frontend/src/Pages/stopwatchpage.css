@@ -397,6 +397,20 @@ h1{
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
+.reuse-previous-select {
+  padding: 8px;
+  border: none;
+  border-radius: 5px;
+  width: 266px;
+  margin-bottom: 10px;
+  background-color: #fff;
+  cursor: pointer;
+}
+.reuse-previous-select:focus {
+  outline: none;
+  outline: 2px solid rgb(0,230,122);
+}
+
 .no-goal-toggle {
   display: flex;
   align-items: center;

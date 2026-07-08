@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 # 0013 — Recurring stopwatches + reuse-previous dropdown
 
 ## Problem / Goal
@@ -34,6 +38,11 @@ Two related additions to creating stopwatches:
   titles (+ goal) for the dropdown, scoped by `user_id`, most-recent first.
 - `frontend/src/Pages/stopwatchpage.jsx` — add-stopwatch form: a "recurring" toggle and a
   "reuse previous" dropdown that prefills the form.
+- `backend/src/app.py` — `ensure_stopwatch_is_recurring_column()` SQLite migration (ALTER TABLE,
+  backfill default 1 = recurring), following the existing `ensure_*_column` pattern. *(Added during build.)*
+- `frontend/src/Pages/stopwatchpage.css` — styling for the reuse-previous select. *(Added during build.)*
+- `backend/tests/test_stopwatch_carryforward.py` — the focused carry-forward tests called for under
+  Risks (recurring carries, non-recurring doesn't, deleted day, Total, titles endpoint). *(Added during build.)*
 
 ## Approach
 1. Add `is_recurring` (boolean, **default True**) to the model + `serialize`.

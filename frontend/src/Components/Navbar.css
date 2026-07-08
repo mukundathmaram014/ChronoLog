@@ -40,6 +40,26 @@
   }
 }
 
+/* Guest-mode banner shown under the navbar on every protected page */
+.guest-banner {
+  background: #2a2a1f;
+  color: #e6d67a;
+  border-bottom: 1px solid #444;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.guest-banner a {
+  color: #00e67a;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.guest-banner a:hover {
+  color: #00b86b;
+}
+
 /* Profile popup styling */
 .profile-overlay {
   position: fixed;

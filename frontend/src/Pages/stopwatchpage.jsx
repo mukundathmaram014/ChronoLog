@@ -50,6 +50,8 @@ export function Stopwatch() {
     const [inputHours, setInputHours] = useState(1);
     const [inputMinutes, setInputMinutes] = useState(0);
     const [noGoal, setNoGoal] = useState(false);
+    const [isRecurring, setIsRecurring] = useState(true);
+    const [previousTitles, setPreviousTitles] = useState([]);
     const [editingIsTotal, setEditingIsTotal] = useState(false);
     const [matchSum, setMatchSum] = useState(true);
     const [currentHours, setCurrentHours] = useState(0);
@@ -58,7 +60,14 @@ export function Stopwatch() {
     const [currentCentiseconds, setCurrentCentiseconds] = useState(0);
     const isFuture = (new Date(selectedDate)) > (new Date(today));
     const intervalRef = useRef(null);
+    // client-clock anchor for the running interval, captured when the start response
+    // arrives; getElapsed uses it instead of the server's interval_start so the live
+    // display doesn't drift by the client/server clock skew (spec 0006)
+    const intervalStartClientRef = useRef(null);
     const defaultTitleRef = useRef(document.title);
+    // title of the stopwatch that was running at midnight; the data effect starts
+    // its fresh copy on the new day (midnight rollover hand-off)
+    const rolloverTitleRef = useRef(null);
     const [stopwatchError, setStopwatchError] = useState("");
     const location = useLocation();
     
@@ -77,12 +86,22 @@ export function Stopwatch() {
     );
     
 
-    // updates state variable today but not selecteday
+    // midnight rollover: remember which stopwatch was running (by title), then
+    // advance today AND selectedDate. The data effect below finalizes the old
+    // day (stop persists its time up to ~00:00), fetches the new day (carry-
+    // forward creates fresh rows at 0), and restarts the remembered stopwatch
+    // so it keeps running, focused, counting up from 0 under the new day.
     useEffect(() => {
         const now = new Date();
         const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now //midnight next day
         const timeout = setTimeout(() => {
-            setToday(DatetoISOString(new Date()));
+            const running = allStopwatchesRef.current.find(
+                sw => sw.end_time === null && !sw.isTotal
+            );
+            rolloverTitleRef.current = running ? running.title : null;
+            const newToday = DatetoISOString(new Date());
+            setToday(newToday);
+            setSelectedDate(newToday);
         }, msUntilMidnight);
 
         return () => clearTimeout(timeout);
@@ -114,7 +133,34 @@ export function Stopwatch() {
             .then(response => response.json())
             .then(data => {
                 setRunningId(null);
+                intervalStartClientRef.current = null;
                 setStopwatches((data.stopwatches));
+                // midnight hand-off: restart the stopwatch that was running when
+                // the day rolled over — its fresh copy counts up from 0 on the new day
+                const rolloverTitle = rolloverTitleRef.current;
+                rolloverTitleRef.current = null;
+                const match = (rolloverTitle === null || dateToFetch !== today) ? null :
+                    data.stopwatches.find(sw => !sw.isTotal && sw.title === rolloverTitle);
+                if (match) {
+                    setRunningId(match.id);
+                    clearInterval(intervalRef.current);
+                    intervalRef.current = setInterval(() => {
+                        setTick(tick => tick + 1);
+                    }, 10);
+                    fetchWithAuth(`/stopwatches/start/${match.id}/`, {
+                        method: "PATCH"
+                    })
+                    .then(response => response.json())
+                    .then(started => {
+                        setStopwatches(allStopwatches =>
+                            allStopwatches.map(stopwatch =>
+                                (stopwatch.isTotal) ? started.stopwatches[0] :
+                             (stopwatch.id === started.stopwatches[1].id) ? started.stopwatches[1] : stopwatch)); // updates total stopwatch and stopwatch that rolled over
+                    })
+                    .catch(error => console.error(error));
+                } else {
+                    setRunningId(null);
+                }
             })
             .catch(error => console.error(error));
             });
@@ -217,7 +263,8 @@ export function Stopwatch() {
         const newStopwatch = {
             title : stopwatchTitle,
             date : selectedDate,
-            goal_time : noGoal ? null : inputTimeString
+            goal_time : noGoal ? null : inputTimeString,
+            is_recurring : isRecurring
         }
         setIsAdding(true);
 
@@ -248,11 +295,23 @@ export function Stopwatch() {
             setInputHours(1);
             setInputMinutes(0);
             setNoGoal(false);
+            setIsRecurring(true);
         } catch (error) {
             console.error(error);
         }  finally {
             setIsAdding(false);
         }
+    }
+
+    // "reuse previous" dropdown: prefills the add form with a prior title + its goal
+    const prefillFromPrevious = (title) => {
+        const previous = previousTitles.find(p => p.title === title);
+        if (!previous) return;
+        setStopwatchTitle(previous.title);
+        setNoGoal(!previous.goal_time);
+        const [hours, minutes] = formatTimeString(previous.goal_time || 3600000);
+        setInputHours(Number(hours));
+        setInputMinutes(Number(minutes));
     }
 
     const deleteStopwatch = async (index) => {
@@ -271,6 +330,7 @@ export function Stopwatch() {
                 allStopwatches.map(stopwatch => stopwatch.isTotal ? data.stopwatches[0] : stopwatch)); // update total stopwatch)
             if (runningId === index) {
                 clearInterval(intervalRef.current);
+                intervalStartClientRef.current = null;
                 setRunningId(null);
             }
         } catch (error) {
@@ -297,9 +357,10 @@ export function Stopwatch() {
                     method: "PATCH"
                 })
                 const data = await response.json();
-                setStopwatches(allStopwatches => 
-                    allStopwatches.map(stopwatch => 
-                        (stopwatch.isTotal) ? data.stopwatches[0] : 
+                intervalStartClientRef.current = Date.now();
+                setStopwatches(allStopwatches =>
+                    allStopwatches.map(stopwatch =>
+                        (stopwatch.isTotal) ? data.stopwatches[0] :
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that started
 
             } catch(error){
@@ -327,6 +388,7 @@ export function Stopwatch() {
                         (stopwatch.isTotal) ? data.stopwatches[0] : 
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that stopped
                 clearInterval(intervalRef.current);
+                intervalStartClientRef.current = null;
                 if (tick === 0){}; // just to avoid compiled with warnings. remove later
 
              } catch (error){
@@ -358,6 +420,7 @@ export function Stopwatch() {
                      (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatches and stopwatch that reset
             if (runningId === index){
                     clearInterval(intervalRef.current);
+                    intervalStartClientRef.current = null;
                     setRunningId(null);
                 }
         } catch (error){
@@ -394,7 +457,7 @@ export function Stopwatch() {
             ? (matchSum
                 ? { title: stopwatchTitle, match_sum: true }
                 : { title: stopwatchTitle, goal_time: inputTimeString })
-            : { title: stopwatchTitle, goal_time: noGoal ? null : inputTimeString, curr_duration: newDuration };
+            : { title: stopwatchTitle, goal_time: noGoal ? null : inputTimeString, curr_duration: newDuration, is_recurring: isRecurring };
 
         setIsAdding(true);
 
@@ -418,6 +481,7 @@ export function Stopwatch() {
             setInputHours(1);
             setInputMinutes(0);
             setNoGoal(false);
+            setIsRecurring(true);
             setEditingIsTotal(false);
             setMatchSum(true);
             setCurrentHours(0);
@@ -448,9 +512,17 @@ export function Stopwatch() {
         if (isFuture) {
             return 0;
         }
-        if (stopwatch.end_time != null){
+        // only a stopwatch dated today may tick live; a past-day one with a null
+        // end_time is stale (left running when the tab closed) and stays frozen
+        if (stopwatch.end_time != null || stopwatch.date !== today){
             return stopwatch.curr_duration;
+        } else if (intervalStartClientRef.current != null) {
+            // both the running stopwatch and the Total share the same interval, so
+            // one anchor covers both (only one stopwatch can run at a time)
+            return stopwatch.curr_duration + (Date.now() - intervalStartClientRef.current);
         } else {
+            // no anchor (e.g. a stopwatch left running by a previous session):
+            // fall back to the server timestamp
             return stopwatch.curr_duration + (Date.now() - new Date(stopwatch.interval_start));
         }
     }
@@ -472,6 +544,7 @@ export function Stopwatch() {
             setMatchSum(!item.goal_overridden);
         } else {
             setNoGoal(!item.goal_time);
+            setIsRecurring(item.is_recurring);
         }
         const [hours, minutes] = formatTimeString(item.goal_time || 3600000);
         setInputHours(Number(hours));
@@ -612,15 +685,21 @@ export function Stopwatch() {
         const {active, over} = event;
 
         if (over && active.id !== over.id) {
-        setStopwatches((prevStopwatches) => {
-            const total = prevStopwatches.find(stopwatch => stopwatch.isTotal);
-            const rest = prevStopwatches.filter(stopwatch => !stopwatch.isTotal);
+            const total = allStopwatches.find(stopwatch => stopwatch.isTotal);
+            const rest = allStopwatches.filter(stopwatch => !stopwatch.isTotal);
             const oldIndex = rest.findIndex(stopwatch => stopwatch.id === active.id);
             const newIndex = rest.findIndex(stopwatch => stopwatch.id === over.id);
             const reordered = arrayMove(rest, oldIndex, newIndex);
+            setStopwatches(total ? [total, ...reordered] : reordered);
 
-            return total ? [total, ...reordered] : reordered;
-        });
+            // the Total is never sent in the reorder payload
+            if (!isFuture) {
+                fetchWithAuth("/stopwatches/reorder/", {
+                    method: "PATCH",
+                    body: JSON.stringify({ date: selectedDate, order: reordered.map(stopwatch => stopwatch.id) })
+                })
+                .catch(error => console.error(error));
+            }
         }
 
         setActiveId(null);
@@ -646,7 +725,14 @@ export function Stopwatch() {
         <h1>Stopwatches</h1>
         <div className="stopwatches">
         <div className = "header">
-            <button className = "primaryBtn" onClick = {() => {setAddingStopwatch(true); setNoGoal(false); setInputHours(1); setInputMinutes(0);}} disabled = {isFuture}>
+            <button className = "primaryBtn" onClick = {() => {
+                setAddingStopwatch(true); setNoGoal(false); setInputHours(1); setInputMinutes(0); setIsRecurring(true);
+                // feeds the "reuse previous" dropdown with the user's distinct prior titles
+                fetchWithAuth(`/stopwatches/titles/`, { method: "GET" })
+                    .then(response => response.json())
+                    .then(data => setPreviousTitles(data.titles))
+                    .catch(error => console.error(error));
+            }} disabled = {isFuture}>
                 <FaPlus className = "plus-icon" />
             </button>
         </div>
@@ -654,7 +740,7 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-edit-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setNoGoal(false); setEditingIsTotal(false); setMatchSum(true); setStopwatchError("");}}/>
+                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setNoGoal(false); setIsRecurring(true); setEditingIsTotal(false); setMatchSum(true); setStopwatchError("");}}/>
                       <h3>{editingIsTotal ? "Set Daily Goal" : "Edit Stopwatch"}</h3>
                       {!editingIsTotal && (
                         <>
@@ -713,6 +799,10 @@ export function Stopwatch() {
                       </div>
                       {!editingIsTotal && (
                         <>
+                      <label className="no-goal-toggle">
+                        <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} />
+                        Recurring (carries forward to future days)
+                      </label>
                       <label style={{ marginTop: "18px", display: "block" }}>Current Time:</label>
                       <div className = "current-time-inputs">
                         <label htmlFor="current-hours">Hours:</label>
@@ -782,8 +872,24 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-input-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setAddingStopwatch(false); setNoGoal(false); setStopwatchError("")}}/>
+                        onClick={() => {setAddingStopwatch(false); setNoGoal(false); setIsRecurring(true); setStopwatchError("")}}/>
                       <h3>Add a New Stopwatch</h3>
+                      {previousTitles.length > 0 && (
+                        <>
+                          <label htmlFor="reuse-previous">Reuse previous: </label>
+                          <select
+                            id="reuse-previous"
+                            className="reuse-previous-select"
+                            value=""
+                            onChange={e => prefillFromPrevious(e.target.value)}
+                          >
+                            <option value="" disabled>Select a previous stopwatch…</option>
+                            {previousTitles.map(previous => (
+                              <option key={previous.title} value={previous.title}>{previous.title}</option>
+                            ))}
+                          </select>
+                        </>
+                      )}
                       <label>Title: </label>
                       <input type= "text" value = {stopwatchTitle} 
                       onChange={(e) => setStopwatchTitle(e.target.value) }
@@ -830,6 +936,10 @@ export function Stopwatch() {
                             }}
                         />
                       </div>
+                      <label className="no-goal-toggle">
+                        <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} />
+                        Recurring (carries forward to future days)
+                      </label>
                       <button type = 'button' className = 'addStopwatchButton'
                         onClick={addStopwatch}
                         disabled = {isAdding}

@@ -1,3 +1,7 @@
+---
+status: built
+---
+
 The carry-forward logic that spec 0009 targets (`get_stopwatches` and `create_stopwatch_for_date`) was left untouched by spec 0020, so the diagnosis stands — but 0020 added XP `recompute_from` hooks throughout `stopwatch.py`, shifted line numbers, and established a pytest suite the spec's testing section should now point at. Here's the revised spec:
 
 # 0009 — Stopwatches don't auto-create for a day that already has only a Total
