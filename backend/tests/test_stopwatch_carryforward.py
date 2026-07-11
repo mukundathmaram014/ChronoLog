@@ -287,4 +287,7 @@ def test_carry_forward_leaves_day_xp_unchanged(client):
     before = json.loads(client.get(f"/api/level/{day}/", headers=headers).data)
     get_stopwatches(client, token, day)  # triggers carry-forward
     after = json.loads(client.get(f"/api/level/{day}/", headers=headers).data)
-    assert before == after
+    # carry-forward grants no XP: the XP/level/streak-count fields are unchanged.
+    # (The streak-requirement fields do change -- carry-forward adds a goal to hit.)
+    for field in ("total_xp", "day_xp", "level", "rank", "xp_into_level", "xp_to_next", "streak", "multiplier"):
+        assert before[field] == after[field]

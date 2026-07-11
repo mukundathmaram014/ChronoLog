@@ -1,4 +1,5 @@
 import json
+import math
 from datetime import date, timezone
 
 
@@ -124,6 +125,30 @@ def compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_str
         bonus += GOAL_TIME_BONUS
     xp_earned = round(habit_base * multiplier + work_xp + goal_xp + bonus)
     return {"xp_earned": xp_earned, "streak": streak, "multiplier": multiplier}
+
+
+def streak_progress(habit_base, hours_worked, goal_hours, max_habit_xp):
+    """
+    Today's streak status, from the same inputs as compute_day_xp's streak rule:
+    the qualifying XP so far, the target (STREAK_THRESHOLD_PCT of the day's max
+    possible grind XP), the XP still needed to hit it, and whether the day
+    already counts. `possible` is False when there's nothing to do (max 0).
+    """
+    goal_xp_target = (goal_hours * XP_PER_HOUR) if (goal_hours and goal_hours > 0) else 0.0
+    streak_work_xp = (min(hours_worked, goal_hours) * XP_PER_HOUR) if (goal_hours and goal_hours > 0) else 0.0
+    current = habit_base + streak_work_xp
+    max_day_xp = max_habit_xp + goal_xp_target
+    target = STREAK_THRESHOLD_PCT * max_day_xp
+    possible = max_day_xp > 0
+    qualified = possible and current >= target
+    remaining = math.ceil(max(0.0, target - current)) if (possible and not qualified) else 0
+    return {
+        "target": round(target),
+        "current": round(current),
+        "remaining": remaining,
+        "qualified": qualified,
+        "possible": possible,
+    }
 
 
 def level_cost(level):

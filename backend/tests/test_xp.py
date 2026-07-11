@@ -461,6 +461,40 @@ def test_level_readout_includes_day_xp(client):
     assert get_level(client, token)["day_xp"] == GOAL_XP["easy"]
 
 
+def test_streak_progress_helper():
+    from utils import streak_progress
+    # 150 max habit + 6h*20 goal = 270 max; target 85% = 229.5
+    sp = streak_progress(0, 0, 6.0, 150)  # nothing done yet
+    assert sp["possible"] is True and sp["qualified"] is False
+    assert sp["remaining"] == 230  # ceil(229.5)
+    sp = streak_progress(150, 6.0, 6.0, 150)  # all habits + full goal
+    assert sp["qualified"] is True and sp["remaining"] == 0
+    sp = streak_progress(0, 0, 0, 0)  # nothing to do
+    assert sp["possible"] is False and sp["remaining"] == 0
+
+
+def test_level_readout_includes_streak_progress(client):
+    token = auth_token(client)
+    # nothing scheduled and no goal -> streak not possible today
+    lvl = get_level(client, token)
+    assert lvl["streak_possible"] is False
+    assert lvl["streak_remaining"] == 0
+
+    # a hard habit (not yet done) -> possible, needs XP
+    resp = create_habit(client, token, description="workout", date=TODAY, difficulty="hard")
+    habit_id = json.loads(resp.data)["id"]
+    lvl = get_level(client, token)
+    assert lvl["streak_possible"] is True
+    assert lvl["streak_qualified"] is False
+    assert lvl["streak_remaining"] > 0
+
+    # completing it = 100% of a habit-only day -> qualified, nothing remaining
+    update_habit(client, token, habit_id, done=True)
+    lvl = get_level(client, token)
+    assert lvl["streak_qualified"] is True
+    assert lvl["streak_remaining"] == 0
+
+
 def test_xp_and_goals_are_user_scoped(client):
     token_a = auth_token(client, username="usera")
     token_b = auth_token(client, username="userb")
