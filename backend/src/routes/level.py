@@ -3,7 +3,7 @@ from utils import success_response, level_from_xp, streak_multiplier, rank_from_
 from db import db, User
 from datetime import date
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from xp import current_streak, day_xp
+from xp import current_streak, day_xp, streak_progress_today
 
 
 level_routes = Blueprint('level', __name__)
@@ -23,6 +23,7 @@ def get_level(date_string):
     total_xp = user.total_xp or 0
     progress = level_from_xp(total_xp)
     streak = current_streak(user_id, today)
+    sp = streak_progress_today(user_id, today)
     return success_response({
         "total_xp": total_xp,
         "level": progress["level"],
@@ -32,4 +33,8 @@ def get_level(date_string):
         "day_xp": day_xp(user_id, today),
         "streak": streak,
         "multiplier": streak_multiplier(streak),
+        "streak_remaining": sp["remaining"],
+        "streak_target": sp["target"],
+        "streak_qualified": sp["qualified"],
+        "streak_possible": sp["possible"],
     })

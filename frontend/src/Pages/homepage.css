@@ -260,6 +260,16 @@ button:hover {
   text-align: right;
 }
 
+.homepage-streak-goal {
+  color: #e6a700;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.homepage-streak-goal.done {
+  color: #00e67a;
+}
+
 /* phone widths: stack the cards in one column */
 @media (max-width: 700px) {
   .homepage-cards-grid {

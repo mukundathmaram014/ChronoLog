@@ -265,6 +265,15 @@ export function Home() {
                             {levelData?.xp_into_level ?? 0} / {levelData?.xp_to_next ?? 0} XP to level {(levelData?.level ?? 1) + 1}
                         </span>
                     </div>
+                    {levelData?.streak_possible && (
+                        levelData.streak_qualified ? (
+                            <span className="homepage-streak-goal done">🔥 Streak secured for today</span>
+                        ) : (
+                            <span className="homepage-streak-goal">
+                                🔥 {levelData.streak_remaining} XP to secure your streak today
+                            </span>
+                        )
+                    )}
                 </div>
                 <div className = "homepage-habitcard">
                     <h3>Habits</h3>

@@ -8,7 +8,7 @@ from datetime import timedelta
 from sqlalchemy import func
 
 from db import db, Habit, Stopwatch, Goal, DailyXP, User
-from utils import compute_day_xp, HABIT_XP
+from utils import compute_day_xp, streak_progress, HABIT_XP
 
 MS_PER_HOUR = 3600000.0
 
@@ -96,6 +96,16 @@ def day_xp(user_id, day):
     """
     row = DailyXP.query.filter_by(user_id=user_id, date=day).first()
     return row.xp_earned if row else 0
+
+
+def streak_progress_today(user_id, day):
+    """
+    How close `day` is to counting toward the streak: target / current /
+    remaining XP and whether it already qualifies (see utils.streak_progress).
+    """
+    habit_difficulties, hours_worked, _, goal_hours, _, max_habit_xp = _day_inputs(user_id, day)
+    habit_base = sum(HABIT_XP[difficulty] for difficulty in habit_difficulties)
+    return streak_progress(habit_base, hours_worked, goal_hours, max_habit_xp)
 
 
 def current_streak(user_id, today):
