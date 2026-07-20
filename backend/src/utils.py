@@ -12,6 +12,14 @@ def failure_response(message, code=404):
     return json.dumps({"error": message}), code
 
 
+def validate_repeat_days(repeat_days):
+    """
+    Returns True iff repeat_days is a valid 7-bit weekday bitmask with at least one day set.
+    Shared by habits and stopwatches — bit i = date.weekday() i (0 = Mon ... 6 = Sun).
+    """
+    return isinstance(repeat_days, int) and not isinstance(repeat_days, bool) and 1 <= repeat_days <= 127
+
+
 def process_date(request):
     body = json.loads(request.data)
     date_string = body.get("date", date.today().isoformat())

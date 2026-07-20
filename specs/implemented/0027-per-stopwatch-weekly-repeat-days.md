@@ -1,6 +1,6 @@
 ---
 title: Let a stopwatch repeat only on chosen weekdays, like habits
-status: decided
+status: built
 ---
 
 # Let a stopwatch repeat only on chosen weekdays, like habits

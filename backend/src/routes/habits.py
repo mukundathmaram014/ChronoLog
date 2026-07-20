@@ -1,5 +1,5 @@
 from flask import Blueprint
-from utils import success_response, failure_response, process_date, VALID_DIFFICULTIES
+from utils import success_response, failure_response, process_date, validate_repeat_days, VALID_DIFFICULTIES
 import json
 from db import db
 from flask import Flask, request
@@ -16,12 +16,6 @@ habit_routes = Blueprint('habit', __name__)
 @habit_routes.route("/")
 def test():
     return success_response("hello world")
-
-def validate_repeat_days(repeat_days):
-    """
-    Returns True iff repeat_days is a valid 7-bit weekday bitmask with at least one day set.
-    """
-    return isinstance(repeat_days, int) and not isinstance(repeat_days, bool) and 1 <= repeat_days <= 127
 
 def create_habit_for_date(requested_date, done, description, user_id, repeat_days = 127, difficulty = "medium"):
 

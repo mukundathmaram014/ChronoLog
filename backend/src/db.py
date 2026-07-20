@@ -224,6 +224,10 @@ class Stopwatch(db.Model):
     goal_overridden = db.Column(db.Boolean, nullable = False, default = False)
     # recurring stopwatches carry forward to future days; non-recurring are one-off
     is_recurring = db.Column(db.Boolean, nullable = False, default = True)
+    # 7-bit weekday bitmask gating which days a *recurring* stopwatch carries to:
+    # bit i = date.weekday() i (0 = Mon ... 6 = Sun); 127 = every day. Ignored when
+    # is_recurring is False, and unused on the Total row.
+    repeat_days = db.Column(db.Integer, nullable=False, default=127)
     # display order within a (user, date) list; new rows append. The Total row
     # keeps 0 — it never participates in ordering (spec 0004).
     position = db.Column(db.Integer, nullable=False, default=0)
@@ -244,6 +248,7 @@ class Stopwatch(db.Model):
         self.goal_time = kwargs.get("goal_time", 3600000) # defaults to one hour
         self.goal_overridden = kwargs.get("goal_overridden", False)
         self.is_recurring = kwargs.get("is_recurring", True)
+        self.repeat_days = kwargs.get("repeat_days", 127)
         self.position = kwargs.get("position", 0)
         self.user_id = kwargs.get("user_id")
 
@@ -264,10 +269,11 @@ class Stopwatch(db.Model):
             "goal_time": self.goal_time,
             "goal_overridden": self.goal_overridden,
             "is_recurring": self.is_recurring,
+            "repeat_days": self.repeat_days,
             "position": self.position,
             "user_id": self.user_id
         }
-    
+
 
 class DeletedDay(db.Model):
     __tablename__ = "deleted-days"

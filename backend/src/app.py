@@ -90,6 +90,15 @@ def ensure_stopwatch_is_recurring_column():
         db.session.commit()
 
 
+def ensure_stopwatch_repeat_days_column():
+    result = db.session.execute(text("PRAGMA table_info(stopwatches)"))
+    columns = {row[1] for row in result}
+    if "repeat_days" not in columns:
+        # existing rows default to every day = the pre-flag "recurring carries to every day" behavior
+        db.session.execute(text("ALTER TABLE stopwatches ADD COLUMN repeat_days INTEGER NOT NULL DEFAULT 127"))
+        db.session.commit()
+
+
 def ensure_habit_position_column():
     result = db.session.execute(text("PRAGMA table_info(habits)"))
     columns = {row[1] for row in result}
@@ -155,6 +164,7 @@ def create_app(test_config=None):
         ensure_stopwatch_is_recurring_column()
         ensure_habit_position_column()
         ensure_stopwatch_position_column()
+        ensure_stopwatch_repeat_days_column()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
     app.register_blueprint(task_routes,  url_prefix="/api")
