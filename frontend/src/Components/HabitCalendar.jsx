@@ -17,6 +17,9 @@ const NO_DATA = "transparent";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 function statusColor(status) {
     switch (status) {
         case "done": return DONE;
@@ -81,6 +84,24 @@ function weekdayIndex(isoDate) {
     return (js + 6) % 7;
 }
 
+// For the year heatmap: one label per month whose 1st actually appears in
+// `days`, placed over the week-column holding that day (GitHub's convention).
+// Scanning the array rather than assuming 12 months means a partial year — the
+// backend stops at today — simply gets no labels for months with no data.
+// Month is read off the ISO string directly to avoid any timezone shift.
+function monthLabels(days, pad) {
+    const labels = [];
+    days.forEach((day, i) => {
+        if (!day || !day.date.endsWith("-01")) return;
+        labels.push({
+            date: day.date,
+            label: MONTHS[Number(day.date.slice(5, 7)) - 1],
+            column: Math.floor((pad + i) / 7),
+        });
+    });
+    return labels;
+}
+
 export default function HabitCalendar({ mode, days, period, compact = false }) {
     if (!days || days.length === 0) {
         return <div className="calendar-empty">No history for this period.</div>;
@@ -124,9 +145,22 @@ export default function HabitCalendar({ mode, days, period, compact = false }) {
         const pad = weekdayIndex(days[0].date);
         const leading = Array.from({ length: pad }, (_, i) => cell(null, `p${i}`));
         grid = (
-            <div className="cal-grid cal-year">
-                {leading}
-                {days.map((d, i) => cell(d, i))}
+            <div className="cal-year-wrap">
+                <div className="cal-month-labels">
+                    {monthLabels(days, pad).map(m => (
+                        <div
+                            key={m.date}
+                            className="cal-month-label"
+                            style={{ gridColumnStart: m.column + 1 }}
+                        >
+                            {m.label}
+                        </div>
+                    ))}
+                </div>
+                <div className="cal-grid cal-year">
+                    {leading}
+                    {days.map((d, i) => cell(d, i))}
+                </div>
             </div>
         );
     }

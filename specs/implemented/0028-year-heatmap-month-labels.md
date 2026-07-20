@@ -1,6 +1,6 @@
 ---
 title: Add month labels to the year-period statistics heatmap
-status: decided
+status: built
 ---
 
 # Add month labels to the year-period statistics heatmap
