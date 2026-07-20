@@ -4,6 +4,11 @@
     align-items: center;
     gap: 14px;
     margin-top: 18px;
+
+    /* year heatmap column sizing — shared by the grid and its month-label row
+       so the labels can't drift out of alignment with the columns */
+    --cal-year-col: 12px;
+    --cal-year-gap: 3px;
 }
 
 .calendar-empty {
@@ -58,13 +63,40 @@
 .cal-year {
     grid-template-rows: repeat(7, 1fr);
     grid-auto-flow: column;
-    grid-auto-columns: 12px;
-    gap: 3px;
+    grid-auto-columns: var(--cal-year-col);
+    gap: var(--cal-year-gap);
 }
 .cal-year .cal-cell {
-    width: 12px;
-    height: 12px;
+    width: var(--cal-year-col);
+    height: var(--cal-year-col);
     border-radius: 3px;
+}
+
+/* keeps the month-label row and the grid left-aligned as a unit inside the
+   centered .habit-calendar column */
+.cal-year-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* same column track sizing as .cal-year, so a label placed at column N sits
+   directly over week-column N of the grid */
+.cal-month-labels {
+    display: grid;
+    grid-auto-columns: var(--cal-year-col);
+    gap: var(--cal-year-gap);
+}
+.cal-month-label {
+    grid-row: 1;
+    font-size: 0.7rem;
+    color: #888;
+    line-height: 1;
+    /* the label is anchored to a single 12px column and overflows to the right
+       rather than widening the row — months are ~4.3 columns apart, so 3-letter
+       labels never collide */
+    white-space: nowrap;
+    overflow: visible;
 }
 
 .cal-legend {
