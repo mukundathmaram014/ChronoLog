@@ -39,6 +39,11 @@ export function Statistics() {
     const [breakdownData, setBreakdownData] = useState([]);
     const [combinedData, setCombinedData] = useState(null);
     const [calendarData, setCalendarData] = useState(null);
+    // spec 0029: "combined" = the existing all-habits heatmap, "per-habit" = a grid
+    // of one mini status calendar per habit. Only applies when no habit is selected.
+    const [calendarView, setCalendarView] = useState("combined");
+    const [perHabitCalendars, setPerHabitCalendars] = useState(null);
+    const [timeCalendarData, setTimeCalendarData] = useState(null);
 
 
     // fetches the habits and stopwatches for the selector. For "day" these are the
@@ -120,6 +125,8 @@ export function Statistics() {
     // a single habit -> status calendar; "All Habits" -> Total intensity heatmap (spec 0016)
     useEffect(() => {
             if (selectedStatistics !== "habits") { setCalendarData(null); return; }
+            // the per-habit view renders from its own batch fetch below
+            if (!selectedHabit && calendarView === "per-habit") { setCalendarData(null); return; }
             const query = selectedHabit ? `?description=${encodeURIComponent(selectedHabit)}` : "";
             fetchWithAuth(`/stats/habits/calendar/${selectedDate}/${selectedTimePeriod}/${query}`, {
                 method: "GET"
@@ -129,7 +136,39 @@ export function Statistics() {
             .catch(error => console.error(error))
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedStatistics, selectedDate, selectedTimePeriod, selectedHabit])
+    }, [selectedStatistics, selectedDate, selectedTimePeriod, selectedHabit, calendarView])
+
+    // fetches every habit's status calendar in one request for the per-habit view (spec 0029)
+    useEffect(() => {
+            if (selectedStatistics !== "habits" || selectedHabit || calendarView !== "per-habit") {
+                setPerHabitCalendars(null);
+                return;
+            }
+            fetchWithAuth(`/stats/habits/calendar/all/${selectedDate}/${selectedTimePeriod}/`, {
+                method: "GET"
+                })
+            .then(response => response.json())
+            .then(data => setPerHabitCalendars(data))
+            .catch(error => console.error(error))
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedStatistics, selectedDate, selectedTimePeriod, selectedHabit, calendarView])
+
+    // fetches the per-day Total time series for the stopwatch time calendar (spec 0029)
+    useEffect(() => {
+            if (selectedStatistics !== "stopwatches" || selectedStopwatch) {
+                setTimeCalendarData(null);
+                return;
+            }
+            fetchWithAuth(`/stats/stopwatches/calendar/${selectedDate}/${selectedTimePeriod}/`, {
+                method: "GET"
+                })
+            .then(response => response.json())
+            .then(data => setTimeCalendarData(data))
+            .catch(error => console.error(error))
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedStatistics, selectedDate, selectedTimePeriod, selectedStopwatch])
 
     // fetches the per-stopwatch time breakdown for the pie chart
     useEffect(() => {
@@ -365,6 +404,30 @@ export function Statistics() {
                             </div>
                         )}
 
+                        {perHabitCalendars?.habits && (
+                            <div className="habit-calendar-section">
+                                <p>Consistency — per habit</p>
+                                {perHabitCalendars.habits.length === 0 ? (
+                                    <div className="calendar-empty">No habits in this period.</div>
+                                ) : (
+                                    // year heatmaps are too wide to sit side by side: one per row instead
+                                    <div className={`per-habit-calendar-grid${selectedTimePeriod === "year" ? " per-habit-calendar-grid-year" : ""}`}>
+                                        {perHabitCalendars.habits.map(habit => (
+                                            <div key={habit.description} className="per-habit-calendar-card">
+                                                <span className="per-habit-calendar-title">{habit.description}</span>
+                                                <HabitCalendar
+                                                    mode="status"
+                                                    days={habit.days}
+                                                    period={selectedTimePeriod}
+                                                    compact={selectedTimePeriod !== "year"}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {!selectedHabit && combinedData?.items?.length > 0 && (
                             <div className="per-item-list">
                                 <p>Per-habit breakdown</p>
@@ -405,6 +468,13 @@ export function Statistics() {
                                     <StopwatchPie breakdown={breakdownData} />
                                 </div>
                             </>
+                        )}
+
+                        {timeCalendarData?.days && (
+                            <div className="habit-calendar-section">
+                                <p>Time worked</p>
+                                <HabitCalendar mode="time" days={timeCalendarData.days} period={selectedTimePeriod} />
+                            </div>
                         )}
 
                         {!selectedStopwatch && combinedData?.items?.length > 0 && (
@@ -474,9 +544,18 @@ export function Statistics() {
                             value={selectedStatistics === "habits" ? item.description : (item.title === "Total Time" ? "" : item.title)}> 
                             {selectedStatistics === "habits" ? item.description : item.title}
                         </option>
-                    ))}   
+                    ))}
                     </select>
                     </div>
+                    {/* calendar view toggle: only meaningful for the all-habits calendar (spec 0029) */}
+                    {selectedStatistics === "habits" && !selectedHabit && (
+                        <div className = "calendar-view-select-bar">
+                        <select value={calendarView} onChange={e => setCalendarView(e.target.value)}>
+                        <option value="combined">Combined</option>
+                        <option value="per-habit">Per-habit</option>
+                        </select>
+                        </div>
+                    )}
                 </div>
 
             {renderStats()}

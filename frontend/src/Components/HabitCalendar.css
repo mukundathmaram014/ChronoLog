@@ -26,7 +26,8 @@
 
 /* no-data cells read as a faint dashed outline, distinct from a filled state */
 .cal-cell[title$="no-data"],
-.cal-cell[title$="nothing scheduled"] {
+.cal-cell[title$="nothing scheduled"],
+.cal-cell[title$="no time logged"] {
     border: 1px dashed #3a3a3a;
 }
 .cal-cell-empty {
@@ -64,6 +65,38 @@
 .cal-year .cal-cell {
     width: 12px;
     height: 12px;
+    border-radius: 3px;
+}
+
+/* compact variant (spec 0029): shrinks cells so many mini-calendars fit
+   side by side in the per-habit grid. Year keeps its own 12px cells. */
+.habit-calendar-compact {
+    gap: 8px;
+    margin-top: 10px;
+}
+.habit-calendar-compact .cal-grid {
+    gap: 3px;
+}
+.habit-calendar-compact .cal-cell {
+    width: 15px;
+    height: 15px;
+    border-radius: 3px;
+}
+.habit-calendar-compact .cal-day .cal-cell {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+}
+.habit-calendar-compact .cal-weekday-label {
+    font-size: 0.55rem;
+}
+.habit-calendar-compact .cal-legend {
+    font-size: 0.7rem;
+    gap: 6px;
+}
+.habit-calendar-compact .cal-legend i {
+    width: 10px;
+    height: 10px;
     border-radius: 3px;
 }
 
