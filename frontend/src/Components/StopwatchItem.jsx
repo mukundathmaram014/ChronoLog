@@ -39,6 +39,13 @@ export const StopwatchItem = forwardRef(({item, isFuture, onEdit, onStart, onSto
                             const [goalHours, goalMinutes] = formatTimeString(item.goal_time);
                             return <>Goal: {goalHours}h {goalMinutes}m</>;
                         })() : <>No goal</>}
+                        {item.is_recurring && (item.repeat_days ?? 127) !== 127 && (
+                            <span className="repeat-days-indicator">
+                                {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+                                    .filter((_, i) => item.repeat_days & (1 << i))
+                                    .join(" ")}
+                            </span>
+                        )}
                     </div>
                     <div className="controls">
                         <button onClick={(e) => {e.stopPropagation(); onStart(item.id, item.end_time)}} disabled = {isFuture}>Start</button>

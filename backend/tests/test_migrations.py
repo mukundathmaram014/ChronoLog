@@ -12,6 +12,7 @@ from sqlalchemy import text
 from app import (
     ensure_habit_position_column,
     ensure_stopwatch_position_column,
+    ensure_stopwatch_repeat_days_column,
 )
 from db import db
 
@@ -39,3 +40,24 @@ def test_position_migrations_add_missing_columns(app):
         ensure_stopwatch_position_column()
         assert "position" in _columns("habits")
         assert "position" in _columns("stopwatches")
+
+
+def test_stopwatch_repeat_days_migration_adds_missing_column(app):
+    with app.app_context():
+        # simulate an older DB from before per-stopwatch repeat days (spec 0027)
+        db.session.execute(text("ALTER TABLE stopwatches DROP COLUMN repeat_days"))
+        db.session.commit()
+        assert "repeat_days" not in _columns("stopwatches")
+
+        ensure_stopwatch_repeat_days_column()
+        assert "repeat_days" in _columns("stopwatches")
+
+        # idempotent: running again on an up-to-date schema is a no-op
+        ensure_stopwatch_repeat_days_column()
+        assert "repeat_days" in _columns("stopwatches")
+
+        # existing rows fall back to "every day", preserving pre-flag behavior
+        default = db.session.execute(
+            text("SELECT dflt_value FROM pragma_table_info('stopwatches') WHERE name = 'repeat_days'")
+        ).scalar()
+        assert int(default) == 127

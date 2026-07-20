@@ -1,5 +1,5 @@
 from flask import Blueprint
-from utils import success_response, failure_response, process_date, ensure_utc
+from utils import success_response, failure_response, process_date, ensure_utc, validate_repeat_days
 import json
 from db import db
 from flask import Flask, request
@@ -12,7 +12,7 @@ from xp import recompute_from
 
 stopwatch_routes = Blueprint('stopwatch', __name__)
 
-def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user_id, is_recurring = True):
+def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user_id, is_recurring = True, repeat_days = 127):
 
     duplicate = Stopwatch.query.filter_by(title = title, date = requested_date, user_id = user_id).first()
     if duplicate is not None:
@@ -21,7 +21,7 @@ def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user
     # new rows append at the end of that day's list (the Total is excluded from ordering)
     max_position = db.session.query(func.max(Stopwatch.position)).filter(Stopwatch.user_id == user_id, Stopwatch.date == requested_date, Stopwatch.isTotal == False).scalar()
     position = 0 if max_position is None else max_position + 1
-    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time, user_id = user_id, is_recurring = is_recurring, position = position)
+    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time, user_id = user_id, is_recurring = is_recurring, repeat_days = repeat_days, position = position)
 
     if Stopwatch.query.filter_by(date=requested_date, user_id = user_id).first() is None:
         # creating total time stopwatch
@@ -75,7 +75,8 @@ def test():
 def get_previous_stopwatch_titles():
     """
     Endpoint for getting the user's distinct prior stopwatch titles (+ most recent
-    goal time), most-recent first, to feed the add-form "reuse previous" dropdown
+    goal time and repeat days), most-recent first, to feed the add-form
+    "reuse previous" dropdown
     """
     user_id = int(get_jwt_identity())
     rows = (Stopwatch.query
@@ -87,7 +88,7 @@ def get_previous_stopwatch_titles():
     for stopwatch in rows:
         if stopwatch.title not in seen:
             seen.add(stopwatch.title)
-            titles.append({"title": stopwatch.title, "goal_time": stopwatch.goal_time})
+            titles.append({"title": stopwatch.title, "goal_time": stopwatch.goal_time, "repeat_days": stopwatch.repeat_days})
     return success_response({"titles": titles})
 
 @stopwatch_routes.route("/stopwatches/<string:date_string>/")
@@ -113,44 +114,78 @@ def get_stopwatches(date_string):
         #dosent repopulate if user intentionally deleted everything
         if not deleted_marker:
             earliest_date = db.session.query(func.min(Stopwatch.date)).filter(Stopwatch.user_id == user_id).scalar()
-            prev_date = requested_date
-            prev_stopwatches = []
-            # keeps going back until finds day with non empty stopwatches list or a deleted day
+
+            # walks back to the most recent day holding regular (non-Total) stopwatches, then
+            # keeps scanning up to 7 more days (one full weekday cycle) so stopwatches whose
+            # repeat days skip that day arent lost. collects the most recent row per title;
+            # stops at a deleted day
+            candidates = {}
+            first_filled_date = None
             if earliest_date:
-                while (len(prev_stopwatches) <= 1) and (prev_date >= earliest_date):
+                prev_date = requested_date
+                while prev_date > earliest_date:
                     prev_date = prev_date - timedelta(days=1)
+                    if first_filled_date and (first_filled_date - prev_date).days >= 7:
+                        break
                     # Stop if a deleted day is found
                     prev_deleted = DeletedDay.query.filter_by(date=prev_date, type="stopwatch", user_id = user_id).first()
                     if prev_deleted:
-                        prev_stopwatches = []
                         break
-                    prev_stopwatches = Stopwatch.query.filter_by(date=prev_date, user_id = user_id).order_by(Stopwatch.isTotal.desc(), Stopwatch.position, Stopwatch.id).all()
+                    day_rows = Stopwatch.query.filter_by(date=prev_date, user_id = user_id).order_by(Stopwatch.isTotal.desc(), Stopwatch.position, Stopwatch.id).all()
+                    regulars = [row for row in day_rows if not row.isTotal]
+                    if regulars and first_filled_date is None:
+                        first_filled_date = prev_date
+                    for row in regulars:
+                        if row.title not in candidates:
+                            candidates[row.title] = row
 
-            carried = [prev_stopwatch for prev_stopwatch in prev_stopwatches if not prev_stopwatch.isTotal and prev_stopwatch.is_recurring]
+            # only recurring stopwatches carry forward; a non-recurring one is one-off
+            # and its repeat_days is ignored
+            carried = []
+            for prev_stopwatch in candidates.values():
+                if not prev_stopwatch.is_recurring:
+                    continue
+
+                # a scheduled day after the stopwatch's last row (up to the most recent
+                # filled day) with no row means the user deleted it there — dont carry it
+                was_deleted = False
+                check_date = prev_stopwatch.date + timedelta(days=1)
+                while check_date <= first_filled_date:
+                    if prev_stopwatch.repeat_days & (1 << check_date.weekday()):
+                        was_deleted = True
+                        break
+                    check_date += timedelta(days=1)
+                if not was_deleted:
+                    carried.append(prev_stopwatch)
 
             # create_stopwatch_for_date adds each carried goal onto an existing
             # Total, so zero a leftover Total's goal first — a non-overridden
             # Total goal is the sum of the day's stopwatch goals, and this day
-            # has none yet
+            # has none yet. Only zero it if something actually lands today.
+            landing_today = [prev_stopwatch for prev_stopwatch in carried
+                             if prev_stopwatch.repeat_days & (1 << requested_date.weekday())]
             existing_total = next((stopwatch for stopwatch in day_stopwatches if stopwatch.isTotal), None)
-            if carried and existing_total is not None and not existing_total.goal_overridden:
+            if landing_today and existing_total is not None and not existing_total.goal_overridden:
                 existing_total.goal_time = 0
 
             new_stopwatches = []
 
-            #repopulates today with previous day stopwatches (only recurring ones carry forward)
+            #repopulates today with previous days' stopwatches, gated by their repeat days
             for prev_stopwatch in carried:
+                repeat_days = prev_stopwatch.repeat_days
 
-                # repopulates days in between
-                temp_date = prev_date
+                # repopulates days in between, skipping weekdays outside the repeat set
+                temp_date = first_filled_date
                 while (temp_date < (requested_date - timedelta(days=1))):
                     temp_date += timedelta(days=1)
-                    create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id = user_id, is_recurring = True)
+                    if repeat_days & (1 << temp_date.weekday()):
+                        create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id = user_id, is_recurring = True, repeat_days = repeat_days)
 
-                created = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id= user_id, is_recurring = True)
-                # a (body, code) failure tuple means a duplicate title — nothing was created
-                if not isinstance(created, tuple):
-                    new_stopwatches.append(created[1])
+                if repeat_days & (1 << requested_date.weekday()):
+                    created = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id= user_id, is_recurring = True, repeat_days = repeat_days)
+                    # a (body, code) failure tuple means a duplicate title — nothing was created
+                    if not isinstance(created, tuple):
+                        new_stopwatches.append(created[1])
             db.session.commit()
             if new_stopwatches:
                 # serialize the Total once, after every carried goal is folded in
@@ -176,7 +211,11 @@ def create_stopwatch():
     goal_time_raw = body.get("goal_time", "01:00")
     goal_time_milli = 0 if goal_time_raw is None else convert_time_string_to_milliseconds(goal_time_raw)
 
-    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now(timezone.utc)), goal_time= goal_time_milli, user_id=user_id, is_recurring= bool(body.get("is_recurring", True)))
+    repeat_days = body.get("repeat_days", 127)
+    if not validate_repeat_days(repeat_days):
+        return failure_response("repeat_days must be an integer between 1 and 127", 400)
+
+    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now(timezone.utc)), goal_time= goal_time_milli, user_id=user_id, is_recurring= bool(body.get("is_recurring", True)), repeat_days= repeat_days)
     
     # If result is a failure response, return it directly
     if isinstance(stopwatches, tuple):
@@ -233,7 +272,13 @@ def update_stopwatch(stopwatch_id):
     stopwatch = Stopwatch.query.filter_by(id=stopwatch_id, user_id = user_id).first()
     if stopwatch is None:
         return failure_response("Stopwatch is not found")
-    
+
+    # validated up front so a bad mask rejects the whole edit; only applied to a
+    # child row below (the Total has no meaningful repeat days)
+    new_repeat_days = body.get("repeat_days", stopwatch.repeat_days)
+    if not validate_repeat_days(new_repeat_days):
+        return failure_response("repeat_days must be an integer between 1 and 127", 400)
+
     # dosent allow a duplicate stopwatch to be created
     new_title = body.get("title", stopwatch.title)
     if new_title != stopwatch.title:
@@ -274,6 +319,8 @@ def update_stopwatch(stopwatch_id):
 
     # Editing a child stopwatch: sync its goal/time into the Total.
     stopwatch.is_recurring = bool(body.get("is_recurring", stopwatch.is_recurring))
+    # applies forward only: future carry-forward reads this value; past rows are untouched
+    stopwatch.repeat_days = new_repeat_days
 
     # goal_time absent -> keep; explicit null -> "no goal" (0); else parse "HH:MM"
     if "goal_time" in body:

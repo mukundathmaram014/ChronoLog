@@ -23,6 +23,10 @@ import {StopwatchItem} from '../Components/StopwatchItem.jsx';
 import { useLocation } from "react-router-dom";
 import useFetch from "../hooks/useFetch";
 
+// bit i = weekday i (0 = Mon ... 6 = Sun), matching Python date.weekday(); 127 = every day
+const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+const ALL_DAYS = 127;
+
 export function Stopwatch() {
 
     const fetchWithAuth = useFetch();
@@ -51,6 +55,7 @@ export function Stopwatch() {
     const [inputMinutes, setInputMinutes] = useState(0);
     const [noGoal, setNoGoal] = useState(false);
     const [isRecurring, setIsRecurring] = useState(true);
+    const [repeatDays, setRepeatDays] = useState(ALL_DAYS);
     const [previousTitles, setPreviousTitles] = useState([]);
     const [editingIsTotal, setEditingIsTotal] = useState(false);
     const [matchSum, setMatchSum] = useState(true);
@@ -253,6 +258,10 @@ export function Stopwatch() {
         if (isFuture){
             return;
         }
+        if (isRecurring && repeatDays === 0) {
+            setStopwatchError("Select at least one repeat day.");
+            return;
+        }
         setStopwatchError(""); // clear previous errors
 
         // Clamp values
@@ -264,7 +273,9 @@ export function Stopwatch() {
             title : stopwatchTitle,
             date : selectedDate,
             goal_time : noGoal ? null : inputTimeString,
-            is_recurring : isRecurring
+            is_recurring : isRecurring,
+            // a non-recurring stopwatch never carries, so its mask stays the every-day default
+            repeat_days : isRecurring ? repeatDays : ALL_DAYS
         }
         setIsAdding(true);
 
@@ -296,6 +307,7 @@ export function Stopwatch() {
             setInputMinutes(0);
             setNoGoal(false);
             setIsRecurring(true);
+            setRepeatDays(ALL_DAYS);
         } catch (error) {
             console.error(error);
         }  finally {
@@ -303,12 +315,14 @@ export function Stopwatch() {
         }
     }
 
-    // "reuse previous" dropdown: prefills the add form with a prior title + its goal
+    // "reuse previous" dropdown: prefills the add form with a prior title, its goal
+    // and its repeat days
     const prefillFromPrevious = (title) => {
         const previous = previousTitles.find(p => p.title === title);
         if (!previous) return;
         setStopwatchTitle(previous.title);
         setNoGoal(!previous.goal_time);
+        setRepeatDays(previous.repeat_days ?? ALL_DAYS);
         const [hours, minutes] = formatTimeString(previous.goal_time || 3600000);
         setInputHours(Number(hours));
         setInputMinutes(Number(minutes));
@@ -446,8 +460,12 @@ export function Stopwatch() {
         const safeCurrCentiseconds = Math.max(0, Math.min(99, currentCentiseconds ))
 
         if (editingStopwatchID === null) return;
+        if (!editingIsTotal && isRecurring && repeatDays === 0) {
+            setStopwatchError("Select at least one repeat day.");
+            return;
+        }
 
-        const inputTimeString = `${String(safeGoalHours).padStart(2, '0')}:${String(safeGoalMinutes).padStart(2, '0')}`;
+        const inputTimeString =`${String(safeGoalHours).padStart(2, '0')}:${String(safeGoalMinutes).padStart(2, '0')}`;
         const newDuration = (safeCurrHours * 3600000) + (safeCurrMinutes * 60000) + (safeCurrSeconds * 1000) + (safeCurrCentiseconds * 10)
 
         // Editing the Total sets the daily goal: "match sum" clears the override,
@@ -457,7 +475,7 @@ export function Stopwatch() {
             ? (matchSum
                 ? { title: stopwatchTitle, match_sum: true }
                 : { title: stopwatchTitle, goal_time: inputTimeString })
-            : { title: stopwatchTitle, goal_time: noGoal ? null : inputTimeString, curr_duration: newDuration, is_recurring: isRecurring };
+            : { title: stopwatchTitle, goal_time: noGoal ? null : inputTimeString, curr_duration: newDuration, is_recurring: isRecurring, repeat_days: isRecurring ? repeatDays : ALL_DAYS };
 
         setIsAdding(true);
 
@@ -482,6 +500,7 @@ export function Stopwatch() {
             setInputMinutes(0);
             setNoGoal(false);
             setIsRecurring(true);
+            setRepeatDays(ALL_DAYS);
             setEditingIsTotal(false);
             setMatchSum(true);
             setCurrentHours(0);
@@ -545,11 +564,31 @@ export function Stopwatch() {
         } else {
             setNoGoal(!item.goal_time);
             setIsRecurring(item.is_recurring);
+            setRepeatDays(item.repeat_days ?? ALL_DAYS);
         }
         const [hours, minutes] = formatTimeString(item.goal_time || 3600000);
         setInputHours(Number(hours));
         setInputMinutes(Number(minutes));
     }
+
+    // only meaningful for a recurring stopwatch — repeat days gate which weekdays it carries to
+    const renderWeekdayPicker = () => (
+        <>
+          <label style={{ marginTop: "18px", display: "block" }}>Repeat on</label>
+          <div className="weekday-picker">
+            {WEEKDAY_LABELS.map((label, i) => (
+              <button type="button" key={label}
+                className={`weekday-toggle ${(repeatDays & (1 << i)) ? 'selected' : ''}`}
+                onClick={() => setRepeatDays(prev => prev ^ (1 << i))}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {repeatDays === 0 && (
+            <div style={{ color: "red", marginBottom: "10px" }}>Select at least one day.</div>
+          )}
+        </>
+    );
 
     function CircularProgress({time, goal_time, size = 330, strokeWidth = 50, bgColor = "#444" }) {
         const percentage = (time / (goal_time > 0 ? goal_time : 3600000)) * 100 // no goal: circle on a 1h visual cycle
@@ -726,7 +765,7 @@ export function Stopwatch() {
         <div className="stopwatches">
         <div className = "header">
             <button className = "primaryBtn" onClick = {() => {
-                setAddingStopwatch(true); setNoGoal(false); setInputHours(1); setInputMinutes(0); setIsRecurring(true);
+                setAddingStopwatch(true); setNoGoal(false); setInputHours(1); setInputMinutes(0); setIsRecurring(true); setRepeatDays(ALL_DAYS);
                 // feeds the "reuse previous" dropdown with the user's distinct prior titles
                 fetchWithAuth(`/stopwatches/titles/`, { method: "GET" })
                     .then(response => response.json())
@@ -803,6 +842,7 @@ export function Stopwatch() {
                         <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} />
                         Recurring (carries forward to future days)
                       </label>
+                      {isRecurring && renderWeekdayPicker()}
                       <label style={{ marginTop: "18px", display: "block" }}>Current Time:</label>
                       <div className = "current-time-inputs">
                         <label htmlFor="current-hours">Hours:</label>
@@ -940,6 +980,7 @@ export function Stopwatch() {
                         <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} />
                         Recurring (carries forward to future days)
                       </label>
+                      {isRecurring && renderWeekdayPicker()}
                       <button type = 'button' className = 'addStopwatchButton'
                         onClick={addStopwatch}
                         disabled = {isAdding}
