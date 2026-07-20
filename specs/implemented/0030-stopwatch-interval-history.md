@@ -1,6 +1,6 @@
 ---
 title: Record and show each stopwatch's start/stop intervals during the day
-status: decided
+status: built
 ---
 
 # Record and show each stopwatch's start/stop intervals during the day

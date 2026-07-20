@@ -20,6 +20,7 @@ import {
 } from '@dnd-kit/sortable';
 import { SortableStopwatchItem } from '../Components/SortableStopwatchItem.jsx';
 import {StopwatchItem} from '../Components/StopwatchItem.jsx';
+import { StopwatchSessionLog } from '../Components/StopwatchSessionLog.jsx';
 import { useLocation } from "react-router-dom";
 import useFetch from "../hooks/useFetch";
 
@@ -69,6 +70,11 @@ export function Stopwatch() {
     // its fresh copy on the new day (midnight rollover hand-off)
     const rolloverTitleRef = useRef(null);
     const [stopwatchError, setStopwatchError] = useState("");
+    // session log (spec 0030): collapsed by default and lazily fetched — expanding
+    // is the only thing that loads it, and a date change collapses it back to unloaded
+    const [sessionLogOpen, setSessionLogOpen] = useState(false);
+    const [sessionIntervals, setSessionIntervals] = useState(null);
+    const [sessionLogLoading, setSessionLogLoading] = useState(false);
     const location = useLocation();
     
 
@@ -175,6 +181,13 @@ export function Stopwatch() {
     useEffect ( () => {
         allStopwatchesRef.current = allStopwatches;
     }, [allStopwatches]);
+
+    // the session log never persists across days: changing the date collapses it,
+    // so re-expanding refetches for the day now shown
+    useEffect(() => {
+        setSessionLogOpen(false);
+        setSessionIntervals(null);
+    }, [selectedDate]);
     
 
     // stops running stopwatches when website closed
@@ -248,6 +261,26 @@ export function Stopwatch() {
         };
     }, []);
 
+
+    // loads the selected day's recorded segments; called on expand and after any
+    // action that changes them while the log is open
+    const loadSessionIntervals = async () => {
+        if (isFuture) {
+            return;
+        }
+        setSessionLogLoading(true);
+        try {
+            const response = await fetchWithAuth(`/stopwatches/intervals/${selectedDate}/`, {
+                method: "GET"
+            });
+            const data = await response.json();
+            setSessionIntervals(data.intervals);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setSessionLogLoading(false);
+        }
+    }
 
     const addStopwatch = async () => {
         if (isFuture){
@@ -333,6 +366,10 @@ export function Stopwatch() {
                 intervalStartClientRef.current = null;
                 setRunningId(null);
             }
+            // the cascade removed the deleted stopwatch's segments
+            if (sessionLogOpen) {
+                loadSessionIntervals();
+            }
         } catch (error) {
             console.error(error);
         }
@@ -390,6 +427,10 @@ export function Stopwatch() {
                 clearInterval(intervalRef.current);
                 intervalStartClientRef.current = null;
                 if (tick === 0){}; // just to avoid compiled with warnings. remove later
+                // the stop just recorded a segment
+                if (sessionLogOpen) {
+                    loadSessionIntervals();
+                }
 
              } catch (error){
                 console.error(error);
@@ -423,6 +464,10 @@ export function Stopwatch() {
                     intervalStartClientRef.current = null;
                     setRunningId(null);
                 }
+            // the reset dropped that stopwatch's segments for the day
+            if (sessionLogOpen) {
+                loadSessionIntervals();
+            }
         } catch (error){
             console.error(error)
         }
@@ -708,6 +753,10 @@ export function Stopwatch() {
 
     const totalStopwatch = allStopwatches.find(stopwatch => stopwatch.isTotal);
     const nonTotalStopwatches = allStopwatches.filter(stopwatch => !stopwatch.isTotal);
+    // the open segment has no row in the table yet, so the log renders it live
+    const runningStopwatch = nonTotalStopwatches.find(
+        stopwatch => stopwatch.end_time === null && stopwatch.date === selectedDate
+    );
 
     return (
     <DndContext sensors={sensors} collisionDetection={closestCenter}
@@ -987,6 +1036,33 @@ export function Stopwatch() {
             ))}
         </SortableContext>
     </div>
+
+    {/* opt-in detail view of the day's real timed segments (spec 0030) */}
+    {!isFuture && (
+        <div className="session-log">
+            <button
+                type="button"
+                className="session-log-toggle"
+                aria-expanded={sessionLogOpen}
+                onClick={() => {
+                    const opening = !sessionLogOpen;
+                    setSessionLogOpen(opening);
+                    if (opening && sessionIntervals === null) {
+                        loadSessionIntervals();
+                    }
+                }}
+            >
+                Session log {sessionLogOpen ? "▾" : "▸"}
+            </button>
+            {sessionLogOpen && (
+                <StopwatchSessionLog
+                    intervals={sessionIntervals || []}
+                    loading={sessionLogLoading && sessionIntervals === null}
+                    runningSegment={runningStopwatch}
+                />
+            )}
+        </div>
+    )}
 
     </div>
     <DragOverlay>
