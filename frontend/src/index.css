@@ -11,6 +11,22 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
+/* Backstop: one oversized element must never widen the whole layout viewport.
+   `clip` rather than `hidden` so this doesn't turn the page into a scroll
+   container (which would break position: sticky and vertical scroll anchoring). */
+html,
+body {
+  overflow-x: clip;
+}
+
+/* The progress rings and pie charts are authored at a fixed pixel size. The
+   viewBox on each <svg> lets these rules scale them down inside a narrow card
+   instead of overflowing it; on desktop they still render at their natural size. */
+.fluid-svg {
+  max-width: 100%;
+  height: auto;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;

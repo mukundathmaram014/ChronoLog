@@ -177,7 +177,7 @@ export function Statistics() {
         const offset = circumference - (percentage / 100) * circumference;
 
         return (
-            <svg width={size} height={size}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="fluid-svg">
                 <circle
                     cx={size / 2}
                     cy={size / 2}
@@ -226,7 +226,7 @@ export function Statistics() {
 
 
         return (
-            <svg width={size} height={size}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="fluid-svg">
                 <circle
                     cx={size / 2}
                     cy={size / 2}
@@ -309,7 +309,7 @@ export function Statistics() {
 
         return (
             <div className="stopwatch-pie">
-                <svg width={size} height={size}>
+                <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="fluid-svg">
                     {pieSlices.length === 1 ? (
                         // a 100% arc degenerates (start point == end point), so draw a full circle
                         <circle cx={cx} cy={cy} r={radius} fill={pieSlices[0].color} />

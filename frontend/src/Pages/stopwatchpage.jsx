@@ -565,7 +565,7 @@ export function Stopwatch() {
      
 
         return (
-            <svg width={size} height={size}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="fluid-svg">
                 <circle
                     cx={size / 2}
                     cy={size / 2}
@@ -626,7 +626,7 @@ export function Stopwatch() {
 
 
         return (
-            <svg width={size} height={size}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="fluid-svg">
                 <circle
                     cx={size / 2}
                     cy={size / 2}
