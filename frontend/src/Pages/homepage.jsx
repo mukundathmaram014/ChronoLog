@@ -17,7 +17,9 @@ export function Home() {
 
     const [habitsData, setHabitsData] = useState(null);
     const [stopwatchesData, setStopwatchesData] = useState(null);
-    const [tasksData, setTasksData] = useState({ overdue: [], today: [] });
+    // null on all four data states means "not fetched yet" — the cards render a
+    // muted placeholder for that case instead of zeros that read as real data
+    const [tasksData, setTasksData] = useState(null);
     const [levelData, setLevelData] = useState(null);
     const [today, setToday] = useState(() => (DatetoISOString(new Date())));
     const [quote, setQuote] = useState("");
@@ -127,8 +129,9 @@ export function Home() {
           
     };
 
-    function CircularProgressTotal({time, goal_time, size = 280, strokeWidth = 40, bgColor = "#444" }) {
-        const percentage = (time / (goal_time > 0 ? goal_time : 3600000)) * 100 // no goal: circle on a 1h visual cycle
+    function CircularProgressTotal({time, goal_time, loading = false, size = 280, strokeWidth = 40, bgColor = "#444" }) {
+        // while loading, a 0% ring draws the background circle only
+        const percentage = loading ? 0 : (time / (goal_time > 0 ? goal_time : 3600000)) * 100 // no goal: circle on a 1h visual cycle
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
         const offset = circumference - ((percentage % 100) / 100) * circumference;
@@ -170,12 +173,12 @@ export function Home() {
                     fontSize="1.7rem"                
                     fontWeight="bold"              
                     fontFamily="'Roboto Mono', monospace"
-                    fill="white"                  
+                    fill={loading ? "#888" : "white"}
                     letterSpacing="2px"
                     style={{ marginBottom: "18px" }}
                 >
                     {
-                        (() => {
+                        loading ? "—" : (() => {
                             const [ hours, minutes, seconds, centiseconds ] = formatTimeString(time);
                             return (
                                 <>
@@ -191,10 +194,11 @@ export function Home() {
     }
 
 
-    function CircularProgress({percentage, completed_habits, total_habits, size = 280, strokeWidth = 40, color = "rgb(0,230,122)", bgColor = "#444"}) {
+    function CircularProgress({percentage, completed_habits, total_habits, loading = false, size = 280, strokeWidth = 40, color = "rgb(0,230,122)", bgColor = "#444"}) {
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
-        const offset = circumference - (percentage / 100) * circumference;
+        // while loading, a 0% ring draws the background circle only
+        const offset = circumference - ((loading ? 0 : percentage) / 100) * circumference;
 
         return (
             <svg width={size} height={size}>
@@ -224,11 +228,11 @@ export function Home() {
                     textAnchor="middle"
                     dy=".3em"
                     fontSize="2rem"
-                    fill="#fff"
+                    fill={loading ? "#888" : "#fff"}
                     letterSpacing="2px"
                     style={{ marginBottom: "18px" }}
                 >
-                    {completed_habits} / {total_habits}
+                    {loading ? "—" : <>{completed_habits} / {total_habits}</>}
                 </text>
             </svg>
         );
@@ -245,8 +249,14 @@ export function Home() {
                 <div className = "homepage-levelcard">
                     <div className = "homepage-level-header">
                         <h3>
-                            Level {levelData?.level ?? 1}
-                            <span className="homepage-level-rank">{levelData?.rank ?? "E"}-Rank</span>
+                            {levelData === null ? (
+                                <span className="homepage-placeholder">Level —</span>
+                            ) : (
+                                <>
+                                    Level {levelData.level}
+                                    <span className="homepage-level-rank">{levelData.rank}-Rank</span>
+                                </>
+                            )}
                         </h3>
                         {(levelData?.streak ?? 0) > 0 && (
                             <span className="homepage-level-streak">
@@ -260,10 +270,16 @@ export function Home() {
                         </div>
                     </div>
                     <div className="homepage-xp-footer">
-                        <span className="homepage-xp-today">+{levelData?.day_xp ?? 0} XP today</span>
-                        <span className="homepage-xp-label">
-                            {levelData?.xp_into_level ?? 0} / {levelData?.xp_to_next ?? 0} XP to level {(levelData?.level ?? 1) + 1}
-                        </span>
+                        {levelData === null ? (
+                            <span className="homepage-placeholder">—</span>
+                        ) : (
+                            <>
+                                <span className="homepage-xp-today">+{levelData.day_xp} XP today</span>
+                                <span className="homepage-xp-label">
+                                    {levelData.xp_into_level} / {levelData.xp_to_next} XP to level {levelData.level + 1}
+                                </span>
+                            </>
+                        )}
                     </div>
                     {levelData?.streak_possible && (
                         levelData.streak_qualified ? (
@@ -278,7 +294,7 @@ export function Home() {
                 <div className = "homepage-habitcard">
                     <h3>Habits</h3>
                     <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "28px"}}>
-                        <CircularProgress percentage={habitsData?.percentage ?? 0} completed_habits={habitsData?.completed_habits ?? 0} total_habits={habitsData?.total_habits ?? 0} />
+                        <CircularProgress loading={habitsData === null} percentage={habitsData?.percentage ?? 0} completed_habits={habitsData?.completed_habits ?? 0} total_habits={habitsData?.total_habits ?? 0} />
                     </div>
                     <Link to="/habitpage">
                         <button>Go to Habits</button>
@@ -287,7 +303,7 @@ export function Home() {
                 <div className = "homepage-stopwatchcard">
                     <h3>Stopwatches</h3>
                         <div className="Completion" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "18px", marginBottom: "28px" }}>
-                                <CircularProgressTotal time ={stopwatchesData?.total_time_worked ?? 0} goal_time = {stopwatchesData?.total_goal_time ?? 0}/> 
+                                <CircularProgressTotal loading={stopwatchesData === null} time ={stopwatchesData?.total_time_worked ?? 0} goal_time = {stopwatchesData?.total_goal_time ?? 0}/>
                         </div>
                     <Link to="/stopwatchpage">
                         <button>Go to Stopwatches</button>
@@ -296,21 +312,32 @@ export function Home() {
                 <div className = "homepage-taskcard">
                     <h3>Tasks</h3>
                     <div className="homepage-task-summary">
-                        {tasksData.overdue.length > 0 && (
-                            <span className="homepage-task-overdue-count">{tasksData.overdue.length} overdue</span>
+                        {tasksData === null ? (
+                            <span className="homepage-placeholder">—</span>
+                        ) : (
+                            <>
+                                {tasksData.overdue.length > 0 && (
+                                    <span className="homepage-task-overdue-count">{tasksData.overdue.length} overdue</span>
+                                )}
+                                <span>{tasksData.today.filter(task => task.done).length} / {tasksData.today.length} done today</span>
+                            </>
                         )}
-                        <span>{tasksData.today.filter(task => task.done).length} / {tasksData.today.length} done today</span>
                     </div>
                     <div className="homepage-task-list">
-                        {[...tasksData.overdue, ...tasksData.today].length === 0 && (
-                            <p className="homepage-task-empty">Nothing due today</p>
+                        {/* the empty state must wait for the fetch — otherwise it flashes "Nothing due today" */}
+                        {tasksData !== null && (
+                            <>
+                                {[...tasksData.overdue, ...tasksData.today].length === 0 && (
+                                    <p className="homepage-task-empty">Nothing due today</p>
+                                )}
+                                {[...tasksData.overdue, ...tasksData.today].slice(0, 6).map(task => (
+                                    <div key={task.id} className={`homepage-task-item ${task.done ? 'done' : ''}`}>
+                                        <span className={`homepage-task-dot ${tasksData.overdue.some(overdueTask => overdueTask.id === task.id) ? 'overdue' : ''}`}></span>
+                                        <span className="homepage-task-description">{task.description}</span>
+                                    </div>
+                                ))}
+                            </>
                         )}
-                        {[...tasksData.overdue, ...tasksData.today].slice(0, 6).map(task => (
-                            <div key={task.id} className={`homepage-task-item ${task.done ? 'done' : ''}`}>
-                                <span className={`homepage-task-dot ${tasksData.overdue.some(overdueTask => overdueTask.id === task.id) ? 'overdue' : ''}`}></span>
-                                <span className="homepage-task-description">{task.description}</span>
-                            </div>
-                        ))}
                     </div>
                     <Link to="/taskpage">
                         <button>Go to Tasks</button>

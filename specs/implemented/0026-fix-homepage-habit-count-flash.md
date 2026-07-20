@@ -1,6 +1,6 @@
 ---
 title: Fix pre-fetch data flash on all four homepage cards with a loading state
-status: decided
+status: built
 ---
 
 # Fix pre-fetch data flash on all four homepage cards with a loading state
