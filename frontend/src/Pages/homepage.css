@@ -270,6 +270,12 @@ button:hover {
   color: #00e67a;
 }
 
+/* stands in for a card's value until its fetch resolves, so the pre-fetch
+   frame reads as "loading" rather than as real zeros */
+.homepage-placeholder {
+  color: #888;
+}
+
 /* phone widths: stack the cards in one column */
 @media (max-width: 700px) {
   .homepage-cards-grid {
