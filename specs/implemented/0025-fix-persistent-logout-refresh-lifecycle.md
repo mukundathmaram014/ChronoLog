@@ -1,6 +1,6 @@
 ---
 title: Fix users getting persistently logged out (refresh-cookie lifetime + refresh failure handling)
-status: decided
+status: built
 ---
 
 # Fix users getting persistently logged out (refresh-cookie lifetime + refresh failure handling)
@@ -44,6 +44,10 @@ frontend refresh flow:
 - `backend/src/app.py` — set `JWT_SESSION_COOKIE = False` so refresh/CSRF
   cookies persist with the refresh token's 30-day expiry.
 - `backend/src/routes/users.py` — `/refresh` mints a new refresh token and
+  (as built) also returns 401 when the identity no longer resolves to a user —
+  a purged guest replaying a still-valid refresh token previously hit an
+  `AttributeError` → 500, which the new transient-failure handling would have
+  retried instead of treating as a dead session.
   calls `set_refresh_cookies` on a `make_response(...)` (same pattern as
   `login`), embedding the new `refresh_jti`/`refresh_exp` claims in the new
   access token exactly as `login`/`guest` do. The old refresh token is not
@@ -84,11 +88,18 @@ _None — all resolved:_
   interact with the Netlify `/api` proxy) and hard to test locally.
 
 ## Implementation notes
-- `JWT_SESSION_COOKIE = False` makes flask-jwt-extended derive cookie
-  `Max-Age` from `JWT_REFRESH_TOKEN_EXPIRES`; add it next to the other JWT
-  config in `create_app()` (backend/src/app.py:126-133). Verify both
-  `refresh_token_cookie` and `csrf_refresh_token` get the max-age in the test
-  client (`resp.headers.getlist("Set-Cookie")`).
+- `JWT_SESSION_COOKIE = False` makes flask-jwt-extended set a persistent cookie
+  `Max-Age`; add it next to the other JWT config in `create_app()`
+  (backend/src/app.py:126-133). Verify both `refresh_token_cookie` and
+  `csrf_refresh_token` get the max-age in the test client
+  (`resp.headers.getlist("Set-Cookie")`).
+  **As built — correction:** flask-jwt-extended does *not* derive the cookie
+  `Max-Age` from `JWT_REFRESH_TOKEN_EXPIRES`. Its `config.cookie_max_age` is a
+  hardcoded `31540000` (1 year) whenever `JWT_SESSION_COOKIE` is False. This is
+  fine and is left as the library default: the cookie must *outlive* the token,
+  not expire with it — the 30-day JWT expiry is what actually ends the session
+  (an expired token yields a 401 → login page). The tests therefore assert the
+  cookie is persistent and `Max-Age >= 30 days`, not `≈ 30 days`.
 - `/refresh` currently returns a `success_response` tuple; setting cookies
   requires `make_response(success_response(...))` — CLAUDE.md explicitly
   allows raw responses when setting cookies, and `login` at

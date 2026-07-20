@@ -14,31 +14,55 @@ export const AuthProvider = ({ children}) => {
     }
 
      useEffect(() => {
-        // Try to refresh access token on mount
-        const refresh = async () => {
+        // One refresh attempt. Returns true if the session was resolved either
+        // way (logged in, or definitively logged out); false if the attempt
+        // failed transiently and is worth retrying.
+        const attemptRefresh = async () => {
+            let response;
             try {
-                const response = await fetch("/api/refresh", {
+                response = await fetch("/api/refresh", {
                     method:'POST',
                     credentials: "include",
                     headers: {
                         'X-CSRF-TOKEN': getCookie('csrf_refresh_token'),
                         }
                 });
-                if (response.status === 200) {
+            } catch {
+                return false; // network error
+            }
+
+            if (response.status === 200) {
+                try {
                     const data = await response.json();
                     let access_token = data.access_token
                     let username = data.username
                     let email = data.email
                     let isGuest = data.is_guest === true
                     setAuth({username, email,  access_token, isGuest });
-                } else {
-                    setAuth({});
+                    return true;
+                } catch {
+                    return false;
                 }
-            } catch {
-                setAuth({});
-            } finally {
-                setLoading(false);
             }
+
+            // Only these mean "not logged in"; anything else (5xx during a
+            // backend redeploy, proxy error) is transient and gets one retry.
+            if (response.status === 401 || response.status === 422) {
+                setAuth({});
+                return true;
+            }
+            return false;
+        };
+
+        // Try to refresh access token on mount
+        const refresh = async () => {
+            let resolved = await attemptRefresh();
+            if (!resolved) {
+                await new Promise((r) => setTimeout(r, 2000));
+                resolved = await attemptRefresh();
+            }
+            if (!resolved) setAuth({});
+            setLoading(false);
         };
         refresh();
     }, []);

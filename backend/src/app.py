@@ -129,6 +129,11 @@ def create_app(test_config=None):
     app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
     app.config["JWT_REFRESH_COOKIE_NAME"] = "refresh_token_cookie"
     app.config["JWT_COOKIE_SECURE"] = True   # True in production (HTTPS)
+    # False => persistent cookies instead of ones that die with the browser session,
+    # so a 30-day refresh token actually lasts 30 days. The cookie Max-Age is the
+    # library's own long default (~1yr), deliberately outliving the token: the JWT's
+    # 30-day expiry is what ends the session, not the cookie's.
+    app.config["JWT_SESSION_COOKIE"] = False
     app.config["JWT_COOKIE_SAMESITE"] = "Lax"
     app.config["JWT_COOKIE_CSRF_PROTECT"] = True  # enables double-submit CSRF for cookies
 
