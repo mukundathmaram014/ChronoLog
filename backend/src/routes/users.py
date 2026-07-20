@@ -127,18 +127,28 @@ def guest():
 def refresh():
     """
     Refresh the access token using a valid refresh token.
-    """
 
-    rt_claims   = get_jwt()                 # claims of the *refresh* token
-    refresh_jti = rt_claims["jti"]          # JWT ID of the refresh token
-    refresh_exp = rt_claims["exp"] 
+    Rotates the refresh token: every successful refresh issues a new 30-day
+    refresh cookie, so any visit resets the inactivity clock. The old refresh
+    token is deliberately left valid until its own expiry — revoking it would
+    log out concurrent tabs/devices racing to refresh. Logout still revokes the
+    current refresh token via the refresh_jti claim below.
+    """
 
     user_id = int(get_jwt_identity())
     user = User.query.filter_by(id=user_id).first()
-    username = user.username
-    email = user.email
+    if not user:
+        # e.g. a purged guest holding a still-valid refresh token
+        return failure_response("User not found", 401)
+
+    new_refresh_token = create_refresh_token(identity = str(user_id))
+    refresh_decoded = decode_token(new_refresh_token)
+    refresh_jti = refresh_decoded["jti"]
+    refresh_exp = refresh_decoded["exp"]  # epoch seconds
     new_access_token = create_access_token(identity= str(user_id), additional_claims={"refresh_jti": refresh_jti, "refresh_exp": refresh_exp})
-    return success_response({"access_token": new_access_token, "username": username, "email" : email, "is_guest": bool(user.is_guest) })
+    resp = make_response(success_response({"access_token": new_access_token, "username": user.username, "email" : user.email, "is_guest": bool(user.is_guest) }))
+    set_refresh_cookies(resp, new_refresh_token)
+    return resp
 
 @user_routes.route("/note", methods = ["GET"])
 @jwt_required()
