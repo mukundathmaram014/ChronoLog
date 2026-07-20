@@ -38,6 +38,11 @@
     padding: 10px 12px;
     font-size: 14px;
   }
+
+  .profile-popup {
+    padding: 24px 16px;
+    width: 92%;
+  }
 }
 
 /* Guest-mode banner shown under the navbar on every protected page */
@@ -86,6 +91,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* border-box: without it 90% + 64px of padding is wider than a phone screen */
+  box-sizing: border-box;
 }
 
 .profile-popup .close-icon {

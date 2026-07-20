@@ -115,13 +115,17 @@ h1 {
 }
 
 @media (max-width: 900px) {
+  /* border-box: without it the percentage padding adds on top of the percentage
+     width (95% + 3% + 3% = 101%) and the panel overflows the screen */
   .statistics-wrapper {
     width: 95%;
     padding: 3%;
+    box-sizing: border-box;
   }
   .habitstatistics, .stopwatchstatistics {
     width: 98%;
     padding: 18px 6px;
+    box-sizing: border-box;
   }
 }
 
@@ -338,5 +342,17 @@ h1 {
   .habitstatistics div,
   .stopwatchstatistics div {
     font-size: 1.2rem;
+  }
+
+  /* the pie and its legend sit side by side with a 40px gap on desktop; at phone
+     width they need to stack, and the gap has to shrink or the row stays too wide */
+  .stopwatch-pie {
+    gap: 16px;
+  }
+
+  .habitstatistics .total-habits-statistics,
+  .habitstatistics .completed-habits-statistics {
+    font-size: 1.2rem;
+    padding: 10px 8px;
   }
 }

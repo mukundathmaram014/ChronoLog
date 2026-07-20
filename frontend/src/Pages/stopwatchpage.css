@@ -16,7 +16,9 @@ body {
   box-shadow: 0px 5px 7px rgb(27,27,27);
   border-radius: 10px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* Two columns */
+  /* minmax(0, 1fr) not 1fr: a plain 1fr track is min-content-floored, so a wide
+     child (the progress ring) would stretch the track past the viewport */
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* Two columns */
   gap: 24px; /* Space between panels */
   position: relative;
   padding-top: 80px; /* Adjust based on header height */
@@ -340,11 +342,20 @@ h1{
   pointer-events: none; /* Prevent interaction */
 }
 
+/* reserve the top-right corner for the absolutely-positioned drag handle so a
+   long title wraps above it instead of running underneath it */
+.stopwatch-title {
+  width: 100%;
+  padding-right: 52px;
+  box-sizing: border-box;
+}
+
 .stopwatch-title p{
   font-size: 30px;
   font-weight: bold;
   color: white;
   margin-bottom: 8px;
+  overflow-wrap: anywhere;
 }
 
 .disabled-stopwatch {
@@ -466,7 +477,7 @@ h1{
 /* phone widths: single-column grid, full-width panel, smaller readouts */
 @media (max-width: 700px) {
   .stopwatches {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     width: 92%;
     padding: 16px 4% 40px 4%; /* header is static here, no need for the 80px offset */
     box-sizing: border-box;
@@ -479,19 +490,74 @@ h1{
     justify-content: center;
   }
 
+  /* border-box so the 25px padding counts inside the width instead of adding
+     50px on top of it and pushing the popup past the screen */
   .stopwatch-input-item,
   .stopwatch-edit-item {
-    width: min(300px, 82vw);
+    width: min(300px, 90vw);
+    box-sizing: border-box;
   }
 
   .stopwatch-input-item input,
-  .stopwatch-edit-item input {
+  .stopwatch-edit-item input,
+  .reuse-previous-select {
     width: 100%;
     box-sizing: border-box;
   }
 
   .goal-time-inputs input[type="number"] {
     width: 60px;
+  }
+
+  /* scale the card internals down: at desktop sizes these overflow a ~270px card */
+  .stopwatch-title {
+    padding-right: 40px;
+  }
+
+  .stopwatch-title p {
+    font-size: 1.35rem;
+  }
+
+  .time-display {
+    font-size: 1.6rem;
+    letter-spacing: 1px;
+  }
+
+  .stopwatch-item {
+    padding: 16px;
+  }
+
+  .controls {
+    margin-top: 16px;
+    margin-bottom: 10px;
+    gap: 8px;
+  }
+
+  .controls button {
+    font-size: 0.95rem;
+    padding: 9px 12px;
+    margin-right: 0; /* the flex gap already spaces these */
+  }
+
+  .stopwatch-delete-icon,
+  .stopwatch-edit-icon {
+    font-size: 30px;
+    margin-right: 0;
+  }
+
+  .drag-handle-stopwatch {
+    top: 10px;
+    right: 10px;
+  }
+
+  .drag-icon-stopwatch {
+    font-size: 26px;
+  }
+
+  .goal-time {
+    margin-top: 20px;
+    font-size: 1.05rem;
+    padding: 6px 12px;
   }
 
   .total-time-display {

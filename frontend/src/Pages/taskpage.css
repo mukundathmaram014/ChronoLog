@@ -247,9 +247,12 @@
     box-sizing: border-box;
   }
 
+  /* border-box so the 25px padding counts inside the width instead of adding
+     50px on top of it and pushing the popup past the screen */
   .task-input-item,
   .task-edit-item {
-    width: min(300px, 82vw);
+    width: min(300px, 90vw);
+    box-sizing: border-box;
   }
 
   .task-input-item input,
@@ -261,5 +264,14 @@
 
   .subtask-list {
     margin-left: 20px;
+  }
+
+  /* long task descriptions must wrap rather than widen the row */
+  .task-text {
+    min-width: 0;
+  }
+
+  .task-text p {
+    overflow-wrap: anywhere;
   }
 }
