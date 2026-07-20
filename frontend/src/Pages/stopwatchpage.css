@@ -506,6 +506,9 @@ h1{
     flex-wrap: wrap;
     gap: 10px;
   }
+  .session-log {
+    width: 92%;
+  }
 }
 
 .weekday-picker {
@@ -540,4 +543,79 @@ h1{
   font-size: 0.75rem;
   color: #aaa;
   letter-spacing: 1px;
+}
+
+/* session log: a discreet, collapsed-by-default disclosure under the grid (spec 0030) */
+.session-log {
+  width: 70%;
+  margin: 14px auto 40px auto;
+}
+
+.session-log-toggle {
+  background: none;
+  border: none;
+  padding: 6px 0;
+  color: #aaa;
+  font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.session-log-toggle:hover {
+  color: rgb(0,230,122);
+}
+
+.session-log-list {
+  list-style: none;
+  margin: 6px 0 0 0;
+  padding: 10px 16px;
+  background: #353434;
+  border-radius: 10px;
+  box-shadow: 0px 5px 7px rgb(27,27,27);
+}
+
+.session-log-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 7px 0;
+  color: #ddd;
+  font-size: 0.95rem;
+  border-bottom: 1px solid #444;
+}
+
+.session-log-row:last-child {
+  border-bottom: none;
+}
+
+.session-log-time {
+  font-family: 'Roboto Mono', monospace;
+  color: #aaa;
+  white-space: nowrap;
+}
+
+.session-log-title {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.session-log-length {
+  font-family: 'Roboto Mono', monospace;
+  color: rgb(0,230,122);
+  white-space: nowrap;
+}
+
+.session-log-running .session-log-length {
+  color: #aaa;
+  font-style: italic;
+}
+
+.session-log-empty {
+  margin-top: 6px;
+  padding: 14px 16px;
+  background: #353434;
+  border-radius: 10px;
+  color: #888;
+  font-size: 0.95rem;
 }

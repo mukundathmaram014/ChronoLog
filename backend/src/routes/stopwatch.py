@@ -3,7 +3,7 @@ from utils import success_response, failure_response, process_date, ensure_utc, 
 import json
 from db import db
 from flask import Flask, request
-from db import Stopwatch, DeletedDay
+from db import Stopwatch, DeletedDay, StopwatchInterval
 from datetime import datetime, date, timedelta, timezone
 from sqlalchemy import func
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -195,6 +195,32 @@ def get_stopwatches(date_string):
 
     
     return success_response({"stopwatches" : stopwatches})
+
+@stopwatch_routes.route("/stopwatches/intervals/<string:date_string>/")
+@jwt_required()
+def get_stopwatch_intervals(date_string):
+    """
+    Endpoint for getting a day's recorded stopwatch intervals (the session log),
+    chronologically, each carrying its stopwatch's title
+    """
+    user_id = int(get_jwt_identity())
+    requested_date = date.fromisoformat(date_string)
+
+    rows = (db.session.query(StopwatchInterval, Stopwatch.title)
+            .join(Stopwatch, Stopwatch.id == StopwatchInterval.stopwatch_id)
+            .filter(StopwatchInterval.user_id == user_id, StopwatchInterval.date == requested_date)
+            .order_by(StopwatchInterval.start_time, StopwatchInterval.id)
+            .all())
+
+    intervals = [{
+        "id": interval.id,
+        "stopwatch_id": interval.stopwatch_id,
+        "title": title,
+        "start_time": ensure_utc(interval.start_time).isoformat(),
+        "end_time": ensure_utc(interval.end_time).isoformat(),
+    } for interval, title in rows]
+
+    return success_response({"intervals": intervals})
 
 @stopwatch_routes.route("/stopwatches/", methods = ["POST"])
 @jwt_required()
@@ -402,6 +428,20 @@ def stop_stopwatch(stopwatch_id):
     increment = (ensure_utc(stopwatch.end_time) - ensure_utc(stopwatch.interval_start)).total_seconds() * 1000
     stopwatch.curr_duration = stopwatch.curr_duration + increment
     total_stopwatch.curr_duration = total_stopwatch.curr_duration + increment
+
+    # record the completed segment for the day's session log (spec 0030). The Total
+    # starts/stops in lockstep with its child, so only children get rows. A zero-length
+    # segment is what a stale-finalized stopwatch looks like — it credits no time and
+    # must record nothing.
+    if not stopwatch.isTotal and increment > 0:
+        db.session.add(StopwatchInterval(
+            stopwatch_id = stopwatch.id,
+            user_id = user_id,
+            date = stopwatch.date,
+            start_time = ensure_utc(stopwatch.interval_start),
+            end_time = ensure_utc(stopwatch.end_time),
+        ))
+
     # the day's worked time changed, so its work XP changes
     recompute_from(user_id, requested_date)
     db.session.commit()
@@ -454,6 +494,9 @@ def reset_stopwatch(stopwatch_id):
     # as well so differences between the two curr durations will be the same.
     total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
     stopwatch.curr_duration = 0.0
+    # the session log follows the total it explains: zeroing the day's time drops
+    # that stopwatch's recorded segments for the day (spec 0030)
+    StopwatchInterval.query.filter_by(stopwatch_id = stopwatch.id, date = stopwatch.date, user_id = user_id).delete()
     # the day's worked time changed, so its work XP changes
     recompute_from(user_id, requested_date)
     db.session.commit()

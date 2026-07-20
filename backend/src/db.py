@@ -233,6 +233,12 @@ class Stopwatch(db.Model):
     position = db.Column(db.Integer, nullable=False, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
+    # deleting a stopwatch deletes its recorded intervals
+    intervals = db.relationship(
+        "StopwatchInterval",
+        cascade="all, delete-orphan",
+    )
+
     def __init__(self, **kwargs):
         """
         Initialize a stopwatch object
@@ -271,6 +277,47 @@ class Stopwatch(db.Model):
             "is_recurring": self.is_recurring,
             "repeat_days": self.repeat_days,
             "position": self.position,
+            "user_id": self.user_id
+        }
+
+
+#stopwatch interval model
+class StopwatchInterval(db.Model):
+    """
+    One completed run segment of a stopwatch (start -> stop). Recorded by
+    stop_stopwatch; the day's session log is built from these rows. date
+    duplicates the parent stopwatch's day so the day query needs no join.
+    """
+    __tablename__ = "stopwatch_intervals"
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    stopwatch_id = db.Column(db.Integer, db.ForeignKey("stopwatches.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.DateTime(timezone=True), nullable=False)
+    end_time = db.Column(db.DateTime(timezone=True), nullable=False)
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a stopwatch interval object
+        """
+
+        self.stopwatch_id = kwargs.get("stopwatch_id")
+        self.user_id = kwargs.get("user_id")
+        self.date = kwargs.get("date", date.today())
+        self.start_time = kwargs.get("start_time")
+        self.end_time = kwargs.get("end_time")
+
+    def serialize(self):
+        """
+        Serializing a stopwatch interval to be returned
+        """
+
+        return {
+            "id": self.id,
+            "stopwatch_id": self.stopwatch_id,
+            "date": self.date.isoformat(),
+            "start_time": ensure_utc(self.start_time).isoformat(),
+            "end_time": ensure_utc(self.end_time).isoformat(),
             "user_id": self.user_id
         }
 
