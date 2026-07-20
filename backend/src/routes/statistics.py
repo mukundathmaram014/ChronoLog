@@ -423,3 +423,94 @@ def get_habits_calendar(date_string, time_period):
         "start": start_day.isoformat(),
         "days": days,
     })
+
+
+@statistic_routes.route("/stats/habits/calendar/all/<string:date_string>/<string:time_period>/")
+@jwt_required()
+def get_habits_calendar_all(date_string, time_period):
+    """
+    Batch per-habit calendars over the selected window (spec 0029): the same
+    status classification as the ?description= branch of get_habits_calendar,
+    for every habit in the window, in one request instead of N.
+
+    -> {start, habits: [{description, days: [{date, status}]}]}
+
+    A single pass per day bucketed by description (same shape as get_habits_all);
+    days where a habit has no row report "no-data", matching the single-habit
+    route. Where a description has several rows on one day the first wins, again
+    matching that route's `.first()`.
+    """
+
+    user_id = int(get_jwt_identity())
+    requested_date = date.fromisoformat(date_string)
+
+    period_range = get_period_range(requested_date, time_period)
+    if period_range is None:
+        return failure_response("Invalid time period")
+    start_day, num_days = period_range
+
+    dates = []
+    per = {}  # description -> {date_iso -> status}
+    current_day = start_day
+    for i in range(num_days):
+        weekday_bit = 1 << current_day.weekday()
+        day_iso = current_day.isoformat()
+        dates.append(day_iso)
+        for habit in Habit.query.filter_by(date = current_day, user_id = user_id).all():
+            statuses = per.setdefault(habit.description, {})
+            if day_iso in statuses:
+                continue
+            if not (habit.repeat_days & weekday_bit):
+                statuses[day_iso] = "not-scheduled"
+            elif habit.done:
+                statuses[day_iso] = "done"
+            else:
+                statuses[day_iso] = "missed"
+        current_day += timedelta(days = 1)
+
+    habits = [
+        {
+            "description": description,
+            "days": [{"date": d, "status": per[description].get(d, "no-data")} for d in dates],
+        }
+        for description in sorted(per)
+    ]
+
+    return success_response({"start": start_day.isoformat(), "habits": habits})
+
+
+@statistic_routes.route("/stats/stopwatches/calendar/<string:date_string>/<string:time_period>/")
+@jwt_required()
+def get_stopwatches_calendar(date_string, time_period):
+    """
+    Per-day Total time worked over the selected window (spec 0029). Read-only
+    over existing Stopwatch rows; mirrors get_habits_calendar's period walk.
+
+    -> {mode:"time", start, days:[{date, duration, goal}]}  (milliseconds)
+
+    Days with no Total row report duration 0 / goal 0, which the frontend renders
+    as a no-data cell. `curr_duration` is the stored duration — live elapsed time
+    stays a frontend concern (CLAUDE.md), as in every other stats endpoint.
+    """
+
+    user_id = int(get_jwt_identity())
+    requested_date = date.fromisoformat(date_string)
+
+    period_range = get_period_range(requested_date, time_period)
+    if period_range is None:
+        return failure_response("Invalid time period")
+    start_day, num_days = period_range
+
+    days = []
+    current_day = start_day
+    for i in range(num_days):
+        total_row = Stopwatch.query.filter_by(
+            date = current_day, isTotal = True, user_id = user_id).first()
+        days.append({
+            "date": current_day.isoformat(),
+            "duration": total_row.curr_duration if total_row else 0,
+            "goal": total_row.goal_time if total_row else 0,
+        })
+        current_day += timedelta(days = 1)
+
+    return success_response({"mode": "time", "start": start_day.isoformat(), "days": days})

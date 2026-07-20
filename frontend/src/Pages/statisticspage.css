@@ -173,6 +173,31 @@ h1 {
   box-shadow: 0 0 0 2px rgba(0,230,122,0.2);
 }
 
+/* spec 0029: calendar view toggle, styled to match the other selection-bar selects */
+.calendar-view-select-bar {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.calendar-view-select-bar select {
+  background: #232323;
+  color: #fff;
+  border: 1.5px solid #444;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 1.25rem;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.calendar-view-select-bar select:focus {
+  border: 1.5px solid rgb(0,230,122);
+  box-shadow: 0 0 0 2px rgba(0,230,122,0.2);
+}
+
 .selection-bar {
   display: flex;
   flex-direction: row;      /* This is default, but explicit is good */
@@ -312,12 +337,48 @@ h1 {
     font-variant-numeric: tabular-nums;
 }
 
+/* spec 0029: side-by-side mini status calendars, one card per habit */
+.per-habit-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 16px;
+    width: 100%;
+    margin-top: 10px;
+}
+/* year heatmaps are ~53 columns wide — stack them one per row at full width */
+.per-habit-calendar-grid-year {
+    grid-template-columns: 1fr;
+}
+.per-habit-calendar-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #262626;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px 10px;
+    overflow-x: auto;
+}
+.per-habit-calendar-title {
+    color: #eee;
+    font-size: 0.95rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* phone widths: wrap the select bars and shrink the controls */
 @media (max-width: 600px) {
+  .per-habit-calendar-grid {
+    grid-template-columns: 1fr;
+  }
+
   .selection-bar,
   .stats-select-bar,
   .time-period-select-bar,
-  .habits-or-stopwatches-select-bar {
+  .habits-or-stopwatches-select-bar,
+  .calendar-view-select-bar {
     flex-wrap: wrap;
     justify-content: center;
     gap: 10px;
@@ -325,7 +386,8 @@ h1 {
 
   .stats-select-bar select,
   .time-period-select-bar select,
-  .habits-or-stopwatches-select-bar select {
+  .habits-or-stopwatches-select-bar select,
+  .calendar-view-select-bar select {
     font-size: 1rem;
     padding: 10px 14px;
   }

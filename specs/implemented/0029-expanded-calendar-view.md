@@ -1,6 +1,6 @@
 ---
 title: Add per-habit calendar view and a stopwatch time calendar to the statistics page
-status: decided
+status: built
 ---
 
 # Add per-habit calendar view and a stopwatch time calendar to the statistics page
@@ -32,7 +32,9 @@ This spec extends the statistics page in place (no new page or route):
   `/stats/stopwatches/calendar/<date_string>/<time_period>/` (per-day Total
   time series); extend the habits calendar logic with a batch "all habits,
   per-habit status" response (see notes) so the per-habit view is one
-  request, not N.
+  request, not N. *Built as the sibling route
+  `/stats/habits/calendar/all/<date_string>/<time_period>/` (of the two
+  options the notes allowed), leaving the existing route untouched.*
 - `backend/tests/test_statistics_calendar.py` — **new**: tests for the new
   stopwatch calendar endpoint and the batch habits response (there are
   currently no dedicated tests for the existing calendar endpoint; cover its
