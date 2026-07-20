@@ -144,7 +144,7 @@ export function Home() {
 
 
         return (
-            <svg width={size} height={size}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="fluid-svg">
                 <circle
                     cx={size / 2}
                     cy={size / 2}
@@ -201,7 +201,7 @@ export function Home() {
         const offset = circumference - ((loading ? 0 : percentage) / 100) * circumference;
 
         return (
-            <svg width={size} height={size}>
+            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="fluid-svg">
                 <circle
                     cx={size / 2}
                     cy={size / 2}

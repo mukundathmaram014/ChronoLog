@@ -124,6 +124,7 @@ h1{
 
 .weekday-picker {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 10px;
 }
@@ -440,9 +441,12 @@ h1{
     box-sizing: border-box;
   }
 
+  /* border-box so the 25px padding counts inside the width instead of adding
+     50px on top of it and pushing the popup past the screen */
   .habit-input-item,
   .habit-edit-item {
-    width: min(300px, 82vw);
+    width: min(300px, 90vw);
+    box-sizing: border-box;
   }
 
   .habit-input-item input,
@@ -451,8 +455,33 @@ h1{
     box-sizing: border-box;
   }
 
+  /* 7 toggles at 34px + gaps overflow the popup's content box */
+  .weekday-toggle {
+    width: 30px;
+  }
+
   .left-section {
     gap: 12px;
+    min-width: 0;
+  }
+
+  /* long habit names must wrap rather than widen the row */
+  .habit-text {
+    min-width: 0;
+  }
+
+  .habit-text p {
+    overflow-wrap: anywhere;
+  }
+
+  .edit-icon,
+  .delete-icon {
+    font-size: 26px;
+    margin-right: 4px;
+  }
+
+  .icon-bar {
+    gap: 4px;
   }
 
   .date-slider-container {

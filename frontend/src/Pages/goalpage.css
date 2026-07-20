@@ -167,14 +167,26 @@
     box-sizing: border-box;
   }
 
+  /* border-box so the 25px padding counts inside the width instead of adding
+     50px on top of it and pushing the popup past the screen */
   .goal-input-item,
   .goal-edit-item {
-    width: min(300px, 82vw);
+    width: min(300px, 90vw);
+    box-sizing: border-box;
   }
 
   .goal-input-item input,
   .goal-edit-item input {
     width: 100%;
     box-sizing: border-box;
+  }
+
+  /* long goal names must wrap rather than widen the row */
+  .goal-text {
+    min-width: 0;
+  }
+
+  .goal-text p {
+    overflow-wrap: anywhere;
   }
 }

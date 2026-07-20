@@ -167,7 +167,9 @@ button:hover {
 
 .homepage-cards-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* Two columns */
+  /* minmax(0, 1fr) not 1fr: a plain 1fr track is min-content-floored, so a wide
+     child (the progress ring) would stretch the track past the viewport */
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* Two columns */
   gap: 24px; /* Space between panels */
   max-width: 1300px;
   margin: 0 auto 32px auto;
@@ -279,9 +281,16 @@ button:hover {
 /* phone widths: stack the cards in one column */
 @media (max-width: 700px) {
   .homepage-cards-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
     padding: 0 12px;
+    box-sizing: border-box;
+  }
+
+  .homepage-habitcard,
+  .homepage-stopwatchcard,
+  .homepage-taskcard {
+    padding: 16px 14px 22px 14px;
   }
 
   .homepage-quotesection {

@@ -157,9 +157,11 @@ body {
 }
 
 @media (max-width: 500px) {
+  /* border-box: 98vw + 12px of padding is wider than the screen without it */
   .Login-box {
     padding: 18px 6px 16px 6px;
     max-width: 98vw;
+    box-sizing: border-box;
   }
   .Login-form {
     gap: 12px;
