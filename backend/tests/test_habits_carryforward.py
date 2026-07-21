@@ -3,10 +3,12 @@ from datetime import date, timedelta
 from conftest import auth_token
 
 
-def create_habit(client, token, description, date_str, repeat_days=None):
+def create_habit(client, token, description, date_str, repeat_days=None, difficulty=None):
     body = {"description": description, "date": date_str}
     if repeat_days is not None:
         body["repeat_days"] = repeat_days
+    if difficulty is not None:
+        body["difficulty"] = difficulty
     return client.post(
         "/api/habits/",
         data=json.dumps(body),
@@ -36,6 +38,14 @@ def delete_habit(client, token, habit_id):
         f"/api/habits/{habit_id}/",
         headers={"Authorization": f"Bearer {token}"},
     )
+
+
+def get_titles(client, token):
+    resp = client.get(
+        "/api/habits/titles/",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    return json.loads(resp.data)["titles"]
 
 
 def test_carry_forward_next_day(client):
@@ -239,3 +249,57 @@ def test_edit_repeat_days_applies_forward_only(client):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert json.loads(resp.data)["repeat_days"] == 127
+
+
+# --- "reuse previous" dropdown (spec 0032) ---
+
+
+def test_titles_endpoint_returns_distinct_most_recent_first(client):
+    token = auth_token(client)
+    create_habit(client, token, "alpha", "2026-01-10", repeat_days=MWF, difficulty="easy")
+    create_habit(client, token, "beta", "2026-01-12")
+    # same description again later: deduped, and the most recent row supplies every field
+    create_habit(client, token, "alpha", "2026-01-14", difficulty="hard")
+
+    titles = get_titles(client, token)
+    assert [t["description"] for t in titles] == ["alpha", "beta"]
+    assert titles[0]["date"] == "2026-01-14"
+    assert titles[0]["difficulty"] == "hard"
+    assert titles[0]["repeat_days"] == 127
+    assert titles[1]["date"] == "2026-01-12"
+
+
+def test_titles_endpoint_is_user_scoped(client):
+    token_a = auth_token(client, username="usera")
+    token_b = auth_token(client, username="userb")
+    create_habit(client, token_a, "private", "2026-01-15")
+
+    assert get_titles(client, token_b) == []
+
+
+def test_titles_endpoint_surfaces_habit_deleted_from_current_day(client):
+    """The core use case: a habit deleted today is still re-addable from its prior day's row."""
+    token = auth_token(client)
+    d = date(2026, 1, 15)
+    create_habit(client, token, "Morning run", (d - timedelta(days=1)).isoformat())
+    resp = create_habit(client, token, "Morning run", d.isoformat())
+    habit_id = json.loads(resp.data)["id"]
+
+    delete_habit(client, token, habit_id)
+
+    titles = get_titles(client, token)
+    assert [t["description"] for t in titles] == ["Morning run"]
+    # falls back to the surviving prior-day row
+    assert titles[0]["date"] == (d - timedelta(days=1)).isoformat()
+
+
+def test_titles_endpoint_does_not_normalize_descriptions(client):
+    """
+    Stats group habits by exact description, so the dropdown must hand back the stored
+    string byte for byte — any trimming or case-folding would re-split the history.
+    """
+    token = auth_token(client)
+    create_habit(client, token, "  Read Books  ", "2026-01-15")
+
+    titles = get_titles(client, token)
+    assert [t["description"] for t in titles] == ["  Read Books  "]

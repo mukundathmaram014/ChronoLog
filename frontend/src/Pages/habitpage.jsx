@@ -1,6 +1,6 @@
 import { FaPlus } from "react-icons/fa";
 import { IoMdClose } from "react-icons/io";
-import { useState, useEffect} from 'react';
+import { useState, useEffect, useMemo} from 'react';
 import './habitpage.css';
 import {SortableHabitItem} from "../Components/SortableHabitItem";
 import {HabitItem} from "../Components/HabitItem"
@@ -52,6 +52,7 @@ export function Habit() {
   const [selectedDate, setSelectedDate] = useState(today);
   const isFuture = (new Date(selectedDate)) > (new Date(today));
   const [habitError, setHabitError] = useState("");
+  const [previousDescriptions, setPreviousDescriptions] = useState([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -129,6 +130,25 @@ export function Habit() {
     .catch(error => console.error(error))
     .finally(() => setIsAdding(false))
   };
+
+  // habits already on the day would just hit the duplicate guard, and since habits carry
+  // forward they would otherwise bury the dormant ones this dropdown exists to surface.
+  // A memo over live state, so deleting a habit makes it reappear here immediately.
+  const reusableDescriptions = useMemo(() => {
+    const onThisDay = new Set(allHabits.map(habit => habit.description));
+    return previousDescriptions.filter(previous => !onThisDay.has(previous.description));
+  }, [previousDescriptions, allHabits]);
+
+  // "reuse previous" dropdown: prefills the add form with a prior description, its repeat
+  // days and its difficulty. The description must be inserted byte-identical — stats group
+  // by exact string, so any normalization here would re-split the history this preserves.
+  const prefillFromPrevious = (description) => {
+    const previous = previousDescriptions.find(p => p.description === description);
+    if (!previous) return;
+    setNewDescription(previous.description);
+    setNewRepeatDays(previous.repeat_days ?? ALL_DAYS);
+    setNewDifficulty(previous.difficulty ?? "medium");
+  }
 
   const handleDeleteHabit = (index) => {
     if (isFuture){return;}
@@ -295,7 +315,14 @@ export function Habit() {
         <h1>My Habits</h1>
         <div className="habit-wrapper">
           <button type = 'button' className = 'primaryBtn'
-              onClick={() => {setaddHabit(true); setNewRepeatDays(ALL_DAYS); setNewDifficulty("medium");}} disabled = {isFuture}>
+              onClick={() => {
+                setaddHabit(true); setNewRepeatDays(ALL_DAYS); setNewDifficulty("medium");
+                // feeds the "reuse previous" dropdown with the user's distinct prior descriptions
+                fetchWithAuth(`/habits/titles/`, { method: "GET" })
+                  .then(response => response.json())
+                  .then(data => setPreviousDescriptions(data.titles))
+                  .catch(error => console.error(error));
+              }} disabled = {isFuture}>
               <FaPlus className = "plus-icon" />
           </button>
           {addHabit && (
@@ -304,6 +331,26 @@ export function Habit() {
                 <IoMdClose className = "close-icon"
                   onClick={() => {setaddHabit(false); setHabitError("");}}/>
                 <h3>Add a New Habit</h3>
+                {reusableDescriptions.length > 0 && (
+                  <>
+                    <label htmlFor="reuse-previous">Reuse previous: </label>
+                    <select
+                      id="reuse-previous"
+                      className="reuse-previous-select"
+                      value=""
+                      onChange={e => prefillFromPrevious(e.target.value)}
+                    >
+                      <option value="" disabled>Select a previous habit…</option>
+                      {reusableDescriptions.map(previous => (
+                        // the label carries the last-active date, but the value stays the raw
+                        // description — never parse the description back out of the label
+                        <option key={previous.description} value={previous.description}>
+                          {previous.description} — last: {previous.date}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
                 <label>Description</label>
                 <input type= "text" value = {newDescription} 
                 onChange={(e) => setNewDescription(e.target.value) }
