@@ -239,6 +239,62 @@
   background-color: rgb(4,196,106);
 }
 
+/* completed history: a discreet, collapsed-by-default disclosure under the
+   three task groups (spec 0031) */
+.completed-log-section{
+  margin-top: 10px;
+  text-align: left;
+}
+
+.completed-log-toggle{
+  background: none;
+  border: none;
+  padding: 6px 0;
+  color: #aaa;
+  font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.completed-log-toggle:hover{
+  color: rgb(0,230,122);
+}
+
+.completed-log{
+  margin-top: 6px;
+}
+
+/* history rows are a record, not a to-do list: no checkbox, no edit, no
+   pointer cursor. Delete is the one thing they still respond to. */
+.task-list-item.history-item{
+  cursor: default;
+}
+
+.task-list-item.history-item:hover{
+  background-color: rgb(78, 72, 72);
+  cursor: default;
+}
+
+.subtask-list .task-list-item.subtask.history-item:hover{
+  background-color: rgb(64, 59, 59);
+}
+
+.completed-log-more{
+  background: none;
+  border: none;
+  padding: 8px 0;
+  color: rgb(0,230,122);
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.completed-log-more:disabled{
+  color: #888;
+  cursor: default;
+}
+
 /* phone widths: let the list and popups use the full screen */
 @media (max-width: 600px) {
   .task-wrapper {

@@ -4,8 +4,10 @@ import { MdEdit, MdDelete } from "react-icons/md";
 import { useState, useEffect } from 'react';
 import './taskpage.css';
 import useFetch from "../hooks/useFetch";
+import { CompletedTaskLog } from "../Components/CompletedTaskLog.jsx";
 
 const RECURRENCE_OPTIONS = ["none", "daily", "weekly", "monthly"];
+const HISTORY_PAGE_SIZE = 50;
 
 export function Tasks() {
 
@@ -32,6 +34,13 @@ export function Tasks() {
   const [subtaskInputs, setSubtaskInputs] = useState({});
   const [today, setToday] = useState(() => (DatetoISOString(new Date())));
   const [newDate, setNewDate] = useState(() => (DatetoISOString(new Date())));
+  // completed-task history: collapsed on every visit, fetched on first expand.
+  // null = never loaded, which is what gates that first fetch.
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyOffset, setHistoryOffset] = useState(0);
 
   // updates state variable today
   useEffect(() => {
@@ -58,6 +67,33 @@ export function Tasks() {
     fetchTasks();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today]);
+
+  // offset 0 replaces the loaded history, any other offset appends the next page
+  const loadHistory = (offset) => {
+    setHistoryLoading(true);
+    fetchWithAuth(`/tasks/completed/?limit=${HISTORY_PAGE_SIZE}&offset=${offset}`, {
+      method: "GET"
+    })
+    .then(response => response.json())
+    .then(data => {
+      const page = data.completed ?? [];
+      setHistory(prev => (offset === 0 ? page : [...(prev ?? []), ...page]));
+      setHistoryHasMore(!!data.has_more);
+      setHistoryOffset(offset + page.length);
+    })
+    .catch(error => console.error(error))
+    .finally(() => setHistoryLoading(false))
+  };
+
+  // a task completed today sits in the Today group and the history at once, so
+  // anything that changes one has to refresh the other. Resetting to the first
+  // page (rather than re-fetching every loaded page) also keeps offset paging
+  // honest after a delete shifts every later row up.
+  const refreshHistory = () => {
+    if (historyOpen) {
+      loadHistory(0);
+    }
+  };
 
   const handleAddTask = () => {
     if (!newDescription.trim()) {
@@ -108,19 +144,27 @@ export function Tasks() {
   const handleToggleTask = (taskId, currStatus) => {
     fetchWithAuth(`/tasks/${taskId}/`, {
       method: "PUT",
-      body: JSON.stringify({ done: !currStatus })
+      // the server may be in another timezone, so the completion day is ours to send
+      body: JSON.stringify({ done: !currStatus, completed_date: today })
     })
     .then(response => response.json())
-    .then(() => fetchTasks())
+    .then(() => {
+      fetchTasks();
+      refreshHistory();
+    })
     .catch(error => console.error(error))
   };
 
+  // also used for history rows, which have no other affordance
   const handleDeleteTask = (taskId) => {
     fetchWithAuth(`/tasks/${taskId}/`, {
       method: "DELETE"
     })
     .then(response => response.json())
-    .then(() => fetchTasks())
+    .then(() => {
+      fetchTasks();
+      refreshHistory();
+    })
     .catch(error => console.error(error))
   };
 
@@ -363,6 +407,40 @@ export function Tasks() {
           {renderGroup("Overdue", taskGroups.overdue, true, "Nothing overdue.")}
           {renderGroup("Today", taskGroups.today, false, "Nothing due today.")}
           {renderGroup("Upcoming", taskGroups.upcoming, true, "Nothing coming up.")}
+        </div>
+        {/* opt-in look back at what's already been finished (spec 0031) */}
+        <div className="completed-log-section">
+          <button
+            type="button"
+            className="completed-log-toggle"
+            aria-expanded={historyOpen}
+            onClick={() => {
+              const opening = !historyOpen;
+              setHistoryOpen(opening);
+              if (opening && history === null) {
+                loadHistory(0);
+              }
+            }}
+          >
+            Completed {historyOpen ? "▾" : "▸"}
+          </button>
+          {historyOpen && (
+            <>
+              <CompletedTaskLog
+                tasks={history ?? []}
+                loading={historyLoading && history === null}
+                onDelete={handleDeleteTask}
+                formatDateHeading={formatDateHeading}
+              />
+              {historyHasMore && (
+                <button type="button" className="completed-log-more"
+                  onClick={() => loadHistory(historyOffset)}
+                  disabled={historyLoading}>
+                  {historyLoading ? "Loading…" : "Show more"}
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

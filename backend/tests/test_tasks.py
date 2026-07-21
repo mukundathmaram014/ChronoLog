@@ -178,6 +178,57 @@ def test_rescheduling_parent_moves_subtasks(client):
     assert [s["date"] for s in body["subtasks"]] == ["2026-01-20"]
 
 
+def test_completed_date_is_set_on_completion_and_cleared_on_undo(client):
+    token = auth_token(client)
+    resp = create_task(client, token, description="thing", date="2026-01-10")
+    task_id = json.loads(resp.data)["id"]
+    assert json.loads(resp.data)["completed_date"] is None
+
+    # the client sends its own day; it is the completion date, not the due date
+    body = json.loads(update_task(client, token, task_id, done=True, completed_date=TODAY).data)
+    assert body["completed_date"] == TODAY
+    assert body["date"] == "2026-01-10"  # due date untouched
+
+    body = json.loads(update_task(client, token, task_id, done=False).data)
+    assert body["completed_date"] is None
+
+
+def test_completed_date_defaults_to_today_when_the_client_omits_it(client):
+    token = auth_token(client)
+    task_id = json.loads(create_task(client, token, description="thing", date=TODAY).data)["id"]
+    body = json.loads(update_task(client, token, task_id, done=True).data)
+    assert body["completed_date"] is not None
+
+
+def test_autocompleted_parent_gets_a_completed_date(client):
+    token = auth_token(client)
+    parent_id = json.loads(create_task(client, token, description="parent", date=TODAY).data)["id"]
+    sub_id = json.loads(create_task(client, token, description="child", parent_id=parent_id).data)["id"]
+
+    body = json.loads(update_task(client, token, sub_id, done=True, completed_date=TODAY).data)
+    assert body["completed_date"] == TODAY
+
+    parent = get_grouped(client, token)["today"][0]
+    assert parent["done"] is True
+    assert parent["completed_date"] == TODAY
+
+
+def test_editing_a_completed_task_does_not_clobber_completed_date(client):
+    token = auth_token(client)
+    task_id = json.loads(create_task(client, token, description="thing", date=TODAY).data)["id"]
+    update_task(client, token, task_id, done=True, completed_date="2026-01-14")
+
+    # an unrelated edit is not a done-transition, so the completion day stands
+    body = json.loads(update_task(client, token, task_id, description="renamed").data)
+    assert body["description"] == "renamed"
+    assert body["completed_date"] == "2026-01-14"
+
+    # rescheduling moves the due date only
+    body = json.loads(update_task(client, token, task_id, date="2026-01-20").data)
+    assert body["date"] == "2026-01-20"
+    assert body["completed_date"] == "2026-01-14"
+
+
 def test_tasks_cross_user_isolation(client):
     token_a = auth_token(client, username="userA", email="a@example.com")
     token_b = auth_token(client, username="userB", email="b@example.com")
