@@ -88,6 +88,9 @@ class Task(db.Model):
     done = db.Column(db.Boolean, nullable=False)
     date = db.Column(db.Date, nullable=False)
     recurrence = db.Column(db.String, nullable=False, default="none")
+    # the day the task was checked off, as opposed to `date` (the due date).
+    # NULL while undone, and on rows completed before this column existed.
+    completed_date = db.Column(db.Date, nullable=True)
     parent_id = db.Column(db.Integer, db.ForeignKey("tasks.id"), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
@@ -107,6 +110,7 @@ class Task(db.Model):
         self.done = kwargs.get("done", False)
         self.date = kwargs.get("date", date.today())
         self.recurrence = kwargs.get("recurrence", "none")
+        self.completed_date = kwargs.get("completed_date")
         self.parent_id = kwargs.get("parent_id")
         self.user_id = kwargs.get("user_id")
 
@@ -120,6 +124,7 @@ class Task(db.Model):
             "done" : self.done,
             "date": self.date.isoformat(),
             "recurrence": self.recurrence,
+            "completed_date": self.completed_date.isoformat() if self.completed_date else None,
             "parent_id": self.parent_id,
             "user_id": self.user_id,
             "subtasks": [subtask.serialize() for subtask in self.subtasks]

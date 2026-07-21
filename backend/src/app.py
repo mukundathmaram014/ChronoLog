@@ -115,6 +115,16 @@ def ensure_stopwatch_position_column():
         db.session.commit()
 
 
+def ensure_task_completed_date_column():
+    result = db.session.execute(text("PRAGMA table_info(tasks)"))
+    columns = {row[1] for row in result}
+    if "completed_date" not in columns:
+        # already-completed rows stay NULL: the completion day was never recorded,
+        # so the history endpoint falls back to their due date
+        db.session.execute(text("ALTER TABLE tasks ADD COLUMN completed_date DATE"))
+        db.session.commit()
+
+
 def create_app(test_config=None):
     db_filename = "ChronoLog.db"
     app = Flask(__name__)
@@ -170,6 +180,7 @@ def create_app(test_config=None):
         ensure_habit_position_column()
         ensure_stopwatch_position_column()
         ensure_stopwatch_repeat_days_column()
+        ensure_task_completed_date_column()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
     app.register_blueprint(task_routes,  url_prefix="/api")

@@ -48,6 +48,36 @@ def test_habits_cross_user_isolation(client):
     assert body["habits"] == []
 
 
+def test_completed_task_history_cross_user_isolation(client):
+    token_a = auth_token(client, username="userA", email="a@example.com")
+    token_b = auth_token(client, username="userB", email="b@example.com")
+
+    # A creates and completes a task
+    resp = client.post(
+        "/api/tasks/",
+        data=json.dumps({"description": "A's task", "date": "2026-01-15"}),
+        content_type="application/json",
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+    assert resp.status_code == 201
+    task_id = json.loads(resp.data)["id"]
+    client.put(
+        f"/api/tasks/{task_id}/",
+        data=json.dumps({"done": True, "completed_date": "2026-01-15"}),
+        content_type="application/json",
+        headers={"Authorization": f"Bearer {token_a}"},
+    )
+
+    # B's history is empty; A's is not
+    resp = client.get("/api/tasks/completed/", headers={"Authorization": f"Bearer {token_b}"})
+    assert json.loads(resp.data)["completed"] == []
+    resp = client.get("/api/tasks/completed/", headers={"Authorization": f"Bearer {token_a}"})
+    assert [t["id"] for t in json.loads(resp.data)["completed"]] == [task_id]
+
+    # and it is not reachable unauthenticated
+    assert client.get("/api/tasks/completed/").status_code == 401
+
+
 def test_stopwatch_cross_user_isolation(client):
     token_a = auth_token(client, username="userA", email="a@example.com")
     token_b = auth_token(client, username="userB", email="b@example.com")

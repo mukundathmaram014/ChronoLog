@@ -13,6 +13,7 @@ from app import (
     ensure_habit_position_column,
     ensure_stopwatch_position_column,
     ensure_stopwatch_repeat_days_column,
+    ensure_task_completed_date_column,
 )
 from db import db
 
@@ -61,3 +62,25 @@ def test_stopwatch_repeat_days_migration_adds_missing_column(app):
             text("SELECT dflt_value FROM pragma_table_info('stopwatches') WHERE name = 'repeat_days'")
         ).scalar()
         assert int(default) == 127
+
+
+def test_task_completed_date_migration_adds_missing_column(app):
+    with app.app_context():
+        # simulate an older DB from before completed-task history (spec 0031)
+        db.session.execute(text("ALTER TABLE tasks DROP COLUMN completed_date"))
+        db.session.commit()
+        assert "completed_date" not in _columns("tasks")
+
+        ensure_task_completed_date_column()
+        assert "completed_date" in _columns("tasks")
+
+        # idempotent: running again on an up-to-date schema is a no-op
+        ensure_task_completed_date_column()
+        assert "completed_date" in _columns("tasks")
+
+        # nullable with no backfill: pre-existing completed rows have no recorded
+        # completion day and fall back to their due date in the history endpoint
+        default = db.session.execute(
+            text("SELECT dflt_value FROM pragma_table_info('tasks') WHERE name = 'completed_date'")
+        ).scalar()
+        assert default is None

@@ -1,6 +1,6 @@
 ---
 title: Record when a task was completed and add an opt-in completed-task history view
-status: decided
+status: built
 ---
 
 # Record when a task was completed and add an opt-in completed-task history view
@@ -93,6 +93,10 @@ degrades gracefully for a daily-repeating task (50 rows ≈ 7 weeks per page).
 - `frontend/src/Pages/taskpage.jsx` — collapsed "Completed" disclosure below the three task groups;
   lazy fetch on first expand; "Show more" paging; refresh while expanded after a task is completed;
   delete handler that resets the history to page 0.
+  *As built:* rather than a second delete handler alongside `handleDeleteTask`, the existing one was
+  extended to do both `fetchTasks()` and the page-0 history reset, and passed straight into
+  `CompletedTaskLog`. The two would have had identical bodies — the accepted same-day overlap means a
+  delete from *either* surface has to clear the other, not just a delete from the history.
 - `frontend/src/Components/CompletedTaskLog.jsx` — new component for the grouped list, taking the
   rows and a delete callback as props (taskpage.jsx is already ~370 lines with two modals).
 - `frontend/src/Pages/taskpage.css` — styles for the disclosure, the history rows, the row delete

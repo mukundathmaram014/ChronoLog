@@ -7,11 +7,16 @@ from db import Task
 from datetime import date, timedelta
 import calendar
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import func
 
 
 task_routes = Blueprint('task', __name__)
 
 VALID_RECURRENCES = {"none", "daily", "weekly", "monthly"}
+
+# history page size: the default, and the ceiling a client can ask for
+DEFAULT_HISTORY_LIMIT = 50
+MAX_HISTORY_LIMIT = 200
 
 
 def add_months(d, months):
@@ -57,6 +62,41 @@ def spawn_next_occurrence(task):
         subtask_copy.parent = next_task
         db.session.add(subtask_copy)
     return next_task
+
+
+@task_routes.route("/tasks/completed/")
+@jwt_required()
+def get_completed_tasks():
+    """
+    Endpoint for paging back through a user's completed top-level tasks, most
+    recently completed first. Ordered (and grouped by the client) on the
+    effective completion day: completed_date, falling back to the due date for
+    rows finished before that column existed. limit/offset come from the query
+    string; one extra row is fetched to report has_more without a second call.
+    """
+    user_id = int(get_jwt_identity())
+
+    try:
+        limit = int(request.args.get("limit", DEFAULT_HISTORY_LIMIT))
+        offset = int(request.args.get("offset", 0))
+    except ValueError:
+        return failure_response("limit and offset must be integers", 400)
+    if limit < 1 or offset < 0:
+        return failure_response("limit must be positive and offset must not be negative", 400)
+    limit = min(limit, MAX_HISTORY_LIMIT)
+
+    effective_date = func.coalesce(Task.completed_date, Task.date)
+    # id descending breaks ties so paging stays stable within a single day
+    tasks = (Task.query
+             .filter_by(user_id=user_id, parent_id=None, done=True)
+             .order_by(effective_date.desc(), Task.id.desc())
+             .offset(offset)
+             .limit(limit + 1)
+             .all())
+
+    has_more = len(tasks) > limit
+    completed = [task.serialize() for task in tasks[:limit]]
+    return success_response({"completed": completed, "has_more": has_more})
 
 
 @task_routes.route("/tasks/<string:date_string>/")
@@ -177,6 +217,9 @@ def update_task(task_id):
     task.done = body.get("done", task.done)
 
     if task.done and not was_done:
+        # the client's own day, since the server may sit in a different timezone.
+        # NB: a distinct key from "date", which above means the *due* date.
+        task.completed_date = date.fromisoformat(body["completed_date"]) if "completed_date" in body else date.today()
         if task.parent_id is None:
             if task.recurrence != "none":
                 spawn_next_occurrence(task)
@@ -185,8 +228,13 @@ def update_task(task_id):
             parent = task.parent
             if not parent.done and all(subtask.done for subtask in parent.subtasks):
                 parent.done = True
+                # without this the indirectly-completed parent has no completion
+                # day and would never surface in the history
+                parent.completed_date = task.completed_date
                 if parent.recurrence != "none":
                     spawn_next_occurrence(parent)
+    elif was_done and not task.done:
+        task.completed_date = None
 
     db.session.commit()
     return success_response(task.serialize())
