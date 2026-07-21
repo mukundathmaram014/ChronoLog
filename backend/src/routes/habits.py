@@ -33,6 +33,29 @@ def create_habit_for_date(requested_date, done, description, user_id, repeat_day
     db.session.commit()
     return new_habit.serialize()
 
+@habit_routes.route("/habits/titles/")
+@jwt_required()
+def get_previous_habit_descriptions():
+    """
+    Endpoint for getting the user's distinct prior habit descriptions (+ most recent
+    date, repeat days and difficulty), most-recent first, to feed the add-form
+    "reuse previous" dropdown. Stats group habits by exact description, so a restarted
+    habit must be re-added under its old spelling to rejoin its own history.
+    Returned unfiltered — the client hides the ones already on the selected day.
+    """
+    user_id = int(get_jwt_identity())
+    rows = (Habit.query
+            .filter_by(user_id = user_id)
+            .order_by(Habit.date.desc(), Habit.id.desc())
+            .all())
+    seen = set()
+    titles = []
+    for habit in rows:
+        if habit.description not in seen:
+            seen.add(habit.description)
+            titles.append({"description": habit.description, "date": habit.date.isoformat(), "repeat_days": habit.repeat_days, "difficulty": habit.difficulty})
+    return success_response({"titles": titles})
+
 @habit_routes.route("/habits/<string:date_string>/")
 @jwt_required()
 def get_habits(date_string):

@@ -102,6 +102,21 @@ h1{
   outline: 2px solid rgb(0,230,122)
 }
 
+.reuse-previous-select {
+  padding: 8px;
+  border: none;
+  border-radius: 5px;
+  width: 266px;
+  margin-bottom: 10px;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.reuse-previous-select:focus {
+  outline: none;
+  outline: 2px solid rgb(0,230,122);
+}
+
 .addHabitButton {
   margin-top: 10px;
   background-color: rgb(0,230,122);
@@ -450,7 +465,8 @@ h1{
   }
 
   .habit-input-item input,
-  .habit-edit-item input {
+  .habit-edit-item input,
+  .reuse-previous-select {
     width: 100%;
     box-sizing: border-box;
   }
