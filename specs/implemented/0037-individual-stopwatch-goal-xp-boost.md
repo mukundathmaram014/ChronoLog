@@ -1,6 +1,6 @@
 ---
 title: Small capped XP boost for hitting individual stopwatch goals
-status: decided
+status: built
 ---
 
 # Small capped XP boost for hitting individual stopwatch goals

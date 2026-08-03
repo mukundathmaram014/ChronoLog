@@ -18,8 +18,9 @@ def _day_inputs(user_id, day):
     The XP inputs for one user-day: completed-habit difficulty tiers, hours
     worked (from the day's Total stopwatch), completed-goal tiers, the day's
     total goal hours (sum of the day's individual stopwatch goal times, for the
-    overtime work-XP boost), and whether every habit that day is done (for the
-    all-habits bonus).
+    overtime work-XP boost), whether every habit that day is done (for the
+    all-habits bonus), and the count of individual (non-Total) stopwatch goals
+    hit that day (for the individual-goal bonus, spec 0037).
     """
     day_habits = Habit.query.filter_by(user_id=user_id, date=day).all()
     habit_difficulties = [habit.difficulty for habit in day_habits if habit.done]
@@ -39,7 +40,12 @@ def _day_inputs(user_id, day):
     # amount on different days; reading the Total per day already handles that.
     goal_ms = total_stopwatch.goal_time if total_stopwatch else 0
     goal_hours = (goal_ms or 0) / MS_PER_HOUR
-    return habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done, max_habit_xp
+    individual_stopwatches = Stopwatch.query.filter_by(user_id=user_id, date=day, isTotal=False).all()
+    individual_goals_hit = sum(
+        1 for stopwatch in individual_stopwatches
+        if stopwatch.goal_time and stopwatch.goal_time > 0 and stopwatch.curr_duration >= stopwatch.goal_time
+    )
+    return habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done, max_habit_xp, individual_goals_hit
 
 
 def _last_activity_date(user_id):
@@ -74,8 +80,8 @@ def recompute_from(user_id, day):
     delta = 0
     current = day
     while current <= end:
-        habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done, max_habit_xp = _day_inputs(user_id, current)
-        result = compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak, goal_hours, all_habits_done, max_habit_xp)
+        habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done, max_habit_xp, individual_goals_hit = _day_inputs(user_id, current)
+        result = compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_streak, goal_hours, all_habits_done, max_habit_xp, individual_goals_hit)
         row = DailyXP.query.filter_by(user_id=user_id, date=current).first()
         old_xp = row.xp_earned if row else 0
         if row is not None:
@@ -118,7 +124,7 @@ def streak_progress_today(user_id, day):
     How close `day` is to counting toward the streak: target / current /
     remaining XP and whether it already qualifies (see utils.streak_progress).
     """
-    habit_difficulties, hours_worked, _, goal_hours, _, max_habit_xp = _day_inputs(user_id, day)
+    habit_difficulties, hours_worked, _, goal_hours, _, max_habit_xp, _ = _day_inputs(user_id, day)
     habit_base = sum(HABIT_XP[difficulty] for difficulty in habit_difficulties)
     return streak_progress(habit_base, hours_worked, goal_hours, max_habit_xp)
 
