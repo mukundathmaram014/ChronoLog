@@ -185,6 +185,12 @@ class DailyXP(db.Model):
     date = db.Column(db.Date, nullable=False)
     xp_earned = db.Column(db.Integer, nullable=False, default=0)
     streak = db.Column(db.Integer, nullable=False, default=0)
+    # component split of xp_earned (spec 0034), persisted so the statistics
+    # page's XP-source pie is a single range query instead of a recompute
+    habit_xp = db.Column(db.Integer, nullable=False, default=0)
+    work_xp = db.Column(db.Integer, nullable=False, default=0)
+    goal_xp = db.Column(db.Integer, nullable=False, default=0)
+    bonus_xp = db.Column(db.Integer, nullable=False, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     def __init__(self, **kwargs):
@@ -195,6 +201,10 @@ class DailyXP(db.Model):
         self.date = kwargs.get("date", date.today())
         self.xp_earned = kwargs.get("xp_earned", 0)
         self.streak = kwargs.get("streak", 0)
+        self.habit_xp = kwargs.get("habit_xp", 0)
+        self.work_xp = kwargs.get("work_xp", 0)
+        self.goal_xp = kwargs.get("goal_xp", 0)
+        self.bonus_xp = kwargs.get("bonus_xp", 0)
         self.user_id = kwargs.get("user_id")
 
     def serialize(self):
@@ -206,6 +216,10 @@ class DailyXP(db.Model):
             "date": self.date.isoformat(),
             "xp_earned": self.xp_earned,
             "streak": self.streak,
+            "habit_xp": self.habit_xp,
+            "work_xp": self.work_xp,
+            "goal_xp": self.goal_xp,
+            "bonus_xp": self.bonus_xp,
             "user_id": self.user_id
         }
 

@@ -10,6 +10,7 @@ migration, and checks it is re-added (and is idempotent).
 from sqlalchemy import text
 
 from app import (
+    ensure_daily_xp_breakdown_columns,
     ensure_habit_position_column,
     ensure_stopwatch_position_column,
     ensure_stopwatch_repeat_days_column,
@@ -106,3 +107,29 @@ def test_task_completed_date_migration_adds_missing_column(app):
             text("SELECT dflt_value FROM pragma_table_info('tasks') WHERE name = 'completed_date'")
         ).scalar()
         assert default is None
+
+
+def test_daily_xp_breakdown_migration_adds_missing_columns(app):
+    with app.app_context():
+        # simulate an older DB from before the persisted XP component split (spec 0034)
+        for column in ("habit_xp", "work_xp", "goal_xp", "bonus_xp"):
+            db.session.execute(text(f"ALTER TABLE daily_xp DROP COLUMN {column}"))
+        db.session.commit()
+        for column in ("habit_xp", "work_xp", "goal_xp", "bonus_xp"):
+            assert column not in _columns("daily_xp")
+
+        ensure_daily_xp_breakdown_columns()
+        for column in ("habit_xp", "work_xp", "goal_xp", "bonus_xp"):
+            assert column in _columns("daily_xp")
+
+        # idempotent: running again on an up-to-date schema is a no-op
+        ensure_daily_xp_breakdown_columns()
+        for column in ("habit_xp", "work_xp", "goal_xp", "bonus_xp"):
+            assert column in _columns("daily_xp")
+
+        # existing rows get 0s until backfill_xp.py is re-run
+        for column in ("habit_xp", "work_xp", "goal_xp", "bonus_xp"):
+            default = db.session.execute(
+                text(f"SELECT dflt_value FROM pragma_table_info('daily_xp') WHERE name = '{column}'")
+            ).scalar()
+            assert int(default) == 0

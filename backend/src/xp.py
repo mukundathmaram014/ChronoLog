@@ -81,8 +81,21 @@ def recompute_from(user_id, day):
         if row is not None:
             row.xp_earned = result["xp_earned"]
             row.streak = result["streak"]
+            row.habit_xp = result["habit_xp"]
+            row.work_xp = result["work_xp"]
+            row.goal_xp = result["goal_xp"]
+            row.bonus_xp = result["bonus_xp"]
         elif result["xp_earned"] != 0 or result["streak"] != 0:
-            db.session.add(DailyXP(date=current, xp_earned=result["xp_earned"], streak=result["streak"], user_id=user_id))
+            db.session.add(DailyXP(
+                date=current,
+                xp_earned=result["xp_earned"],
+                streak=result["streak"],
+                habit_xp=result["habit_xp"],
+                work_xp=result["work_xp"],
+                goal_xp=result["goal_xp"],
+                bonus_xp=result["bonus_xp"],
+                user_id=user_id,
+            ))
         delta += result["xp_earned"] - old_xp
         prev_streak = result["streak"]
         current += timedelta(days=1)

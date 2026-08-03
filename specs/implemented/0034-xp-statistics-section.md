@@ -1,6 +1,6 @@
 ---
 title: Add an XP section to the statistics page, backed by a persisted per-day XP breakdown
-status: decided
+status: built
 ---
 
 # Add an XP section to the statistics page, backed by a persisted per-day XP breakdown

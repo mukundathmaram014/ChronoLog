@@ -86,7 +86,10 @@ def test_day_xp_helper_sums_sources_and_ramps_multiplier():
     # a day qualifies at >= 85% of its max; 5 hard habits all done (max 250) is
     # 100%. Fresh streak: no boost yet
     result = compute_day_xp(["hard"] * 5, 0, [], 0, max_habit_xp=250)
-    assert result == {"xp_earned": 250, "streak": 1, "multiplier": 1.0}
+    assert result == {
+        "xp_earned": 250, "streak": 1, "multiplier": 1.0,
+        "habit_xp": 250, "work_xp": 0, "goal_xp": 0, "bonus_xp": 0,
+    }
 
     # multiplier ramps with the running streak (habit XP only)
     result = compute_day_xp(["hard"] * 5, 0, [], 5, max_habit_xp=250)
@@ -111,6 +114,20 @@ def test_day_xp_helper_non_qualifying_day_resets_streak():
     assert result["streak"] == 0
     assert result["multiplier"] == 1.0
     assert result["xp_earned"] == HABIT_XP["easy"] + 2 * XP_PER_HOUR + GOAL_XP["medium"]
+
+
+def test_day_xp_components_sum_to_xp_earned():
+    # habits + work + two goals + both flat bonuses, all in one day
+    result = compute_day_xp(
+        ["hard"] * 5, 2.0, ["easy", "medium"], 5,
+        goal_hours=1.0, all_habits_done=True, max_habit_xp=250,
+    )
+    assert result["habit_xp"] + result["work_xp"] + result["goal_xp"] + result["bonus_xp"] == result["xp_earned"]
+    assert result["goal_xp"] == GOAL_XP["easy"] + GOAL_XP["medium"]
+    assert result["bonus_xp"] == ALL_HABITS_BONUS + GOAL_TIME_BONUS
+    assert result["habit_xp"] == round(5 * HABIT_XP["hard"] * streak_multiplier(6))
+    # 2h worked against a 1h goal: 1h standard + 1h overtime
+    assert result["work_xp"] == round(1.0 * XP_PER_HOUR + 1.0 * XP_PER_HOUR_OVERTIME)
 
 
 def test_streak_threshold_is_percentage_of_max():
@@ -219,6 +236,19 @@ def test_past_day_edit_recomputes_streak_forward(client):
     level = get_level(client, token)
     assert level["total_xp"] == (250 + 200 + 250) + 2 * ALL_HABITS_BONUS
     assert level["streak"] == 1
+
+
+def test_recompute_from_persists_xp_components_on_the_ledger_row(app, client):
+    token = auth_token(client)
+    create_habit(client, token, description="deep work", date=TODAY, difficulty="hard", done=True)
+
+    with app.app_context():
+        row = DailyXP.query.filter_by(user_id=User.query.first().id, date=date.fromisoformat(TODAY)).first()
+        assert row.habit_xp == HABIT_XP["hard"]
+        assert row.bonus_xp == ALL_HABITS_BONUS  # the day's only habit is done
+        assert row.work_xp == 0
+        assert row.goal_xp == 0
+        assert row.habit_xp + row.work_xp + row.goal_xp + row.bonus_xp == row.xp_earned
 
 
 def test_deleting_done_habit_removes_its_xp(client):

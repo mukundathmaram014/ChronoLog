@@ -136,14 +136,19 @@ def compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_str
     hours worked, tiers of goals completed that day, the previous day's streak,
     the day's total goal hours, whether every habit that day was completed, and
     the day's max possible habit XP (every habit done) -> {"xp_earned",
-    "streak", "multiplier"}. The streak multiplier applies to habit XP only;
-    work, goal, and the flat bonuses are flat. Worked time earns XP_PER_HOUR up
-    to the day's goal hours and the higher XP_PER_HOUR_OVERTIME beyond it
-    (goal_hours = 0 -> no overtime). Completing all of the day's habits adds a
-    flat ALL_HABITS_BONUS; working at least the day's goal time adds a flat
+    "streak", "multiplier", "habit_xp", "work_xp", "goal_xp", "bonus_xp"}. The
+    streak multiplier applies to habit XP only; work, goal, and the flat
+    bonuses are flat. Worked time earns XP_PER_HOUR up to the day's goal hours
+    and the higher XP_PER_HOUR_OVERTIME beyond it (goal_hours = 0 -> no
+    overtime). Completing all of the day's habits adds a flat
+    ALL_HABITS_BONUS; working at least the day's goal time adds a flat
     GOAL_TIME_BONUS. A day counts toward the streak when its grind XP (habits
     done + worked time capped at the goal) reaches STREAK_THRESHOLD_PCT of the
     most it could be (every habit done + goal time worked).
+
+    Each component is rounded individually and xp_earned is their sum, so the
+    pie breakdown always reconciles to the displayed total (can differ from a
+    single rounding of the combined total by ±1 XP -- an accepted drift).
     """
     habit_base = sum(HABIT_XP[difficulty] for difficulty in habit_difficulties)
     # standard rate up to the day's total goal time, overtime rate beyond it
@@ -170,8 +175,21 @@ def compute_day_xp(habit_difficulties, hours_worked, goal_difficulties, prev_str
     # reaching the day's total goal time (when one is set) earns a flat bonus
     if goal_hours and goal_hours > 0 and hours_worked >= goal_hours:
         bonus += GOAL_TIME_BONUS
-    xp_earned = round(habit_base * multiplier + work_xp + goal_xp + bonus)
-    return {"xp_earned": xp_earned, "streak": streak, "multiplier": multiplier}
+
+    habit_xp = round(habit_base * multiplier)
+    work_xp = round(work_xp)
+    goal_xp = round(goal_xp)  # already integral
+    bonus_xp = round(bonus)  # already integral
+    xp_earned = habit_xp + work_xp + goal_xp + bonus_xp
+    return {
+        "xp_earned": xp_earned,
+        "streak": streak,
+        "multiplier": multiplier,
+        "habit_xp": habit_xp,
+        "work_xp": work_xp,
+        "goal_xp": goal_xp,
+        "bonus_xp": bonus_xp,
+    }
 
 
 def streak_progress(habit_base, hours_worked, goal_hours, max_habit_xp):
