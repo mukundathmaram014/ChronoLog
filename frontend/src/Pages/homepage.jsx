@@ -254,7 +254,7 @@ export function Home() {
                             ) : (
                                 <>
                                     Level {levelData.level}
-                                    <span className="homepage-level-rank">{levelData.rank}-Rank</span>
+                                    {levelData.rank && <span className="homepage-level-rank">{levelData.rank}-Rank</span>}
                                 </>
                             )}
                         </h3>

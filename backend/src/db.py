@@ -1,7 +1,7 @@
 import json
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, timezone
-from utils import ensure_utc
+from utils import ensure_utc, rank_visible
 db = SQLAlchemy()
 
 
@@ -26,7 +26,7 @@ class User(db.Model):
         Serializing a user to be returned
         """
 
-        return {"id": self.id, "username": self.username, "email": self.email, "homepage_note": self.homepage_note, "total_xp": self.total_xp or 0, "is_guest": bool(self.is_guest)}
+        return {"id": self.id, "username": self.username, "email": self.email, "homepage_note": self.homepage_note, "total_xp": self.total_xp or 0, "is_guest": bool(self.is_guest), "show_rank": rank_visible(self)}
 
 
 # Habit model

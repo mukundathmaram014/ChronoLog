@@ -434,7 +434,7 @@ def test_weekday_gated_carry_forward_leaves_day_xp_unchanged(client):
     before = json.loads(client.get(f"/api/level/{day(2)}/", headers=headers).data)
     get_stopwatches(client, token, day(2))  # triggers weekday-gated carry-forward
     after = json.loads(client.get(f"/api/level/{day(2)}/", headers=headers).data)
-    for field in ("total_xp", "day_xp", "level", "rank", "xp_into_level", "xp_to_next", "streak", "multiplier"):
+    for field in ("total_xp", "day_xp", "level", "xp_into_level", "xp_to_next", "streak", "multiplier"):
         assert before[field] == after[field]
 
 
@@ -635,5 +635,5 @@ def test_carry_forward_leaves_day_xp_unchanged(client):
     after = json.loads(client.get(f"/api/level/{day}/", headers=headers).data)
     # carry-forward grants no XP: the XP/level/streak-count fields are unchanged.
     # (The streak-requirement fields do change -- carry-forward adds a goal to hit.)
-    for field in ("total_xp", "day_xp", "level", "rank", "xp_into_level", "xp_to_next", "streak", "multiplier"):
+    for field in ("total_xp", "day_xp", "level", "xp_into_level", "xp_to_next", "streak", "multiplier"):
         assert before[field] == after[field]
