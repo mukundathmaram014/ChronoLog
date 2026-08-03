@@ -13,6 +13,7 @@ from app import (
     ensure_habit_position_column,
     ensure_stopwatch_position_column,
     ensure_stopwatch_repeat_days_column,
+    ensure_stopwatch_weekday_goal_times_column,
     ensure_task_completed_date_column,
 )
 from db import db
@@ -62,6 +63,27 @@ def test_stopwatch_repeat_days_migration_adds_missing_column(app):
             text("SELECT dflt_value FROM pragma_table_info('stopwatches') WHERE name = 'repeat_days'")
         ).scalar()
         assert int(default) == 127
+
+
+def test_stopwatch_weekday_goal_times_migration_adds_missing_column(app):
+    with app.app_context():
+        # simulate an older DB from before per-weekday goal times (spec 0036)
+        db.session.execute(text("ALTER TABLE stopwatches DROP COLUMN weekday_goal_times"))
+        db.session.commit()
+        assert "weekday_goal_times" not in _columns("stopwatches")
+
+        ensure_stopwatch_weekday_goal_times_column()
+        assert "weekday_goal_times" in _columns("stopwatches")
+
+        # idempotent: running again on an up-to-date schema is a no-op
+        ensure_stopwatch_weekday_goal_times_column()
+        assert "weekday_goal_times" in _columns("stopwatches")
+
+        # nullable with no backfill: existing rows keep one uniform goal_time
+        default = db.session.execute(
+            text("SELECT dflt_value FROM pragma_table_info('stopwatches') WHERE name = 'weekday_goal_times'")
+        ).scalar()
+        assert default is None
 
 
 def test_task_completed_date_migration_adds_missing_column(app):

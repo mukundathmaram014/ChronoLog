@@ -28,6 +28,9 @@ import useFetch from "../hooks/useFetch";
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const ALL_DAYS = 127;
 
+// the seven per-weekday goal inputs (spec 0036), all seeded to the same value
+const uniformWeekdayGoals = (hours, minutes) => Array.from({ length: 7 }, () => ({ hours, minutes }));
+
 export function Stopwatch() {
 
     const fetchWithAuth = useFetch();
@@ -55,6 +58,10 @@ export function Stopwatch() {
     const [inputHours, setInputHours] = useState(1);
     const [inputMinutes, setInputMinutes] = useState(0);
     const [noGoal, setNoGoal] = useState(false);
+    // per-weekday goals (spec 0036): when on, the single Hours/Minutes pair is
+    // replaced by seven of them and the row's goal is always its weekday's slot
+    const [perDayGoal, setPerDayGoal] = useState(false);
+    const [weekdayGoals, setWeekdayGoals] = useState(() => uniformWeekdayGoals(1, 0));
     const [isRecurring, setIsRecurring] = useState(true);
     const [repeatDays, setRepeatDays] = useState(ALL_DAYS);
     const [previousTitles, setPreviousTitles] = useState([]);
@@ -287,6 +294,39 @@ export function Stopwatch() {
         }
     }
 
+    const updateWeekdayGoal = (index, field, value) => {
+        setWeekdayGoals(previous => previous.map((goal, i) => (i === index) ? {...goal, [field]: value} : goal));
+    }
+
+    // turning per-day mode on seeds all seven slots from the single goal, so a 2h
+    // stopwatch becomes 2h x 7 with no surprise jump. Turning it off clears the
+    // schedule server-side; the seven values aren't remembered
+    const togglePerDayGoal = (enabled) => {
+        if (enabled) {
+            setWeekdayGoals(uniformWeekdayGoals(Number(inputHours) || 0, Number(inputMinutes) || 0));
+        }
+        setPerDayGoal(enabled);
+    }
+
+    // the seven pairs as the API's "HH:MM" strings; null clears the schedule and
+    // returns the stopwatch to one uniform goal
+    const weekdayGoalTimesPayload = () => {
+        if (!perDayGoal) {
+            return null;
+        }
+        return weekdayGoals.map(goal => {
+            const safeHours = Math.max(0, Math.min(23, Number(goal.hours) || 0));
+            const safeMinutes = Math.max(0, Math.min(59, Number(goal.minutes) || 0));
+            return `${String(safeHours).padStart(2, '0')}:${String(safeMinutes).padStart(2, '0')}`;
+        });
+    }
+
+    // a stored schedule (7 millisecond values) back into the seven input pairs
+    const weekdayGoalsFromMilliseconds = (schedule) => schedule.map(milliseconds => {
+        const [hours, minutes] = formatTimeString(milliseconds || 0);
+        return { hours: Number(hours), minutes: Number(minutes) };
+    });
+
     const addStopwatch = async () => {
         if (isFuture){
             return;
@@ -305,7 +345,9 @@ export function Stopwatch() {
         const newStopwatch = {
             title : stopwatchTitle,
             date : selectedDate,
-            goal_time : noGoal ? null : inputTimeString,
+            goal_time : (noGoal && !perDayGoal) ? null : inputTimeString,
+            // when set, the schedule is authoritative and goal_time above is ignored
+            weekday_goal_times : weekdayGoalTimesPayload(),
             is_recurring : isRecurring,
             // a non-recurring stopwatch never carries, so its mask stays the every-day default
             repeat_days : isRecurring ? repeatDays : ALL_DAYS
@@ -339,6 +381,8 @@ export function Stopwatch() {
             setInputHours(1);
             setInputMinutes(0);
             setNoGoal(false);
+            setPerDayGoal(false);
+            setWeekdayGoals(uniformWeekdayGoals(1, 0));
             setIsRecurring(true);
             setRepeatDays(ALL_DAYS);
         } catch (error) {
@@ -349,13 +393,18 @@ export function Stopwatch() {
     }
 
     // "reuse previous" dropdown: prefills the add form with a prior title, its goal
-    // and its repeat days
+    // (single or per-weekday) and its repeat days
     const prefillFromPrevious = (title) => {
         const previous = previousTitles.find(p => p.title === title);
         if (!previous) return;
         setStopwatchTitle(previous.title);
         setNoGoal(!previous.goal_time);
         setRepeatDays(previous.repeat_days ?? ALL_DAYS);
+        const schedule = previous.weekday_goal_times;
+        setPerDayGoal(Boolean(schedule));
+        if (schedule) {
+            setWeekdayGoals(weekdayGoalsFromMilliseconds(schedule));
+        }
         const [hours, minutes] = formatTimeString(previous.goal_time || 3600000);
         setInputHours(Number(hours));
         setInputMinutes(Number(minutes));
@@ -520,7 +569,7 @@ export function Stopwatch() {
             ? (matchSum
                 ? { title: stopwatchTitle, match_sum: true }
                 : { title: stopwatchTitle, goal_time: inputTimeString })
-            : { title: stopwatchTitle, goal_time: noGoal ? null : inputTimeString, curr_duration: newDuration, is_recurring: isRecurring, repeat_days: isRecurring ? repeatDays : ALL_DAYS };
+            : { title: stopwatchTitle, goal_time: (noGoal && !perDayGoal) ? null : inputTimeString, weekday_goal_times: weekdayGoalTimesPayload(), curr_duration: newDuration, is_recurring: isRecurring, repeat_days: isRecurring ? repeatDays : ALL_DAYS };
 
         setIsAdding(true);
 
@@ -544,6 +593,8 @@ export function Stopwatch() {
             setInputHours(1);
             setInputMinutes(0);
             setNoGoal(false);
+            setPerDayGoal(false);
+            setWeekdayGoals(uniformWeekdayGoals(1, 0));
             setIsRecurring(true);
             setRepeatDays(ALL_DAYS);
             setEditingIsTotal(false);
@@ -606,10 +657,17 @@ export function Stopwatch() {
         setEditingIsTotal(item.isTotal);
         if (item.isTotal) {
             setMatchSum(!item.goal_overridden);
+            setPerDayGoal(false);
         } else {
             setNoGoal(!item.goal_time);
             setIsRecurring(item.is_recurring);
             setRepeatDays(item.repeat_days ?? ALL_DAYS);
+            // a row carrying a schedule opens straight into per-day mode
+            const schedule = item.weekday_goal_times;
+            setPerDayGoal(Boolean(schedule));
+            if (schedule) {
+                setWeekdayGoals(weekdayGoalsFromMilliseconds(schedule));
+            }
         }
         const [hours, minutes] = formatTimeString(item.goal_time || 3600000);
         setInputHours(Number(hours));
@@ -632,6 +690,49 @@ export function Stopwatch() {
           {repeatDays === 0 && (
             <div style={{ color: "red", marginBottom: "10px" }}>Select at least one day.</div>
           )}
+        </>
+    );
+
+    // seven compact Hours/Minutes pairs in WEEKDAY_LABELS order, so they line up
+    // with the repeat-day toggles below. Weekdays outside the repeat set are dimmed
+    // but stay editable, so re-checking a day restores its remembered goal
+    const renderPerWeekdayGoals = (onEnter) => (
+        <div className="weekday-goal-list">
+          {WEEKDAY_LABELS.map((label, i) => (
+            <div key={label}
+                 className={`weekday-goal-row ${(isRecurring && !(repeatDays & (1 << i))) ? 'unscheduled' : ''}`}>
+              <span className="weekday-goal-label">{label}</span>
+              <input type="number" min="0" max="23" aria-label={`${label} goal hours`}
+                value={weekdayGoals[i].hours}
+                onChange={e => updateWeekdayGoal(i, "hours", e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") onEnter(); }} />
+              <span className="weekday-goal-unit">h</span>
+              <input type="number" min="0" max="59" aria-label={`${label} goal minutes`}
+                value={weekdayGoals[i].minutes}
+                onChange={e => updateWeekdayGoal(i, "minutes", e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") onEnter(); }} />
+              <span className="weekday-goal-unit">m</span>
+            </div>
+          ))}
+        </div>
+    );
+
+    // the goal-mode toggles shared by both forms: per-day mode replaces the single
+    // Hours/Minutes pair with seven, and hides "No goal" — a 0h 0m slot is how
+    // "no goal that weekday" is expressed there
+    const renderGoalToggles = (onEnter) => (
+        <>
+          <label className="no-goal-toggle">
+            <input type="checkbox" checked={perDayGoal} onChange={e => togglePerDayGoal(e.target.checked)} />
+            Different goal per day
+          </label>
+          {!perDayGoal && (
+            <label className="no-goal-toggle">
+              <input type="checkbox" checked={noGoal} onChange={e => setNoGoal(e.target.checked)} />
+              No goal
+            </label>
+          )}
+          {perDayGoal && renderPerWeekdayGoals(onEnter)}
         </>
     );
 
@@ -814,7 +915,7 @@ export function Stopwatch() {
         <div className="stopwatches">
         <div className = "header">
             <button className = "primaryBtn" onClick = {() => {
-                setAddingStopwatch(true); setNoGoal(false); setInputHours(1); setInputMinutes(0); setIsRecurring(true); setRepeatDays(ALL_DAYS);
+                setAddingStopwatch(true); setNoGoal(false); setPerDayGoal(false); setWeekdayGoals(uniformWeekdayGoals(1, 0)); setInputHours(1); setInputMinutes(0); setIsRecurring(true); setRepeatDays(ALL_DAYS);
                 // feeds the "reuse previous" dropdown with the user's distinct prior titles
                 fetchWithAuth(`/stopwatches/titles/`, { method: "GET" })
                     .then(response => response.json())
@@ -828,7 +929,7 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-edit-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setNoGoal(false); setIsRecurring(true); setEditingIsTotal(false); setMatchSum(true); setStopwatchError("");}}/>
+                        onClick={() => {setEditStopwatch(false); setStopwatchTitle(""); setInputHours(1); setInputMinutes(0); setNoGoal(false); setPerDayGoal(false); setWeekdayGoals(uniformWeekdayGoals(1, 0)); setIsRecurring(true); setEditingIsTotal(false); setMatchSum(true); setStopwatchError("");}}/>
                       <h3>{editingIsTotal ? "Set Daily Goal" : "Edit Stopwatch"}</h3>
                       {!editingIsTotal && (
                         <>
@@ -849,12 +950,8 @@ export function Stopwatch() {
                           <input type="checkbox" checked={matchSum} onChange={e => setMatchSum(e.target.checked)} />
                           Match sum of stopwatch goals
                         </label>
-                      ) : (
-                        <label className="no-goal-toggle">
-                          <input type="checkbox" checked={noGoal} onChange={e => setNoGoal(e.target.checked)} />
-                          No goal
-                        </label>
-                      )}
+                      ) : renderGoalToggles(handleEditStopwatch)}
+                      {!(!editingIsTotal && perDayGoal) && (
                       <div className = "goal-time-inputs">
                         <label htmlFor="goal-hours">Hours:</label>
                         <input
@@ -885,6 +982,7 @@ export function Stopwatch() {
                             }}
                         />
                       </div>
+                      )}
                       {!editingIsTotal && (
                         <>
                       <label className="no-goal-toggle">
@@ -961,7 +1059,7 @@ export function Stopwatch() {
                   <div className = "stopwatch-input">
                     <div className = "stopwatch-input-item">
                       <IoMdClose className = "close-icon"
-                        onClick={() => {setAddingStopwatch(false); setNoGoal(false); setIsRecurring(true); setStopwatchError("")}}/>
+                        onClick={() => {setAddingStopwatch(false); setNoGoal(false); setPerDayGoal(false); setWeekdayGoals(uniformWeekdayGoals(1, 0)); setIsRecurring(true); setStopwatchError("")}}/>
                       <h3>Add a New Stopwatch</h3>
                       {previousTitles.length > 0 && (
                         <>
@@ -989,10 +1087,8 @@ export function Stopwatch() {
                       }}
                       placeholder="What's the stopwatch for"/>
                       <label style={{ marginTop: "18px", display: "block" }}>Goal Time:</label>
-                      <label className="no-goal-toggle">
-                        <input type="checkbox" checked={noGoal} onChange={e => setNoGoal(e.target.checked)} />
-                        No goal
-                      </label>
+                      {renderGoalToggles(addStopwatch)}
+                      {!perDayGoal && (
                       <div className = "goal-time-inputs">
                         <label htmlFor="goal-hours">Hours:</label>
                         <input
@@ -1025,6 +1121,7 @@ export function Stopwatch() {
                             }}
                         />
                       </div>
+                      )}
                       <label className="no-goal-toggle">
                         <input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} />
                         Recurring (carries forward to future days)

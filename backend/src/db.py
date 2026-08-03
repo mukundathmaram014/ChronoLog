@@ -1,3 +1,4 @@
+import json
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, timezone
 from utils import ensure_utc
@@ -233,6 +234,13 @@ class Stopwatch(db.Model):
     # bit i = date.weekday() i (0 = Mon ... 6 = Sun); 127 = every day. Ignored when
     # is_recurring is False, and unused on the Total row.
     repeat_days = db.Column(db.Integer, nullable=False, default=127)
+    # optional per-weekday goal *template* (spec 0036): a JSON list of exactly 7
+    # millisecond values, index i = date.weekday() i (0 = Mon ... 6 = Sun), same
+    # convention as repeat_days. Consulted only when a row is created or carried
+    # forward, to decide what goal_time that day's row lands with; the row's own
+    # goal_time stays the source of truth for its day. NULL = one uniform goal,
+    # i.e. the pre-feature behavior. Unused on the Total row.
+    weekday_goal_times = db.Column(db.String, nullable=True)
     # display order within a (user, date) list; new rows append. The Total row
     # keeps 0 — it never participates in ordering (spec 0004).
     position = db.Column(db.Integer, nullable=False, default=0)
@@ -260,8 +268,26 @@ class Stopwatch(db.Model):
         self.goal_overridden = kwargs.get("goal_overridden", False)
         self.is_recurring = kwargs.get("is_recurring", True)
         self.repeat_days = kwargs.get("repeat_days", 127)
+        self.set_weekday_goal_times(kwargs.get("weekday_goal_times"))
         self.position = kwargs.get("position", 0)
         self.user_id = kwargs.get("user_id")
+
+    def set_weekday_goal_times(self, schedule):
+        """
+        Store a per-weekday goal schedule: a list of 7 millisecond values, or
+        None to return the row to a single uniform goal_time. The JSON encoding
+        lives here so routes never build it inline.
+        """
+        self.weekday_goal_times = json.dumps(schedule) if schedule is not None else None
+
+    def weekday_goal_times_list(self):
+        """
+        The row's per-weekday goal schedule as a list of 7 millisecond values,
+        or None when the row uses one uniform goal_time.
+        """
+        if not self.weekday_goal_times:
+            return None
+        return json.loads(self.weekday_goal_times)
 
     def serialize(self):
         """
@@ -281,6 +307,7 @@ class Stopwatch(db.Model):
             "goal_overridden": self.goal_overridden,
             "is_recurring": self.is_recurring,
             "repeat_days": self.repeat_days,
+            "weekday_goal_times": self.weekday_goal_times_list(),
             "position": self.position,
             "user_id": self.user_id
         }

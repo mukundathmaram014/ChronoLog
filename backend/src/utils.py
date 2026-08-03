@@ -20,6 +20,45 @@ def validate_repeat_days(repeat_days):
     return isinstance(repeat_days, int) and not isinstance(repeat_days, bool) and 1 <= repeat_days <= 127
 
 
+def validate_weekday_goal_times(value):
+    """
+    Returns True iff value is a valid per-weekday stopwatch goal schedule (spec
+    0036): None (one uniform goal), or a dense list of exactly 7 entries, each
+    None ("no goal that weekday") or an "HH:MM" string with hours 0-23 and
+    minutes 0-59. Index i = date.weekday() i (0 = Mon ... 6 = Sun), the same
+    convention as validate_repeat_days.
+    """
+    if value is None:
+        return True
+    if not isinstance(value, list) or len(value) != 7:
+        return False
+    for entry in value:
+        if entry is None:
+            continue
+        # bools/ints/etc. fail here, same spirit as validate_repeat_days' guard
+        if not isinstance(entry, str) or len(entry) != 5 or entry[2] != ":":
+            return False
+        hours, minutes = entry[0:2], entry[3:5]
+        if not (hours.isdigit() and minutes.isdigit()):
+            return False
+        if int(hours) > 23 or int(minutes) > 59:
+            return False
+    return True
+
+
+def effective_goal_time(schedule, base_goal_time, target_date):
+    """
+    The goal time (ms) a stopwatch row lands with on `target_date`: its weekday's
+    slot when the stopwatch carries a per-weekday schedule, else the uniform
+    base goal. The single derivation point — nothing else indexes the schedule.
+    Derivation is by weekday alone: a row sitting on a weekday its own
+    repeat_days excludes still reads that weekday's slot.
+    """
+    if schedule is None:
+        return base_goal_time
+    return schedule[target_date.weekday()]
+
+
 def process_date(request):
     body = json.loads(request.data)
     date_string = body.get("date", date.today().isoformat())

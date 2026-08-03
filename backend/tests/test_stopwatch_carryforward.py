@@ -8,12 +8,14 @@ ONE_HOUR_MS = 3600000
 HALF_HOUR_MS = 1800000
 
 
-def create_stopwatch(client, token, title, date_str, goal_time="01:00", is_recurring=None, repeat_days=None):
+def create_stopwatch(client, token, title, date_str, goal_time="01:00", is_recurring=None, repeat_days=None, weekday_goal_times=None):
     body = {"title": title, "date": date_str, "goal_time": goal_time}
     if is_recurring is not None:
         body["is_recurring"] = is_recurring
     if repeat_days is not None:
         body["repeat_days"] = repeat_days
+    if weekday_goal_times is not None:
+        body["weekday_goal_times"] = weekday_goal_times
     return client.post(
         "/api/stopwatches/",
         data=json.dumps(body),
@@ -434,6 +436,192 @@ def test_weekday_gated_carry_forward_leaves_day_xp_unchanged(client):
     after = json.loads(client.get(f"/api/level/{day(2)}/", headers=headers).data)
     for field in ("total_xp", "day_xp", "level", "rank", "xp_into_level", "xp_to_next", "streak", "multiplier"):
         assert before[field] == after[field]
+
+
+# ---- per-weekday goal times (spec 0036) ----
+# index i = date.weekday() i (0 = Mon ... 6 = Sun), the same convention as repeat_days
+
+def schedule(**by_label):
+    """
+    A dense 7-slot "HH:MM" schedule; unnamed weekdays default to "00:30".
+    e.g. schedule(Mo="02:00", Sa="00:00")
+    """
+    labels = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+    return [by_label.get(label, "00:30") for label in labels]
+
+
+def regular_on(client, token, offset, title):
+    return next(s for s in regulars_of(get_stopwatches(client, token, day(offset))) if s["title"] == title)
+
+
+def total_on(client, token, offset):
+    return totals_of(get_stopwatches(client, token, day(offset)))[0]
+
+
+def test_weekday_schedule_persists_and_sets_the_creation_days_goal(client):
+    token = auth_token(client)
+    # created on the anchor Monday: it lands with Monday's slot, not the goal_time field
+    resp = create_stopwatch(client, token, "study", day(0), goal_time="09:00",
+                            weekday_goal_times=schedule(Mo="02:00"))
+    created = json.loads(resp.data)["stopwatches"][1]
+    assert created["goal_time"] == 2 * ONE_HOUR_MS
+    assert created["weekday_goal_times"] == [2 * ONE_HOUR_MS] + [HALF_HOUR_MS] * 6
+    # and the Total is that landed goal, not the ignored 9h
+    assert json.loads(resp.data)["stopwatches"][0]["goal_time"] == 2 * ONE_HOUR_MS
+
+
+def test_carry_forward_lands_the_new_days_weekday_goal(client):
+    token = auth_token(client)
+    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00", Tu="00:45"))
+
+    tuesday = regular_on(client, token, 1, "study")
+    assert tuesday["goal_time"] == 45 * 60000
+    # the schedule itself carries forward unchanged
+    assert tuesday["weekday_goal_times"] == json.loads(
+        client.get(f"/api/stopwatches/{day(0)}/", headers={"Authorization": f"Bearer {token}"}).data
+    )["stopwatches"][1]["weekday_goal_times"]
+    # the day's Total is the sum of the goals that actually landed there
+    assert total_on(client, token, 1)["goal_time"] == 45 * 60000
+
+
+def test_gap_backfill_gives_each_day_its_own_weekday_goal(client):
+    token = auth_token(client)
+    create_stopwatch(client, token, "study", day(0),
+                     weekday_goal_times=schedule(Mo="01:00", Tu="02:00", We="03:00", Th="04:00"))
+
+    # opening Thursday backfills Tue and Wed; each gets its own weekday's goal
+    assert regular_on(client, token, 3, "study")["goal_time"] == 4 * ONE_HOUR_MS
+    assert regular_on(client, token, 1, "study")["goal_time"] == 2 * ONE_HOUR_MS
+    assert regular_on(client, token, 2, "study")["goal_time"] == 3 * ONE_HOUR_MS
+    for offset in (1, 2, 3):
+        assert total_on(client, token, offset)["goal_time"] == regular_on(client, token, offset, "study")["goal_time"]
+
+
+def test_zero_slot_carries_a_row_with_no_goal(client):
+    token = auth_token(client)
+    # Saturday set to 0: the stopwatch still lands there, just without a target
+    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Sa="00:00"))
+
+    saturday = regular_on(client, token, 5, "study")
+    assert saturday["goal_time"] == 0
+    assert total_on(client, token, 5)["goal_time"] == 0
+    # ...unlike unchecking Saturday in the picker, which creates no row at all
+    assert "study" in [s["title"] for s in regulars_of(get_stopwatches(client, token, day(5)))]
+
+
+def test_no_schedule_carries_the_uniform_goal_exactly_as_before(client):
+    token = auth_token(client)
+    create_stopwatch(client, token, "study", day(0), goal_time="02:00")
+
+    carried = regular_on(client, token, 1, "study")
+    assert carried["weekday_goal_times"] is None
+    assert carried["goal_time"] == 2 * ONE_HOUR_MS
+
+
+def test_schedule_survives_a_chain_of_carried_days(client):
+    token = auth_token(client)
+    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="01:00", Su="05:00"))
+
+    # walk day by day rather than backfilling in one request
+    for offset in range(1, 8):
+        get_stopwatches(client, token, day(offset))
+    assert regular_on(client, token, 6, "study")["goal_time"] == 5 * ONE_HOUR_MS   # Sunday
+    next_monday = regular_on(client, token, 7, "study")
+    assert next_monday["goal_time"] == ONE_HOUR_MS
+    assert next_monday["weekday_goal_times"] is not None
+
+
+def test_row_outside_its_repeat_days_still_reads_that_weekdays_slot(client):
+    token = auth_token(client)
+    # a Monday-only stopwatch created by hand on a Tuesday still gets Tuesday's slot
+    resp = create_stopwatch(client, token, "gym", day(1), repeat_days=MON,
+                            weekday_goal_times=schedule(Mo="01:00", Tu="03:00"))
+    assert json.loads(resp.data)["stopwatches"][1]["goal_time"] == 3 * ONE_HOUR_MS
+
+
+def test_total_goal_sums_each_days_landed_goals(client):
+    token = auth_token(client)
+    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00", Tu="01:00"))
+    create_stopwatch(client, token, "gym", day(0), weekday_goal_times=schedule(Mo="00:30", Tu="02:00"))
+
+    assert total_on(client, token, 0)["goal_time"] == 2 * ONE_HOUR_MS + HALF_HOUR_MS
+    assert total_on(client, token, 1)["goal_time"] == 3 * ONE_HOUR_MS
+
+
+def test_carry_forward_leaves_an_overridden_total_untouched(app, client):
+    token = auth_token(client)
+    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00", Tu="01:00"))
+    seed_total_only_day(app, MONDAY + timedelta(days=1), goal_time=8 * ONE_HOUR_MS, goal_overridden=True)
+
+    tuesday = get_stopwatches(client, token, day(1))
+    assert regulars_of(tuesday)[0]["goal_time"] == ONE_HOUR_MS
+    assert totals_of(tuesday)[0]["goal_time"] == 8 * ONE_HOUR_MS
+
+
+def test_editing_a_schedule_rewrites_the_open_days_goal_and_the_total(client):
+    token = auth_token(client)
+    resp = create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00"))
+    stopwatch = json.loads(resp.data)["stopwatches"][1]
+
+    # editing Monday's slot moves this (Monday) row's goal and the Total with it
+    resp = update_stopwatch(client, token, stopwatch["id"],
+                            {"weekday_goal_times": schedule(Mo="03:00", Tu="00:15")})
+    total, edited = json.loads(resp.data)["stopwatches"]
+    assert edited["goal_time"] == 3 * ONE_HOUR_MS
+    assert total["goal_time"] == 3 * ONE_HOUR_MS
+    # editing a *different* weekday's slot changes nothing until that day comes round
+    assert regular_on(client, token, 1, "study")["goal_time"] == 15 * 60000
+
+
+def test_clearing_the_schedule_returns_the_stopwatch_to_a_uniform_goal(client):
+    token = auth_token(client)
+    resp = create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00"))
+    stopwatch = json.loads(resp.data)["stopwatches"][1]
+
+    resp = update_stopwatch(client, token, stopwatch["id"],
+                            {"weekday_goal_times": None, "goal_time": "04:00"})
+    total, edited = json.loads(resp.data)["stopwatches"]
+    assert edited["weekday_goal_times"] is None
+    assert edited["goal_time"] == 4 * ONE_HOUR_MS
+    assert total["goal_time"] == 4 * ONE_HOUR_MS
+    # and every carried day now uses that one goal again
+    assert regular_on(client, token, 1, "study")["goal_time"] == 4 * ONE_HOUR_MS
+
+
+def test_deleting_a_scheduled_stopwatch_removes_its_landed_goal(client):
+    token = auth_token(client)
+    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00"))
+    resp = create_stopwatch(client, token, "gym", day(0), weekday_goal_times=schedule(Mo="00:30"))
+    gym_id = json.loads(resp.data)["stopwatches"][1]["id"]
+
+    resp = delete_stopwatch(client, token, gym_id)
+    assert json.loads(resp.data)["stopwatches"][0]["goal_time"] == 2 * ONE_HOUR_MS
+
+
+def test_invalid_weekday_goal_times_rejected_on_create_and_edit(client):
+    token = auth_token(client)
+    bad_schedules = (["01:00"] * 6, ["01:00"] * 8, "01:00", [3600000] * 7, ["24:00"] * 7, ["01:60"] * 7)
+    for index, bad in enumerate(bad_schedules):
+        resp = create_stopwatch(client, token, f"bad{index}", day(0), weekday_goal_times=bad)
+        assert resp.status_code == 400, f"weekday_goal_times={bad!r} should be rejected"
+
+    resp = create_stopwatch(client, token, "study", day(0))
+    stopwatch = json.loads(resp.data)["stopwatches"][1]
+    for bad in bad_schedules:
+        resp = update_stopwatch(client, token, stopwatch["id"], {"weekday_goal_times": bad})
+        assert resp.status_code == 400, f"weekday_goal_times={bad!r} should be rejected"
+    # the rejected edits changed nothing
+    assert regular_on(client, token, 0, "study")["goal_time"] == ONE_HOUR_MS
+
+
+def test_titles_endpoint_returns_the_weekday_schedule(client):
+    token = auth_token(client)
+    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00"))
+    create_stopwatch(client, token, "gym", day(0))
+
+    titles = {t["title"]: t["weekday_goal_times"] for t in get_titles(client, token)}
+    assert titles["gym"] is None
+    assert titles["study"] == [2 * ONE_HOUR_MS] + [HALF_HOUR_MS] * 6
 
 
 def test_carry_forward_leaves_day_xp_unchanged(client):

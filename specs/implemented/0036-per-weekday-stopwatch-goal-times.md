@@ -1,6 +1,6 @@
 ---
 title: Support a per-weekday goal time for each stopwatch
-status: decided
+status: built
 ---
 
 # Support a per-weekday goal time for each stopwatch
@@ -36,7 +36,9 @@ the day's XP recompute whenever the Total row's `goal_time` actually changes.
 - `backend/src/db.py` — add `weekday_goal_times` to `Stopwatch` (nullable `db.String` holding a JSON
   list of 7 millisecond values, index = `date.weekday()`; NULL = one uniform goal, the current
   behavior): column, `__init__`, and `serialize` (emit a parsed list of 7 numbers or `null`). Add
-  `weekday_goal_times_list()` next to it so routes never parse the JSON inline.
+  `weekday_goal_times_list()` next to it so routes never parse the JSON inline — *plus*
+  `set_weekday_goal_times(schedule)`, since the update endpoint assigns a schedule to an existing
+  row and would otherwise have to `json.dumps` inline; both directions of the encoding live in `db.py`.
 - `backend/src/app.py` — new `ensure_stopwatch_weekday_goal_times_column()`
   (`ALTER TABLE stopwatches ADD COLUMN weekday_goal_times VARCHAR`), called from `create_app`
   alongside the other `ensure_*` migrations (app.py:171-183). **Prod schema change.**
@@ -50,7 +52,10 @@ the day's XP recompute whenever the Total row's `goal_time` actually changes.
   gap-backfill loop and the requested-day create) passes the schedule through so each created day gets
   its own weekday's goal; `/stopwatches/titles/` returns it for the reuse-dropdown prefill. Plus the
   XP fix: recompute when the Total's `goal_time` changed, not only its `curr_duration` (create, update,
-  delete, and one post-loop call for carry-forward).
+  delete, and one post-loop call for carry-forward). Also adds a module-level
+  `parse_weekday_goal_times(value)` (validated `"HH:MM"` wire format -> the stored millisecond list)
+  and the shared `WEEKDAY_GOAL_TIMES_ERROR` message, so `POST` and `PUT` don't each inline the
+  conversion.
 - `backend/src/xp.py` — comment/docstring accuracy only (`_day_inputs`, xp.py:31-39, describes the
   day's goal hours as "the sum of the individual stopwatch goals"; note that those per-day goals can
   now differ by weekday). No logic change — it already reads the Total row's per-day `goal_time`.

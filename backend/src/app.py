@@ -99,6 +99,15 @@ def ensure_stopwatch_repeat_days_column():
         db.session.commit()
 
 
+def ensure_stopwatch_weekday_goal_times_column():
+    result = db.session.execute(text("PRAGMA table_info(stopwatches)"))
+    columns = {row[1] for row in result}
+    if "weekday_goal_times" not in columns:
+        # NULL on existing rows = one uniform goal_time, the pre-feature behavior
+        db.session.execute(text("ALTER TABLE stopwatches ADD COLUMN weekday_goal_times VARCHAR"))
+        db.session.commit()
+
+
 def ensure_habit_position_column():
     result = db.session.execute(text("PRAGMA table_info(habits)"))
     columns = {row[1] for row in result}
@@ -181,6 +190,7 @@ def create_app(test_config=None):
         ensure_stopwatch_position_column()
         ensure_stopwatch_repeat_days_column()
         ensure_task_completed_date_column()
+        ensure_stopwatch_weekday_goal_times_column()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
     app.register_blueprint(task_routes,  url_prefix="/api")

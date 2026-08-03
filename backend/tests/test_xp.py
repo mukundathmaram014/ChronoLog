@@ -1,6 +1,8 @@
 import json
+from datetime import date
 
 from conftest import auth_token
+from db import DailyXP, User
 from utils import (
     ALL_HABITS_BONUS,
     GOAL_TIME_BONUS,
@@ -332,10 +334,13 @@ def test_no_goal_stopwatch_stores_zero_and_skips_overtime(client):
     assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR
 
 
-def _post_stopwatch(client, token, title, goal_time="01:00"):
+def _post_stopwatch(client, token, title, goal_time="01:00", weekday_goal_times=None, day=TODAY):
+    body = {"title": title, "date": day, "goal_time": goal_time}
+    if weekday_goal_times is not None:
+        body["weekday_goal_times"] = weekday_goal_times
     resp = client.post(
         "/api/stopwatches/",
-        data=json.dumps({"title": title, "date": TODAY, "goal_time": goal_time}),
+        data=json.dumps(body),
         content_type="application/json",
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -513,6 +518,109 @@ def test_xp_and_goals_are_user_scoped(client):
     assert json.loads(resp.data)["goals"] == []
     resp = client.get(f"/api/goals/{goal_id}/", headers={"Authorization": f"Bearer {token_b}"})
     assert resp.status_code == 404
+
+
+# ---- per-weekday goals + XP recompute on goal change (spec 0036) ----
+# TODAY (2026-01-15) is a Thursday, i.e. date.weekday() index 3
+
+def _thursday_schedule(thursday, other="02:00"):
+    return [other] * 3 + [thursday] + [other] * 3
+
+
+def test_lighter_weekday_goal_reaches_the_bonus_and_overtime_sooner(client):
+    token = auth_token(client)
+    _, study = _post_stopwatch(client, token, "study", "02:00",
+                               weekday_goal_times=_thursday_schedule("01:00"))
+    # the row landed on its 1h Thursday slot, not the 2h field
+    assert study["goal_time"] == 3600000
+
+    _put_stopwatch(client, token, study["id"], curr_duration=2 * 3600000)
+    # against a 2h goal this would be 2h flat and no bonus; against 1h it's
+    # 1h standard + 1h overtime + the goal-time bonus
+    assert get_level(client, token)["total_xp"] == XP_PER_HOUR + XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS
+
+
+def test_heavier_weekday_goal_pushes_the_bonus_and_overtime_out(client):
+    token = auth_token(client)
+    _, study = _post_stopwatch(client, token, "study", "02:00",
+                               weekday_goal_times=_thursday_schedule("04:00"))
+    assert study["goal_time"] == 4 * 3600000
+
+    _put_stopwatch(client, token, study["id"], curr_duration=2 * 3600000)
+    # short of the 4h Thursday goal: flat rate, no overtime, no bonus
+    assert get_level(client, token)["total_xp"] == 2 * XP_PER_HOUR
+
+
+def test_goal_only_edit_rescores_the_day(client):
+    token = auth_token(client)
+    _, study = _post_stopwatch(client, token, "study", "02:00")
+    _put_stopwatch(client, token, study["id"], curr_duration=3 * 3600000)
+    assert get_level(client, token)["total_xp"] == 2 * XP_PER_HOUR + XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS
+
+    # raising the goal with no duration change still moves the day's XP: the
+    # overtime hour becomes a standard one
+    _put_stopwatch(client, token, study["id"], goal_time="03:00")
+    assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR + GOAL_TIME_BONUS
+
+
+def test_weekday_schedule_edit_rescores_the_day(client):
+    token = auth_token(client)
+    _, study = _post_stopwatch(client, token, "study", "02:00")
+    _put_stopwatch(client, token, study["id"], curr_duration=2 * 3600000)
+    assert get_level(client, token)["total_xp"] == 2 * XP_PER_HOUR + GOAL_TIME_BONUS
+
+    # switching to a schedule whose Thursday is 1h re-splits the same 2h worked
+    _put_stopwatch(client, token, study["id"], weekday_goal_times=_thursday_schedule("01:00"))
+    assert get_level(client, token)["total_xp"] == XP_PER_HOUR + XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS
+
+
+def test_create_and_delete_that_move_the_days_goal_rescore_it(client):
+    token = auth_token(client)
+    _, study = _post_stopwatch(client, token, "study", "02:00")
+    _put_stopwatch(client, token, study["id"], curr_duration=3 * 3600000)
+    assert get_level(client, token)["total_xp"] == 2 * XP_PER_HOUR + XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS
+
+    # a second stopwatch adds its goal to the day even though it logs no time
+    _, reading = _post_stopwatch(client, token, "reading", "01:00")
+    assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR + GOAL_TIME_BONUS
+
+    # ...and deleting that zero-duration stopwatch takes the goal back out
+    resp = client.delete(f"/api/stopwatches/{reading['id']}/", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert get_level(client, token)["total_xp"] == 2 * XP_PER_HOUR + XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS
+
+
+def test_overridden_total_ignores_a_child_goal_edit_for_xp(client):
+    token = auth_token(client)
+    total, study = _post_stopwatch(client, token, "study", "02:00")
+    _put_stopwatch(client, token, total["id"], goal_time="03:00")
+    _put_stopwatch(client, token, study["id"], curr_duration=3 * 3600000)
+    assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR + GOAL_TIME_BONUS
+
+    # the child's goal no longer feeds the overridden Total, so the day's XP holds
+    _put_stopwatch(client, token, study["id"], goal_time="00:30")
+    assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR + GOAL_TIME_BONUS
+
+
+def test_carry_forward_rescores_a_day_that_already_had_a_ledger_row(app, client):
+    token = auth_token(client)
+    monday, tuesday = "2026-01-05", "2026-01-06"
+    _post_stopwatch(client, token, "study", "01:00",
+                    weekday_goal_times=["01:00", "04:00"] + ["01:00"] * 5, day=monday)
+    # Tuesday's only habit is done, so before any goal lands there the day is 100%
+    # complete and its ledger row qualifies for the streak
+    create_habit(client, token, description="reading", date=tuesday, difficulty="medium", done=True)
+    with app.app_context():
+        row = DailyXP.query.filter_by(user_id=User.query.first().id, date=date(2026, 1, 6)).first()
+        assert row.streak == 1
+
+    # opening Tuesday carries the stopwatch in with a 4h goal, which the day has
+    # not worked -- the ledger row must be rewritten, not left stale
+    client.get(f"/api/stopwatches/{tuesday}/", headers={"Authorization": f"Bearer {token}"})
+    with app.app_context():
+        row = DailyXP.query.filter_by(user_id=User.query.first().id, date=date(2026, 1, 6)).first()
+        assert row.streak == 0
+        assert row.xp_earned == HABIT_XP["medium"] + ALL_HABITS_BONUS
 
 
 # ---- calibration ----

@@ -34,7 +34,9 @@ def _day_inputs(user_id, day):
     ]
     # the day's total goal time is the Total row's goal_time -- the sum of the
     # individual stopwatch goals by default, or the user's override (spec 0023);
-    # drives the goal-time bonus + overtime split
+    # drives the goal-time bonus + overtime split. Those per-day goals can differ
+    # by weekday (spec 0036), so the same stopwatch can contribute a different
+    # amount on different days; reading the Total per day already handles that.
     goal_ms = total_stopwatch.goal_time if total_stopwatch else 0
     goal_hours = (goal_ms or 0) / MS_PER_HOUR
     return habit_difficulties, hours_worked, goal_difficulties, goal_hours, all_habits_done, max_habit_xp
