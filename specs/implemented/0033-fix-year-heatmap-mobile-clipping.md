@@ -1,6 +1,6 @@
 ---
 title: Fix year heatmap clipping earlier months on phone viewports
-status: decided
+status: built
 ---
 
 # Fix year heatmap clipping earlier months on phone viewports
@@ -58,10 +58,14 @@ the month/week/day layouts.
 - `frontend/src/Components/HabitCalendar.jsx` — extract the `period === "year"` branch into a
   small `YearHeatmap` subcomponent in the same file, which owns a ref on `.cal-year-wrap` and a
   layout effect that scrolls it to the right end.
-- `frontend/src/Pages/statisticspage.css` — verify/clean up `.per-habit-calendar-card`'s
-  `overflow-x: auto` once the wrap scrolls itself (it becomes redundant; leaving it is harmless,
-  but it should not double as the scroll container). `.per-habit-calendar-grid-year` (one card per
-  row at year period) stays as is.
+- `frontend/src/Pages/statisticspage.css` — `.per-habit-calendar-card`'s `overflow-x: auto` became
+  `overflow-x: hidden`: the card centers its content, so as a scroll container it can only ever
+  reveal the right half of any overflow — that half-broken scroll was the bug. It is kept as a clip
+  guard rather than deleted, so overflow from a narrow card can't reach the page-level
+  `overflow-x: clip`. `.per-habit-calendar-grid-year` (one card per row at year period) stays as is.
+- `frontend/src/Components/HabitCalendar.css` also gained `width: max-content` /
+  `max-width: none` on `.cal-year` — `.cal-grid`'s shared `max-width: 100%` would otherwise pin the
+  grid to the scroll container's width instead of its content width.
 
 No test files: the repo has backend tests only, and this is presentation-layer CSS.
 

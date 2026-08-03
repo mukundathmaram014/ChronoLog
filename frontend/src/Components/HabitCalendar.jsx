@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import './HabitCalendar.css';
 
 // Presentational per-day calendar / heatmap (spec 0016). Takes the backend's
@@ -102,6 +103,44 @@ function monthLabels(days, pad) {
     return labels;
 }
 
+// The year heatmap is wider than a phone, so .cal-year-wrap scrolls (see
+// HabitCalendar.css). It lives in its own component because HabitCalendar
+// early-returns on empty `days` before any hook runs, so the ref and layout
+// effect below can't be hoisted into it without a conditional-hook violation.
+function YearHeatmap({ days, pad, cell }) {
+    const wrapRef = useRef(null);
+
+    // open on the most recent weeks, the useful end of the range. scrollWidth
+    // overshoots and the browser clamps it, so no measurement math is needed;
+    // useLayoutEffect keeps it from being visible as a jump after paint. On
+    // desktop, where the year fits, this is a no-op.
+    useLayoutEffect(() => {
+        const el = wrapRef.current;
+        if (el) el.scrollLeft = el.scrollWidth;
+    }, [days]);
+
+    const leading = Array.from({ length: pad }, (_, i) => cell(null, `p${i}`));
+    return (
+        <div className="cal-year-wrap" ref={wrapRef}>
+            <div className="cal-month-labels">
+                {monthLabels(days, pad).map(m => (
+                    <div
+                        key={m.date}
+                        className="cal-month-label"
+                        style={{ gridColumnStart: m.column + 1 }}
+                    >
+                        {m.label}
+                    </div>
+                ))}
+            </div>
+            <div className="cal-grid cal-year">
+                {leading}
+                {days.map((d, i) => cell(d, i))}
+            </div>
+        </div>
+    );
+}
+
 export default function HabitCalendar({ mode, days, period, compact = false }) {
     if (!days || days.length === 0) {
         return <div className="calendar-empty">No history for this period.</div>;
@@ -142,27 +181,7 @@ export default function HabitCalendar({ mode, days, period, compact = false }) {
         );
     } else {
         // year: columns = weeks, 7 rows = weekdays (Mon..Sun), column-major flow
-        const pad = weekdayIndex(days[0].date);
-        const leading = Array.from({ length: pad }, (_, i) => cell(null, `p${i}`));
-        grid = (
-            <div className="cal-year-wrap">
-                <div className="cal-month-labels">
-                    {monthLabels(days, pad).map(m => (
-                        <div
-                            key={m.date}
-                            className="cal-month-label"
-                            style={{ gridColumnStart: m.column + 1 }}
-                        >
-                            {m.label}
-                        </div>
-                    ))}
-                </div>
-                <div className="cal-grid cal-year">
-                    {leading}
-                    {days.map((d, i) => cell(d, i))}
-                </div>
-            </div>
-        );
+        grid = <YearHeatmap days={days} pad={weekdayIndex(days[0].date)} cell={cell} />;
     }
 
     const legend = mode === "status" ? (

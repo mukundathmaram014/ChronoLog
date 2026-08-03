@@ -63,14 +63,16 @@
 }
 
 /* year heatmap: 7 weekday rows, columns are weeks, filled column-by-column.
-   ~53 week columns is ~800px wide, which no phone can show: scroll the heatmap
-   itself rather than letting it widen the page. */
+   ~53 week columns is ~800px wide, which no phone can show — .cal-year-wrap is
+   the scroll container (it must scroll the labels and the grid together), so
+   this row only needs to size itself to its real content. */
 .cal-year {
     grid-template-rows: repeat(7, 1fr);
     grid-auto-flow: column;
     grid-auto-columns: var(--cal-year-col);
     gap: var(--cal-year-gap);
-    overflow-x: auto;
+    width: max-content;
+    max-width: none;
     padding-bottom: 4px;
 }
 .cal-year .cal-cell {
@@ -111,20 +113,30 @@
     border-radius: 3px;
 }
 
-/* keeps the month-label row and the grid left-aligned as a unit inside the
-   centered .habit-calendar column */
+/* the year scroll container: scrolling here moves the month-label row and the
+   grid together, so labels can never drift off the columns they annotate.
+   align-self overrides .habit-calendar's align-items: center — a scroll
+   container whose content is centered spills equally to both sides, and
+   scrollLeft can't go negative, which leaves the earliest months unreachable. */
 .cal-year-wrap {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    align-self: stretch;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
 }
 
 /* same column track sizing as .cal-year, so a label placed at column N sits
-   directly over week-column N of the grid */
+   directly over week-column N of the grid. max-content because a stretched
+   flex child would otherwise be pinned to the scroll container's width. */
 .cal-month-labels {
     display: grid;
     grid-auto-columns: var(--cal-year-col);
     gap: var(--cal-year-gap);
+    width: max-content;
 }
 .cal-month-label {
     grid-row: 1;
@@ -162,4 +174,16 @@
 .cal-legend-nodata {
     border: 1px dashed #3a3a3a !important;
     background: transparent;
+}
+
+/* phone widths: shrink the year cells so ~53 columns span ~580px instead of
+   ~800px — about 1.5 screens of scroll rather than 2+. Going small enough to
+   fit a 375px viewport outright would mean ~4px cells, which is unreadable.
+   Both the grid and its label row derive their tracks from these vars, so
+   they shrink in lockstep. */
+@media (max-width: 600px) {
+    .habit-calendar {
+        --cal-year-col: 9px;
+        --cal-year-gap: 2px;
+    }
 }

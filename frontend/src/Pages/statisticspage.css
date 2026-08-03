@@ -361,7 +361,11 @@ h1 {
     border: 1px solid #333;
     border-radius: 8px;
     padding: 12px 10px;
-    overflow-x: auto;
+    /* spec 0033: NOT the year heatmap's scroll container — .cal-year-wrap owns
+       that now. The card is centered, so anything overflowing it spills to both
+       sides and the left half is unreachable (scrollLeft can't go negative).
+       Kept only as a clip guard for content that outgrows a narrow card. */
+    overflow-x: hidden;
 }
 .per-habit-calendar-title {
     color: #eee;
