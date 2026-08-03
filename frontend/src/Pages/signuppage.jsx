@@ -112,7 +112,8 @@ export function SignupPage(){
             const access_token = data.access_token
             let username = data.user.username
             let email = data.user.email
-            setAuth({username, email, access_token, isGuest: true})
+            let showRank = data.user.show_rank === true
+            setAuth({username, email, access_token, isGuest: true, showRank})
             navigate("/homepage", {replace : true});
         }
         else {

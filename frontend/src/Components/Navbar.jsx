@@ -99,7 +99,9 @@ export function Navbar() {
                             className="xp-rules-toggle"
                             onClick={() => setShowXpRules(prev => !prev)}
                         >
-                            {showXpRules ? "Hide how XP & ranks work" : "How XP & ranks work"}
+                            {auth.showRank
+                                ? (showXpRules ? "Hide how XP & ranks work" : "How XP & ranks work")
+                                : (showXpRules ? "Hide how XP works" : "How XP works")}
                         </button>
 
                         {showXpRules && (
@@ -133,15 +135,19 @@ export function Navbar() {
                                     day and it resets.
                                 </p>
 
-                                <h3>Ranks</h3>
-                                <ul className="xp-rules-list">
-                                    <li><span className="xp-rank-letter rank-e">E</span><span>Levels 1–9</span></li>
-                                    <li><span className="xp-rank-letter rank-d">D</span><span>Levels 10–24</span></li>
-                                    <li><span className="xp-rank-letter rank-c">C</span><span>Levels 25–49</span></li>
-                                    <li><span className="xp-rank-letter rank-b">B</span><span>Levels 50–74</span></li>
-                                    <li><span className="xp-rank-letter rank-a">A</span><span>Levels 75–99</span></li>
-                                    <li><span className="xp-rank-letter rank-s">S</span><span>Level 100+ · ultimate</span></li>
-                                </ul>
+                                {auth.showRank && (
+                                    <>
+                                        <h3>Ranks</h3>
+                                        <ul className="xp-rules-list">
+                                            <li><span className="xp-rank-letter rank-e">E</span><span>Levels 1–9</span></li>
+                                            <li><span className="xp-rank-letter rank-d">D</span><span>Levels 10–24</span></li>
+                                            <li><span className="xp-rank-letter rank-c">C</span><span>Levels 25–49</span></li>
+                                            <li><span className="xp-rank-letter rank-b">B</span><span>Levels 50–74</span></li>
+                                            <li><span className="xp-rank-letter rank-a">A</span><span>Levels 75–99</span></li>
+                                            <li><span className="xp-rank-letter rank-s">S</span><span>Level 100+ · ultimate</span></li>
+                                        </ul>
+                                    </>
+                                )}
                             </div>
                         )}
 

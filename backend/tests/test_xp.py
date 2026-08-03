@@ -16,6 +16,7 @@ from utils import (
     level_cost,
     level_from_xp,
     rank_from_level,
+    rank_visible,
     streak_multiplier,
 )
 
@@ -451,9 +452,30 @@ def test_rank_from_level():
     assert rank_from_level(500) == "S"
 
 
-def test_level_readout_includes_rank(client):
+def test_level_readout_omits_rank_by_default(client):
+    token = auth_token(client)
+    assert "rank" not in get_level(client, token)
+
+
+def test_level_readout_includes_rank_when_allowlisted(client, monkeypatch):
+    monkeypatch.setenv("RANK_USERNAMES", "testuser")
     token = auth_token(client)
     assert get_level(client, token)["rank"] == "E"
+
+
+def test_rank_visible(monkeypatch):
+    owner = User(username="Owner", is_guest=False)
+    other = User(username="someoneelse", is_guest=False)
+    guest_owner = User(username="owner", is_guest=True)
+
+    monkeypatch.delenv("RANK_USERNAMES", raising=False)
+    assert rank_visible(owner) is False  # unset allowlist -> nobody
+    assert rank_visible(None) is False
+
+    monkeypatch.setenv("RANK_USERNAMES", " owner , other-name")
+    assert rank_visible(owner) is True  # case-insensitive, whitespace-trimmed match
+    assert rank_visible(other) is False
+    assert rank_visible(guest_owner) is False  # guest check wins even when allowlisted
 
 
 def test_level_readout_includes_day_xp(client):

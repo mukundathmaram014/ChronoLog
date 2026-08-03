@@ -1,5 +1,6 @@
 import json
 import math
+import os
 from datetime import date, timezone
 
 
@@ -228,3 +229,22 @@ def rank_from_level(level):
         else:
             break
     return letter
+
+
+def rank_visible(user):
+    """
+    Whether `user` may see the rank layer at all: never for guests (checked
+    first, not overridable), otherwise only for usernames on the
+    RANK_USERNAMES allowlist. Unlike GUEST_TTL_DAYS in users.py, the env var
+    is read here at call time rather than cached as a module-level constant,
+    so tests can monkeypatch it and the VM can change it with a container
+    restart instead of a code deploy.
+    """
+    if user is None or user.is_guest:
+        return False
+    allowlist = {
+        entry.strip().lower()
+        for entry in os.environ.get("RANK_USERNAMES", "").split(",")
+        if entry.strip()
+    }
+    return user.username.strip().lower() in allowlist

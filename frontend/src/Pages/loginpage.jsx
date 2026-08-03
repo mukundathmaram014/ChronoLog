@@ -48,7 +48,8 @@ export function LoginPage(){
             const access_token = data.access_token
             let username = data.user.username
             let email = data.user.email
-            setAuth({username, email, access_token})
+            let showRank = data.user.show_rank === true
+            setAuth({username, email, access_token, showRank})
             setUsernameOrEmail('');
             setPassword('');
             if (from === "/"){
@@ -79,7 +80,8 @@ export function LoginPage(){
             const access_token = data.access_token
             let username = data.user.username
             let email = data.user.email
-            setAuth({username, email, access_token, isGuest: true})
+            let showRank = data.user.show_rank === true
+            setAuth({username, email, access_token, isGuest: true, showRank})
             if (from === "/"){
                 navigate("/homepage", {replace : true});
             } else {

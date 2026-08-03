@@ -10,6 +10,14 @@
 
 - Deployed the container on the VM, exposing the API over the VM’s external IP.
 
+#### Backend environment variables
+
+- `RANK_USERNAMES` — comma-separated allowlist of usernames permitted to see the letter-rank
+  layer (rank field, rank chip, Ranks table). Read at request time, so a container restart picks
+  up a change without a redeploy. Unset means nobody sees ranks; guests never see them regardless
+  of this setting. Set in the VM's `~/.env` for production and `backend/.env` for local dev — never
+  committed.
+
 ### Frontend
 
 - Deployed the React frontend using Netlify for static hosting.
