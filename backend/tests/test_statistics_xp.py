@@ -2,7 +2,7 @@ import json
 from datetime import date, timedelta
 
 from conftest import auth_token
-from utils import ALL_HABITS_BONUS, GOAL_TIME_BONUS, GOAL_XP, HABIT_XP, XP_PER_HOUR, streak_multiplier
+from utils import ALL_HABITS_BONUS, GOAL_TIME_BONUS, GOAL_XP, HABIT_XP, INDIVIDUAL_GOAL_BONUS, XP_PER_HOUR, streak_multiplier
 
 TODAY = "2026-01-15"
 
@@ -115,9 +115,13 @@ def test_xp_stats_breakdown_includes_work_xp(client):
 
     data = get_xp_stats(client, token, TODAY, "day")
 
-    expected_total = 2 * XP_PER_HOUR + GOAL_TIME_BONUS
+    # the "study" stopwatch has a 2h goal and 2h logged, so it hits BOTH the
+    # total daily goal (+GOAL_TIME_BONUS) and its own individual goal
+    # (+INDIVIDUAL_GOAL_BONUS, spec 0037) — the two bonuses stack.
+    bonuses = GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
+    expected_total = 2 * XP_PER_HOUR + bonuses
     by_source = {item["source"]: item["xp"] for item in data["breakdown"]}
-    assert by_source == {"Habits": 0, "Work": 2 * XP_PER_HOUR, "Goals": 0, "Bonuses": GOAL_TIME_BONUS}
+    assert by_source == {"Habits": 0, "Work": 2 * XP_PER_HOUR, "Goals": 0, "Bonuses": bonuses}
     assert data["total"]["xp"] == expected_total
 
 
@@ -210,13 +214,17 @@ def test_xp_stats_level_matches_level_endpoint(client):
     stats = get_xp_stats(client, token, TODAY, "day")
     level = get_level(client, token, TODAY)
 
-    assert stats["level"] == {
+    # rank is gated behind the allowlist (spec 0035), so it's present in both
+    # the level and stats payloads or in neither — never asserted unconditionally.
+    expected = {
         "total_xp": level["total_xp"],
         "level": level["level"],
-        "rank": level["rank"],
         "xp_into_level": level["xp_into_level"],
         "xp_to_next": level["xp_to_next"],
     }
+    if "rank" in level:
+        expected["rank"] = level["rank"]
+    assert stats["level"] == expected
 
 
 def test_xp_stats_scoped_by_user(client):

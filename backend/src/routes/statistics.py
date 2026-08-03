@@ -1,5 +1,5 @@
 from flask import Blueprint
-from utils import success_response, failure_response, level_from_xp, rank_from_level
+from utils import success_response, failure_response, level_from_xp, rank_from_level, rank_visible
 import json
 from db import db
 from flask import Flask, request
@@ -575,6 +575,16 @@ def get_xp_stats(date_string, time_period):
     user = db.session.get(User, user_id)
     total_user_xp = user.total_xp or 0
     progress = level_from_xp(total_user_xp)
+    # Gate the rank the same way the level endpoint does (spec 0035): only
+    # allowlisted accounts see it, so the stats page can't leak it either.
+    level_obj = {
+        "total_xp": total_user_xp,
+        "level": progress["level"],
+        "xp_into_level": progress["xp_into_level"],
+        "xp_to_next": progress["xp_to_next"],
+    }
+    if rank_visible(user):
+        level_obj["rank"] = rank_from_level(progress["level"])
 
     return success_response({
         "total": {"xp": total_xp, "average_per_day": average_per_day, "days_counted": days_counted},
@@ -591,11 +601,5 @@ def get_xp_stats(date_string, time_period):
             {"source": "Bonuses", "xp": sum(row.bonus_xp for row in elapsed_rows)},
         ],
         "days": days,
-        "level": {
-            "total_xp": total_user_xp,
-            "level": progress["level"],
-            "rank": rank_from_level(progress["level"]),
-            "xp_into_level": progress["xp_into_level"],
-            "xp_to_next": progress["xp_to_next"],
-        },
+        "level": level_obj,
     })
