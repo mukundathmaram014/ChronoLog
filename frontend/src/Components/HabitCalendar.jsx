@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import './HabitCalendar.css';
 
 // Presentational per-day calendar / heatmap (spec 0016). Takes the backend's
@@ -57,10 +58,20 @@ function timeColor(day, maxDuration) {
     return `rgba(0, 230, 122, ${alpha.toFixed(3)})`;
 }
 
-function cellColor(day, mode, maxDuration) {
+// xp day -> color. No per-day goal to normalize against, so always
+// window-relative (spec 0034) -- same ramp as the time mode's no-goal fallback.
+function xpColor(day, maxXp) {
+    if (!day || !day.xp) return NO_DATA;
+    const ratio = maxXp > 0 ? day.xp / maxXp : 0;
+    const alpha = 0.18 + 0.82 * ratio;
+    return `rgba(0, 230, 122, ${alpha.toFixed(3)})`;
+}
+
+function cellColor(day, mode, maxValue) {
     if (!day) return NO_DATA;
     if (mode === "status") return statusColor(day.status);
-    if (mode === "time") return timeColor(day, maxDuration);
+    if (mode === "time") return timeColor(day, maxValue);
+    if (mode === "xp") return xpColor(day, maxValue);
     return intensityColor(day);
 }
 
@@ -71,6 +82,9 @@ function cellTitle(day, mode) {
         if (!day.duration) return `${day.date} — no time logged`;
         const worked = `${day.date} — ${formatDuration(day.duration)}`;
         return day.goal > 0 ? `${worked} / ${formatDuration(day.goal)} goal` : worked;
+    }
+    if (mode === "xp") {
+        return day.xp ? `${day.date} — ${day.xp} XP` : `${day.date} — no XP`;
     }
     const pct = day.scheduled ? Math.round((day.completed / day.scheduled) * 100) : null;
     return day.scheduled
@@ -102,21 +116,62 @@ function monthLabels(days, pad) {
     return labels;
 }
 
+// The year heatmap is wider than a phone, so .cal-year-wrap scrolls (see
+// HabitCalendar.css). It lives in its own component because HabitCalendar
+// early-returns on empty `days` before any hook runs, so the ref and layout
+// effect below can't be hoisted into it without a conditional-hook violation.
+function YearHeatmap({ days, pad, cell }) {
+    const wrapRef = useRef(null);
+
+    // open on the most recent weeks, the useful end of the range. scrollWidth
+    // overshoots and the browser clamps it, so no measurement math is needed;
+    // useLayoutEffect keeps it from being visible as a jump after paint. On
+    // desktop, where the year fits, this is a no-op.
+    useLayoutEffect(() => {
+        const el = wrapRef.current;
+        if (el) el.scrollLeft = el.scrollWidth;
+    }, [days]);
+
+    const leading = Array.from({ length: pad }, (_, i) => cell(null, `p${i}`));
+    return (
+        <div className="cal-year-wrap" ref={wrapRef}>
+            <div className="cal-month-labels">
+                {monthLabels(days, pad).map(m => (
+                    <div
+                        key={m.date}
+                        className="cal-month-label"
+                        style={{ gridColumnStart: m.column + 1 }}
+                    >
+                        {m.label}
+                    </div>
+                ))}
+            </div>
+            <div className="cal-grid cal-year">
+                {leading}
+                {days.map((d, i) => cell(d, i))}
+            </div>
+        </div>
+    );
+}
+
 export default function HabitCalendar({ mode, days, period, compact = false }) {
     if (!days || days.length === 0) {
         return <div className="calendar-empty">No history for this period.</div>;
     }
 
-    // time mode falls back to a window-relative ramp on days without a goal
-    const maxDuration = mode === "time"
+    // time mode falls back to a window-relative ramp on days without a goal;
+    // xp mode always uses one, since XP has no per-day goal to normalize against
+    const maxValue = mode === "time"
         ? days.reduce((max, d) => Math.max(max, d?.duration ?? 0), 0)
+        : mode === "xp"
+        ? days.reduce((max, d) => Math.max(max, d?.xp ?? 0), 0)
         : 0;
 
     const cell = (day, key) => (
         <div
             key={key}
             className={`cal-cell${day ? "" : " cal-cell-empty"}`}
-            style={{ backgroundColor: cellColor(day, mode, maxDuration) }}
+            style={{ backgroundColor: cellColor(day, mode, maxValue) }}
             title={cellTitle(day, mode)}
         />
     );
@@ -142,27 +197,7 @@ export default function HabitCalendar({ mode, days, period, compact = false }) {
         );
     } else {
         // year: columns = weeks, 7 rows = weekdays (Mon..Sun), column-major flow
-        const pad = weekdayIndex(days[0].date);
-        const leading = Array.from({ length: pad }, (_, i) => cell(null, `p${i}`));
-        grid = (
-            <div className="cal-year-wrap">
-                <div className="cal-month-labels">
-                    {monthLabels(days, pad).map(m => (
-                        <div
-                            key={m.date}
-                            className="cal-month-label"
-                            style={{ gridColumnStart: m.column + 1 }}
-                        >
-                            {m.label}
-                        </div>
-                    ))}
-                </div>
-                <div className="cal-grid cal-year">
-                    {leading}
-                    {days.map((d, i) => cell(d, i))}
-                </div>
-            </div>
-        );
+        grid = <YearHeatmap days={days} pad={weekdayIndex(days[0].date)} cell={cell} />;
     }
 
     const legend = mode === "status" ? (

@@ -99,7 +99,9 @@ export function Navbar() {
                             className="xp-rules-toggle"
                             onClick={() => setShowXpRules(prev => !prev)}
                         >
-                            {showXpRules ? "Hide how XP & ranks work" : "How XP & ranks work"}
+                            {auth.showRank
+                                ? (showXpRules ? "Hide how XP & ranks work" : "How XP & ranks work")
+                                : (showXpRules ? "Hide how XP works" : "How XP works")}
                         </button>
 
                         {showXpRules && (
@@ -113,6 +115,7 @@ export function Navbar() {
                                     <li><span>Tracked time</span><span>+20 / hour</span></li>
                                     <li><span>Tracked time — past daily goal</span><span>+30 / hour</span></li>
                                     <li><span>Hit daily goal time (bonus)</span><span>+50</span></li>
+                                    <li><span>Hit a stopwatch's own goal (bonus, capped)</span><span>+10 (max +40)</span></li>
                                     <li><span>Goal — Easy</span><span>+500</span></li>
                                     <li><span>Goal — Medium</span><span>+2,000</span></li>
                                     <li><span>Goal — Hard</span><span>+5,000</span></li>
@@ -121,7 +124,9 @@ export function Navbar() {
                                 <p className="xp-rules-note">
                                     Finish every habit for a day, or log at least your daily goal time, to
                                     earn those bonuses. Your daily goal is the sum of your stopwatch goal
-                                    times — hours logged past it also earn the higher overtime rate.
+                                    times — hours logged past it also earn the higher overtime rate. Hitting
+                                    an individual stopwatch's own goal earns a smaller bonus too, capped per
+                                    day so it never outweighs the daily goal bonus.
                                 </p>
 
                                 <h3>Streak</h3>
@@ -133,15 +138,19 @@ export function Navbar() {
                                     day and it resets.
                                 </p>
 
-                                <h3>Ranks</h3>
-                                <ul className="xp-rules-list">
-                                    <li><span className="xp-rank-letter rank-e">E</span><span>Levels 1–9</span></li>
-                                    <li><span className="xp-rank-letter rank-d">D</span><span>Levels 10–24</span></li>
-                                    <li><span className="xp-rank-letter rank-c">C</span><span>Levels 25–49</span></li>
-                                    <li><span className="xp-rank-letter rank-b">B</span><span>Levels 50–74</span></li>
-                                    <li><span className="xp-rank-letter rank-a">A</span><span>Levels 75–99</span></li>
-                                    <li><span className="xp-rank-letter rank-s">S</span><span>Level 100+ · ultimate</span></li>
-                                </ul>
+                                {auth.showRank && (
+                                    <>
+                                        <h3>Ranks</h3>
+                                        <ul className="xp-rules-list">
+                                            <li><span className="xp-rank-letter rank-e">E</span><span>Levels 1–9</span></li>
+                                            <li><span className="xp-rank-letter rank-d">D</span><span>Levels 10–24</span></li>
+                                            <li><span className="xp-rank-letter rank-c">C</span><span>Levels 25–49</span></li>
+                                            <li><span className="xp-rank-letter rank-b">B</span><span>Levels 50–74</span></li>
+                                            <li><span className="xp-rank-letter rank-a">A</span><span>Levels 75–99</span></li>
+                                            <li><span className="xp-rank-letter rank-s">S</span><span>Level 100+ · ultimate</span></li>
+                                        </ul>
+                                    </>
+                                )}
                             </div>
                         )}
 

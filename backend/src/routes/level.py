@@ -1,5 +1,5 @@
 from flask import Blueprint
-from utils import success_response, level_from_xp, streak_multiplier, rank_from_level
+from utils import success_response, level_from_xp, streak_multiplier, rank_from_level, rank_visible
 from db import db, User
 from datetime import date
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -24,10 +24,9 @@ def get_level(date_string):
     progress = level_from_xp(total_xp)
     streak = current_streak(user_id, today)
     sp = streak_progress_today(user_id, today)
-    return success_response({
+    response = {
         "total_xp": total_xp,
         "level": progress["level"],
-        "rank": rank_from_level(progress["level"]),
         "xp_into_level": progress["xp_into_level"],
         "xp_to_next": progress["xp_to_next"],
         "day_xp": day_xp(user_id, today),
@@ -37,4 +36,7 @@ def get_level(date_string):
         "streak_target": sp["target"],
         "streak_qualified": sp["qualified"],
         "streak_possible": sp["possible"],
-    })
+    }
+    if rank_visible(user):
+        response["rank"] = rank_from_level(progress["level"])
+    return success_response(response)

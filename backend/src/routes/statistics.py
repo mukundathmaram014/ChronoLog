@@ -1,13 +1,15 @@
 from flask import Blueprint
-from utils import success_response, failure_response
+from utils import success_response, failure_response, level_from_xp, rank_from_level, rank_visible
 import json
 from db import db
 from flask import Flask, request
 from db import Stopwatch
 from db import Habit
+from db import DailyXP, User
 from datetime import datetime, date, timedelta
 import calendar
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from xp import current_streak
 
 statistic_routes = Blueprint('statistics', __name__)
 
@@ -514,3 +516,90 @@ def get_stopwatches_calendar(date_string, time_period):
         current_day += timedelta(days = 1)
 
     return success_response({"mode": "time", "start": start_day.isoformat(), "days": days})
+
+
+@statistic_routes.route("/stats/xp/<string:date_string>/<string:time_period>/")
+@jwt_required()
+def get_xp_stats(date_string, time_period):
+    """
+    Endpoint for the XP section of the statistics page (spec 0034): period
+    total / average XP, best day, streak stats, the per-day series for the
+    heatmap, and the source breakdown for the pie. Unlike the habit/stopwatch
+    routes, this reads the persisted `DailyXP` ledger with a single range
+    query instead of a per-day loop, since there's at most one row per
+    user-day (see xp.recompute_from).
+    """
+
+    user_id = int(get_jwt_identity())
+    requested_date = date.fromisoformat(date_string)
+
+    period_range = get_period_range(requested_date, time_period)
+    if period_range is None:
+        return failure_response("Invalid time period")
+    start_day, num_days = period_range
+    end_day = start_day + timedelta(days = num_days - 1)
+
+    rows = DailyXP.query.filter(
+        DailyXP.user_id == user_id,
+        DailyXP.date >= start_day,
+        DailyXP.date <= end_day,
+    ).all()
+    by_date = {row.date: row for row in rows}
+
+    # days_counted / totals only look at *elapsed* days -- a future day earning
+    # 0 XP is missing data, not a real zero (unlike the "days" series below,
+    # which covers the whole period so the heatmap grid stays complete)
+    today = date.today()
+    elapsed_end = min(end_day, today)
+    days_counted = (elapsed_end - start_day).days + 1 if elapsed_end >= start_day else 0
+    elapsed_rows = [row for row in rows if row.date <= elapsed_end]
+
+    total_xp = sum(row.xp_earned for row in elapsed_rows)
+    average_per_day = (total_xp / days_counted) if days_counted > 0 else 0
+
+    best_day = None
+    for row in elapsed_rows:
+        if best_day is None or row.xp_earned > best_day.xp_earned:
+            best_day = row
+
+    qualified_days = sum(1 for row in elapsed_rows if row.streak > 0)
+    longest_streak = max((row.streak for row in elapsed_rows), default=0)
+
+    days = []
+    current_day = start_day
+    for i in range(num_days):
+        row = by_date.get(current_day)
+        days.append({"date": current_day.isoformat(), "xp": row.xp_earned if row else 0})
+        current_day += timedelta(days = 1)
+
+    user = db.session.get(User, user_id)
+    total_user_xp = user.total_xp or 0
+    progress = level_from_xp(total_user_xp)
+    # Gate the rank the same way the level endpoint does (spec 0035): only
+    # allowlisted accounts see it, so the stats page can't leak it either.
+    level_obj = {
+        "total_xp": total_user_xp,
+        "level": progress["level"],
+        "xp_into_level": progress["xp_into_level"],
+        "xp_to_next": progress["xp_to_next"],
+    }
+    if rank_visible(user):
+        level_obj["rank"] = rank_from_level(progress["level"])
+
+    return success_response({
+        "total": {"xp": total_xp, "average_per_day": average_per_day, "days_counted": days_counted},
+        "best_day": {"date": best_day.date.isoformat(), "xp": best_day.xp_earned} if best_day else None,
+        "streak": {
+            "qualified_days": qualified_days,
+            "longest": longest_streak,
+            "current": current_streak(user_id, requested_date),
+        },
+        "breakdown": [
+            {"source": "Habits", "xp": sum(row.habit_xp for row in elapsed_rows)},
+            {"source": "Work", "xp": sum(row.work_xp for row in elapsed_rows)},
+            {"source": "Goals", "xp": sum(row.goal_xp for row in elapsed_rows)},
+            {"source": "Bonuses", "xp": sum(row.bonus_xp for row in elapsed_rows)},
+        ],
+        "days": days,
+        "level": level_obj,
+    })

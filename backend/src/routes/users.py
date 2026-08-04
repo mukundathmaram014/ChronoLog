@@ -1,5 +1,5 @@
 from flask import Blueprint
-from utils import success_response, failure_response, process_date, ensure_utc
+from utils import success_response, failure_response, process_date, ensure_utc, rank_visible
 import json
 import os
 import secrets
@@ -146,7 +146,7 @@ def refresh():
     refresh_jti = refresh_decoded["jti"]
     refresh_exp = refresh_decoded["exp"]  # epoch seconds
     new_access_token = create_access_token(identity= str(user_id), additional_claims={"refresh_jti": refresh_jti, "refresh_exp": refresh_exp})
-    resp = make_response(success_response({"access_token": new_access_token, "username": user.username, "email" : user.email, "is_guest": bool(user.is_guest) }))
+    resp = make_response(success_response({"access_token": new_access_token, "username": user.username, "email" : user.email, "is_guest": bool(user.is_guest), "show_rank": rank_visible(user) }))
     set_refresh_cookies(resp, new_refresh_token)
     return resp
 

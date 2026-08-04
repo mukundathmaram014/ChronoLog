@@ -112,6 +112,20 @@ def test_purge_removes_expired_guest_and_data(app, client):
         assert TokenBlocklist.query.filter_by(user_id=guest_id).count() == 0
 
 
+def test_guest_never_receives_rank_even_when_allowlisted(client, monkeypatch):
+    body = json.loads(guest(client).data)
+    username = body["user"]["username"]
+    token = body["access_token"]
+    assert body["user"]["show_rank"] is False
+
+    monkeypatch.setenv("RANK_USERNAMES", username)
+    resp = client.get(
+        "/api/level/2026-01-15/",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert "rank" not in json.loads(resp.data)
+
+
 def test_purge_spares_regular_users_and_fresh_guests(app, client):
     auth_token(client)  # registered user
     fresh_guest_username = json.loads(guest(client).data)["user"]["username"]

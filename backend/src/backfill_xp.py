@@ -20,6 +20,12 @@ migration defaulted them to "medium" -- the backfill values every historical
 completed habit at the medium tier. Stopwatch hours are used exactly as
 recorded.
 
+Also backfills the DailyXP breakdown columns added in spec 0034
+(habit_xp/work_xp/goal_xp/bonus_xp): those columns default to 0 on existing
+rows until this runs, which makes the statistics page's XP-source pie read
+empty for historical periods even though the headline totals are correct.
+Re-run this once after deploying spec 0034, in addition to any earlier run.
+
 Run once, inside the backend container:
     docker exec <container> python backfill_xp.py
 """

@@ -1,5 +1,5 @@
 from flask import Blueprint
-from utils import success_response, failure_response, process_date, ensure_utc, validate_repeat_days
+from utils import success_response, failure_response, process_date, ensure_utc, validate_repeat_days, validate_weekday_goal_times, effective_goal_time
 import json
 from db import db
 from flask import Flask, request
@@ -12,19 +12,31 @@ from xp import recompute_from
 
 stopwatch_routes = Blueprint('stopwatch', __name__)
 
-def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user_id, is_recurring = True, repeat_days = 127):
+def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user_id, is_recurring = True, repeat_days = 127, weekday_goal_times = None, recompute = True):
+    """
+    Create one stopwatch on `requested_date` and fold its goal into the day's
+    Total. `weekday_goal_times` is the optional per-weekday goal schedule (spec
+    0036): when given, the row's goal is that date's weekday slot rather than
+    `goal_time`, and the schedule is stored on the row so it carries forward.
+    Pass recompute = False when creating many days in a loop and issuing a
+    single recompute_from afterwards.
+    """
 
     duplicate = Stopwatch.query.filter_by(title = title, date = requested_date, user_id = user_id).first()
     if duplicate is not None:
         return failure_response("Stopwatch already exists for this day", 409)
     stopwatches = []
+    # a per-weekday schedule decides what goal this day's row lands with; without
+    # one the uniform goal_time is used, exactly as before
+    goal_time = effective_goal_time(weekday_goal_times, goal_time, requested_date)
     # new rows append at the end of that day's list (the Total is excluded from ordering)
     max_position = db.session.query(func.max(Stopwatch.position)).filter(Stopwatch.user_id == user_id, Stopwatch.date == requested_date, Stopwatch.isTotal == False).scalar()
     position = 0 if max_position is None else max_position + 1
-    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time, user_id = user_id, is_recurring = is_recurring, repeat_days = repeat_days, position = position)
+    new_stopwatch = Stopwatch(title = title, start_time = start_time , date = requested_date, goal_time = goal_time, user_id = user_id, is_recurring = is_recurring, repeat_days = repeat_days, weekday_goal_times = weekday_goal_times, position = position)
 
     if Stopwatch.query.filter_by(date=requested_date, user_id = user_id).first() is None:
         # creating total time stopwatch
+        previous_total_goal = 0
         total_stopwatch = Stopwatch(title = "Total Time", start_time = datetime.now(timezone.utc), date = requested_date, isTotal = True, goal_time = goal_time, user_id = user_id)
         db.session.add(total_stopwatch)
         db.session.commit()
@@ -32,11 +44,16 @@ def create_stopwatch_for_date(requested_date, title, start_time, goal_time, user
         # adds to total stopwatch's goal time if already exists, unless the user
         # has manually overridden the Total's goal (spec 0023)
         total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
+        previous_total_goal = total_stopwatch.goal_time
         if not total_stopwatch.goal_overridden:
             total_stopwatch.goal_time = total_stopwatch.goal_time + goal_time
         db.session.commit()
 
     db.session.add(new_stopwatch)
+    # the day's goal drives its XP (the goal-time bonus and the normal/overtime
+    # split), so a moved Total goal has to rescore the day
+    if recompute and total_stopwatch.goal_time != previous_total_goal:
+        recompute_from(user_id, requested_date)
     db.session.commit()
     stopwatches.append(total_stopwatch.serialize())
     stopwatches.append(new_stopwatch.serialize())
@@ -66,6 +83,18 @@ def convert_time_string_to_milliseconds(time_string):
     goal_time_milli = (int(time_string[0:2]) * 3600000) + (int(time_string[3:5]) * 60000) # 3600000 milliseconds in an hour and 60000 milliseconds in a minute
     return goal_time_milli
 
+WEEKDAY_GOAL_TIMES_ERROR = 'weekday_goal_times must be null or a list of 7 "HH:MM" values (0 = Mon ... 6 = Sun)'
+
+def parse_weekday_goal_times(value):
+    """
+    A validated wire-format schedule (7 "HH:MM" strings / nulls, or null) as the
+    stored list of 7 millisecond values, or None for "one uniform goal". A null
+    slot and "00:00" both mean "no goal that weekday" and store 0.
+    """
+    if value is None:
+        return None
+    return [0 if entry is None else convert_time_string_to_milliseconds(entry) for entry in value]
+
 @stopwatch_routes.route("/")
 def test():
     return success_response("hello worldhh")
@@ -75,8 +104,8 @@ def test():
 def get_previous_stopwatch_titles():
     """
     Endpoint for getting the user's distinct prior stopwatch titles (+ most recent
-    goal time and repeat days), most-recent first, to feed the add-form
-    "reuse previous" dropdown
+    goal time, repeat days and per-weekday goal schedule), most-recent first, to
+    feed the add-form "reuse previous" dropdown
     """
     user_id = int(get_jwt_identity())
     rows = (Stopwatch.query
@@ -88,7 +117,7 @@ def get_previous_stopwatch_titles():
     for stopwatch in rows:
         if stopwatch.title not in seen:
             seen.add(stopwatch.title)
-            titles.append({"title": stopwatch.title, "goal_time": stopwatch.goal_time, "repeat_days": stopwatch.repeat_days})
+            titles.append({"title": stopwatch.title, "goal_time": stopwatch.goal_time, "repeat_days": stopwatch.repeat_days, "weekday_goal_times": stopwatch.weekday_goal_times_list()})
     return success_response({"titles": titles})
 
 @stopwatch_routes.route("/stopwatches/<string:date_string>/")
@@ -169,23 +198,39 @@ def get_stopwatches(date_string):
                 existing_total.goal_time = 0
 
             new_stopwatches = []
+            # earliest day this request created a row on, for the single post-loop
+            # XP recompute below
+            earliest_created_date = None
 
             #repopulates today with previous days' stopwatches, gated by their repeat days
             for prev_stopwatch in carried:
                 repeat_days = prev_stopwatch.repeat_days
+                # the schedule carries forward unchanged; only the goal each created
+                # day derives from it differs, per that day's weekday (spec 0036)
+                schedule = prev_stopwatch.weekday_goal_times_list()
 
                 # repopulates days in between, skipping weekdays outside the repeat set
                 temp_date = first_filled_date
                 while (temp_date < (requested_date - timedelta(days=1))):
                     temp_date += timedelta(days=1)
                     if repeat_days & (1 << temp_date.weekday()):
-                        create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id = user_id, is_recurring = True, repeat_days = repeat_days)
+                        backfilled = create_stopwatch_for_date(requested_date=temp_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id = user_id, is_recurring = True, repeat_days = repeat_days, weekday_goal_times = schedule, recompute = False)
+                        if not isinstance(backfilled, tuple) and (earliest_created_date is None or temp_date < earliest_created_date):
+                            earliest_created_date = temp_date
 
                 if repeat_days & (1 << requested_date.weekday()):
-                    created = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id= user_id, is_recurring = True, repeat_days = repeat_days)
+                    created = create_stopwatch_for_date(requested_date=requested_date, title = prev_stopwatch.title, start_time= prev_stopwatch.start_time, goal_time= prev_stopwatch.goal_time, user_id= user_id, is_recurring = True, repeat_days = repeat_days, weekday_goal_times = schedule, recompute = False)
                     # a (body, code) failure tuple means a duplicate title — nothing was created
                     if not isinstance(created, tuple):
                         new_stopwatches.append(created[1])
+                        if earliest_created_date is None or requested_date < earliest_created_date:
+                            earliest_created_date = requested_date
+            # every created day landed a goal on its Total, which can change that
+            # day's XP. recompute_from walks forward, so one call from the earliest
+            # created day covers the backfilled days and the requested day both —
+            # calling it per created day would re-walk the whole tail each time.
+            if earliest_created_date is not None:
+                recompute_from(user_id, earliest_created_date)
             db.session.commit()
             if new_stopwatches:
                 # serialize the Total once, after every carried goal is folded in
@@ -241,7 +286,14 @@ def create_stopwatch():
     if not validate_repeat_days(repeat_days):
         return failure_response("repeat_days must be an integer between 1 and 127", 400)
 
-    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now(timezone.utc)), goal_time= goal_time_milli, user_id=user_id, is_recurring= bool(body.get("is_recurring", True)), repeat_days= repeat_days)
+    # validated before any mutation, like repeat_days: a bad schedule rejects the
+    # whole request
+    weekday_goal_times = body.get("weekday_goal_times")
+    if not validate_weekday_goal_times(weekday_goal_times):
+        return failure_response(WEEKDAY_GOAL_TIMES_ERROR, 400)
+    schedule = parse_weekday_goal_times(weekday_goal_times)
+
+    stopwatches = create_stopwatch_for_date(requested_date=requested_date, title= body.get("title", ""), start_time= body.get("start_time", datetime.now(timezone.utc)), goal_time= goal_time_milli, user_id=user_id, is_recurring= bool(body.get("is_recurring", True)), repeat_days= repeat_days, weekday_goal_times= schedule)
     
     # If result is a failure response, return it directly
     if isinstance(stopwatches, tuple):
@@ -305,6 +357,21 @@ def update_stopwatch(stopwatch_id):
     if not validate_repeat_days(new_repeat_days):
         return failure_response("repeat_days must be an integer between 1 and 127", 400)
 
+    # likewise validated up front; ignored entirely on the Total row, which has no
+    # weekday schedule of its own
+    schedule_given = "weekday_goal_times" in body
+    if schedule_given and not validate_weekday_goal_times(body["weekday_goal_times"]):
+        return failure_response(WEEKDAY_GOAL_TIMES_ERROR, 400)
+
+    # Snapshot the day's Total before anything is mutated. The day's XP is rescored
+    # iff the Total's goal_time or curr_duration actually moved — one condition for
+    # every branch below, instead of a per-branch delta flag that can drift out of
+    # sync (the goal drives the goal-time bonus and the overtime split, not just
+    # the worked time).
+    total_before = stopwatch if stopwatch.isTotal else Stopwatch.query.filter_by(date = stopwatch.date, isTotal = True, user_id = user_id).first()
+    previous_total_goal = total_before.goal_time if total_before is not None else 0
+    previous_total_duration = total_before.curr_duration if total_before is not None else 0
+
     # dosent allow a duplicate stopwatch to be created
     new_title = body.get("title", stopwatch.title)
     if new_title != stopwatch.title:
@@ -337,8 +404,8 @@ def update_stopwatch(stopwatch_id):
             goal_time_raw = body["goal_time"]
             stopwatch.goal_time = 0 if goal_time_raw is None else convert_time_string_to_milliseconds(goal_time_raw)
             stopwatch.goal_overridden = True
-        # a curr_duration edit on the Total still changes the day's work XP
-        if change_in_duration != 0:
+        # a goal or curr_duration edit on the Total both change the day's XP
+        if stopwatch.goal_time != previous_total_goal or stopwatch.curr_duration != previous_total_duration:
             recompute_from(user_id, requested_date)
         db.session.commit()
         return success_response({"stopwatches" : [stopwatch.serialize(), stopwatch.serialize()]})
@@ -348,12 +415,23 @@ def update_stopwatch(stopwatch_id):
     # applies forward only: future carry-forward reads this value; past rows are untouched
     stopwatch.repeat_days = new_repeat_days
 
+    # weekday_goal_times absent -> keep; explicit null -> back to one uniform goal
+    if schedule_given:
+        schedule = parse_weekday_goal_times(body["weekday_goal_times"])
+        stopwatch.set_weekday_goal_times(schedule)
+    else:
+        schedule = stopwatch.weekday_goal_times_list()
+
     # goal_time absent -> keep; explicit null -> "no goal" (0); else parse "HH:MM"
     if "goal_time" in body:
         goal_time_raw = body["goal_time"]
-        new_goal_time = 0 if goal_time_raw is None else convert_time_string_to_milliseconds(goal_time_raw)
+        base_goal_time = 0 if goal_time_raw is None else convert_time_string_to_milliseconds(goal_time_raw)
     else:
-        new_goal_time = stopwatch.goal_time
+        base_goal_time = stopwatch.goal_time
+    # a schedule wins over the single field: the row's goal is always its own
+    # date's weekday slot, so the two can never disagree. The delta folded into
+    # the Total is therefore the delta of the *effective* goal.
+    new_goal_time = effective_goal_time(schedule, base_goal_time, requested_date)
     change_in_goal_time = new_goal_time - stopwatch.goal_time
     stopwatch.goal_time = new_goal_time
 
@@ -364,8 +442,9 @@ def update_stopwatch(stopwatch_id):
     # only fold the child's goal into the Total while the Total isn't overridden
     if not total_stopwatch.goal_overridden:
         total_stopwatch.goal_time = total_stopwatch.goal_time + change_in_goal_time
-    # the day's worked time changed, so its work XP changes
-    if change_in_duration != 0:
+    # the day's goal or worked time changed, so its XP changes. An overridden Total
+    # doesn't move on a child's goal edit, so nothing is rescored — which is right.
+    if total_stopwatch.goal_time != previous_total_goal or total_stopwatch.curr_duration != previous_total_duration:
         recompute_from(user_id, requested_date)
     db.session.commit()
 
@@ -384,6 +463,10 @@ def delete_stopwatch(stopwatch_id):
         return failure_response("Stopwatch is not found")
     requested_date = stopwatch.date
     total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
+    # snapshot before the deltas below, so the recompute condition covers a
+    # zero-duration stopwatch that took a goal out of the day with it
+    previous_total_goal = total_stopwatch.goal_time
+    previous_total_duration = total_stopwatch.curr_duration
     if (stopwatch.end_time is None):
         total_stopwatch.end_time = datetime.now(timezone.utc) #stops total stopwatch if stopwatch being deleted was running
     total_stopwatch.curr_duration = total_stopwatch.curr_duration - stopwatch.curr_duration
@@ -401,8 +484,8 @@ def delete_stopwatch(stopwatch_id):
         db.session.add(deleted_marker)
         db.session.commit()
 
-    # the day's worked time changed, so its work XP changes
-    if stopwatch.curr_duration != 0:
+    # the day's goal or worked time changed, so its XP changes
+    if total_stopwatch.goal_time != previous_total_goal or total_stopwatch.curr_duration != previous_total_duration:
         recompute_from(user_id, requested_date)
         db.session.commit()
 

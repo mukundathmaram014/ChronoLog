@@ -44,6 +44,7 @@ export function Statistics() {
     const [calendarView, setCalendarView] = useState("combined");
     const [perHabitCalendars, setPerHabitCalendars] = useState(null);
     const [timeCalendarData, setTimeCalendarData] = useState(null);
+    const [xpData, setXpData] = useState(null);
 
 
     // fetches the habits and stopwatches for the selector. For "day" these are the
@@ -89,7 +90,8 @@ export function Statistics() {
     }, [selectedDate, selectedTimePeriod]);
 
     useEffect(() => {
-            
+            if (selectedStatistics === "xp") return; // fetched by its own effect below
+
             let query = "";
             if (selectedStatistics === "habits" && selectedHabit) {
                 query = `?description=${encodeURIComponent(selectedHabit)}`;
@@ -111,11 +113,27 @@ export function Statistics() {
 
     // fetches the aggregate Total + per-item stats for the combined view (spec 0016)
     useEffect(() => {
+            if (selectedStatistics === "xp") return; // no "all" variant for XP
+
             fetchWithAuth(`/stats/${selectedStatistics}/all/${selectedDate}/${selectedTimePeriod}/`, {
                 method: "GET"
                 })
             .then(response => response.json())
             .then(data => setCombinedData(data))
+            .catch(error => console.error(error))
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedStatistics, selectedDate, selectedTimePeriod])
+
+    // fetches the period-aware XP readout (spec 0034)
+    useEffect(() => {
+            if (selectedStatistics !== "xp") { setXpData(null); return; }
+
+            fetchWithAuth(`/stats/xp/${selectedDate}/${selectedTimePeriod}/`, {
+                method: "GET"
+                })
+            .then(response => response.json())
+            .then(data => setXpData(data))
             .catch(error => console.error(error))
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -314,15 +332,18 @@ export function Statistics() {
         );
     }
 
-    function StopwatchPie({ breakdown, size = 300 }) {
-        const slices = [...breakdown]
-            .filter(item => item.duration > 0)
-            .sort((a, b) => b.duration - a.duration);
-        const total = slices.reduce((sum, item) => sum + item.duration, 0);
+    // Generic breakdown pie (spec 0034): takes {label, value} items plus a
+    // formatValue callback for the legend, so both the stopwatch and XP
+    // sections can share one pie instead of each hardcoding a value shape.
+    function BreakdownPie({ items, formatValue, size = 300, emptyMessage = "No data for this period" }) {
+        const slices = [...items]
+            .filter(item => item.value > 0)
+            .sort((a, b) => b.value - a.value);
+        const total = slices.reduce((sum, item) => sum + item.value, 0);
 
         if (total === 0) {
             return (
-                <div className="pie-empty">No time logged for this period</div>
+                <div className="pie-empty">{emptyMessage}</div>
             );
         }
 
@@ -337,7 +358,7 @@ export function Statistics() {
 
         let startAngle = 0;
         const pieSlices = slices.map((item, index) => {
-            const sweep = (item.duration / total) * 2 * Math.PI;
+            const sweep = (item.value / total) * 2 * Math.PI;
             const [x0, y0] = point(startAngle);
             const [x1, y1] = point(startAngle + sweep);
             const largeArc = sweep > Math.PI ? 1 : 0;
@@ -354,19 +375,18 @@ export function Statistics() {
                         <circle cx={cx} cy={cy} r={radius} fill={pieSlices[0].color} />
                     ) : (
                         pieSlices.map(slice => (
-                            <path key={slice.title} d={slice.d} fill={slice.color} stroke="#232323" strokeWidth="2" />
+                            <path key={slice.label} d={slice.d} fill={slice.color} stroke="#232323" strokeWidth="2" />
                         ))
                     )}
                 </svg>
                 <div className="pie-legend">
                     {pieSlices.map(slice => {
-                        const [hours, minutes] = formatTimeString(slice.duration);
-                        const percent = ((slice.duration / total) * 100).toFixed(1);
+                        const percent = ((slice.value / total) * 100).toFixed(1);
                         return (
-                            <div key={slice.title} className="pie-legend-item">
+                            <div key={slice.label} className="pie-legend-item">
                                 <span className="pie-legend-swatch" style={{ backgroundColor: slice.color }}></span>
-                                <span className="pie-legend-title">{slice.title}</span>
-                                <span className="pie-legend-value">{hours}h {minutes}m ({percent}%)</span>
+                                <span className="pie-legend-title">{slice.label}</span>
+                                <span className="pie-legend-value">{formatValue(slice.value)} ({percent}%)</span>
                             </div>
                         );
                     })}
@@ -465,7 +485,14 @@ export function Statistics() {
                                 </div>
                                 <div className = "stopwatch-pie-section">
                                     <p>Time by Stopwatch: </p>
-                                    <StopwatchPie breakdown={breakdownData} />
+                                    <BreakdownPie
+                                        items={breakdownData.map(item => ({ label: item.title, value: item.duration }))}
+                                        formatValue={value => {
+                                            const [hours, minutes] = formatTimeString(value);
+                                            return `${hours}h ${minutes}m`;
+                                        }}
+                                        emptyMessage="No time logged for this period"
+                                    />
                                 </div>
                             </>
                         )}
@@ -494,7 +521,83 @@ export function Statistics() {
 
                     </div>
                 );
-            default: 
+            case "xp":
+                return (
+                    <div className = "xpstatistics">
+                        {xpData && (
+                            <>
+                                <div className="xp-level-row">
+                                    <div className="xp-level-badge">
+                                        Level {xpData.level.level} <span className="xp-rank">({xpData.level.rank})</span>
+                                    </div>
+                                    <div className="xp-level-bar-wrap">
+                                        <div className="xp-level-bar">
+                                            <div
+                                                className="xp-level-bar-fill"
+                                                style={{
+                                                    width: `${Math.min(100,
+                                                        (xpData.level.xp_into_level /
+                                                            (xpData.level.xp_into_level + xpData.level.xp_to_next || 1)) * 100
+                                                    )}%`
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="xp-level-bar-label">
+                                            {xpData.level.xp_into_level} / {xpData.level.xp_into_level + xpData.level.xp_to_next} XP
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="xp-stat-row">
+                                    <div className="xp-stat-card">
+                                        <span className="xp-stat-label">Total XP</span>
+                                        <span className="xp-stat-value">{xpData.total.xp}</span>
+                                    </div>
+                                    <div className="xp-stat-card">
+                                        <span className="xp-stat-label">Average XP / Day</span>
+                                        <span className="xp-stat-value">{xpData.total.average_per_day.toFixed(1)}</span>
+                                    </div>
+                                    <div className="xp-stat-card">
+                                        <span className="xp-stat-label">Best Day</span>
+                                        <span className="xp-stat-value">
+                                            {xpData.best_day ? `${xpData.best_day.xp} XP (${xpData.best_day.date})` : "—"}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="xp-stat-row">
+                                    <div className="xp-stat-card">
+                                        <span className="xp-stat-label">Current Streak</span>
+                                        <span className="xp-stat-value">{xpData.streak.current}</span>
+                                    </div>
+                                    <div className="xp-stat-card">
+                                        <span className="xp-stat-label">Longest Streak</span>
+                                        <span className="xp-stat-value">{xpData.streak.longest}</span>
+                                    </div>
+                                    <div className="xp-stat-card">
+                                        <span className="xp-stat-label">Qualifying Days</span>
+                                        <span className="xp-stat-value">{xpData.streak.qualified_days}/{xpData.total.days_counted}</span>
+                                    </div>
+                                </div>
+
+                                <div className="habit-calendar-section">
+                                    <p>XP heatmap</p>
+                                    <HabitCalendar mode="xp" days={xpData.days} period={selectedTimePeriod} />
+                                </div>
+
+                                <div className = "stopwatch-pie-section">
+                                    <p>XP by Source: </p>
+                                    <BreakdownPie
+                                        items={xpData.breakdown.map(item => ({ label: item.source, value: item.xp }))}
+                                        formatValue={value => `${value} XP`}
+                                        emptyMessage="No XP earned this period"
+                                    />
+                                </div>
+                            </>
+                        )}
+                    </div>
+                );
+            default:
                 return (
                     <h2>default case</h2>
                 );
@@ -519,6 +622,7 @@ export function Statistics() {
                     <select value = {selectedStatistics} onChange = {e => setSelectedStatistics(e.target.value)}>
                     <option value= "habits">Habits</option>
                     <option value = "stopwatches">Stopwatches</option>
+                    <option value = "xp">XP</option>
                     </select>
                     </div>
                     <div className = "time-period-select-bar">
@@ -529,24 +633,27 @@ export function Statistics() {
                     <option value="year">Year</option>
                     </select>
                     </div>
-                    <div className = "habits-or-stopwatches-select-bar">
-                    <select value = {selectedStatistics === "habits" ? selectedHabit : selectedStopwatch}
-                     onChange = {e => {if (selectedStatistics === "habits"){ setSelectedHabit(e.target.value)}
-                                       else {setSelectedStopwatch(e.target.value)}}}>
-                    {selectedStatistics === "habits" && (
-                        <option value="">All Habits</option>
-                    )} 
-                    {(selectedStatistics === "habits" ? habits : stopwatches).map(item => (
-                        // For stopwatches, use the title as the value, but for the "Total Time" stopwatch, use an empty string ("").
-                        // This ensures selecting "Total Time" or "All Habits" results in no query parameter being sent to the backend.
-                        <option 
-                            key={item.id} 
-                            value={selectedStatistics === "habits" ? item.description : (item.title === "Total Time" ? "" : item.title)}> 
-                            {selectedStatistics === "habits" ? item.description : item.title}
-                        </option>
-                    ))}
-                    </select>
-                    </div>
+                    {/* item selector: doesn't apply to the XP section (spec 0034) */}
+                    {selectedStatistics !== "xp" && (
+                        <div className = "habits-or-stopwatches-select-bar">
+                        <select value = {selectedStatistics === "habits" ? selectedHabit : selectedStopwatch}
+                         onChange = {e => {if (selectedStatistics === "habits"){ setSelectedHabit(e.target.value)}
+                                           else {setSelectedStopwatch(e.target.value)}}}>
+                        {selectedStatistics === "habits" && (
+                            <option value="">All Habits</option>
+                        )}
+                        {(selectedStatistics === "habits" ? habits : stopwatches).map(item => (
+                            // For stopwatches, use the title as the value, but for the "Total Time" stopwatch, use an empty string ("").
+                            // This ensures selecting "Total Time" or "All Habits" results in no query parameter being sent to the backend.
+                            <option
+                                key={item.id}
+                                value={selectedStatistics === "habits" ? item.description : (item.title === "Total Time" ? "" : item.title)}>
+                                {selectedStatistics === "habits" ? item.description : item.title}
+                            </option>
+                        ))}
+                        </select>
+                        </div>
+                    )}
                     {/* calendar view toggle: only meaningful for the all-habits calendar (spec 0029) */}
                     {selectedStatistics === "habits" && !selectedHabit && (
                         <div className = "calendar-view-select-bar">

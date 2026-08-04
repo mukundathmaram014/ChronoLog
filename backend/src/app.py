@@ -99,6 +99,15 @@ def ensure_stopwatch_repeat_days_column():
         db.session.commit()
 
 
+def ensure_stopwatch_weekday_goal_times_column():
+    result = db.session.execute(text("PRAGMA table_info(stopwatches)"))
+    columns = {row[1] for row in result}
+    if "weekday_goal_times" not in columns:
+        # NULL on existing rows = one uniform goal_time, the pre-feature behavior
+        db.session.execute(text("ALTER TABLE stopwatches ADD COLUMN weekday_goal_times VARCHAR"))
+        db.session.commit()
+
+
 def ensure_habit_position_column():
     result = db.session.execute(text("PRAGMA table_info(habits)"))
     columns = {row[1] for row in result}
@@ -123,6 +132,16 @@ def ensure_task_completed_date_column():
         # so the history endpoint falls back to their due date
         db.session.execute(text("ALTER TABLE tasks ADD COLUMN completed_date DATE"))
         db.session.commit()
+
+
+def ensure_daily_xp_breakdown_columns():
+    result = db.session.execute(text("PRAGMA table_info(daily_xp)"))
+    columns = {row[1] for row in result}
+    # existing rows get 0s until backfill_xp.py is re-run (spec 0034)
+    for column in ("habit_xp", "work_xp", "goal_xp", "bonus_xp"):
+        if column not in columns:
+            db.session.execute(text(f"ALTER TABLE daily_xp ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0"))
+    db.session.commit()
 
 
 def create_app(test_config=None):
@@ -181,6 +200,8 @@ def create_app(test_config=None):
         ensure_stopwatch_position_column()
         ensure_stopwatch_repeat_days_column()
         ensure_task_completed_date_column()
+        ensure_stopwatch_weekday_goal_times_column()
+        ensure_daily_xp_breakdown_columns()
 
     app.register_blueprint(habit_routes,  url_prefix="/api")
     app.register_blueprint(task_routes,  url_prefix="/api")

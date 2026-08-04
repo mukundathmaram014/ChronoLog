@@ -39,6 +39,10 @@ export const StopwatchItem = forwardRef(({item, isFuture, onEdit, onStart, onSto
                             const [goalHours, goalMinutes] = formatTimeString(item.goal_time);
                             return <>Goal: {goalHours}h {goalMinutes}m</>;
                         })() : <>No goal</>}
+                        {/* the goal above is this row's own day; a schedule means other days differ */}
+                        {item.weekday_goal_times && (
+                            <span className="repeat-days-indicator">varies by day</span>
+                        )}
                         {item.is_recurring && (item.repeat_days ?? 127) !== 127 && (
                             <span className="repeat-days-indicator">
                                 {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]

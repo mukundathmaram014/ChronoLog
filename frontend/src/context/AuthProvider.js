@@ -38,7 +38,8 @@ export const AuthProvider = ({ children}) => {
                     let username = data.username
                     let email = data.email
                     let isGuest = data.is_guest === true
-                    setAuth({username, email,  access_token, isGuest });
+                    let showRank = data.show_rank === true
+                    setAuth({username, email,  access_token, isGuest, showRank });
                     return true;
                 } catch {
                     return false;

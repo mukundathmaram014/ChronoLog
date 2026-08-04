@@ -604,6 +604,43 @@ h1{
   color: white;
 }
 
+/* per-weekday goals (spec 0036): seven compact Hours/Minutes pairs replacing the
+   single goal pair, aligned with the weekday picker directly below them */
+.weekday-goal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.weekday-goal-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* a weekday outside the repeat set: no row lands there, so its goal is dormant —
+   dimmed, but still editable so re-checking the day restores it */
+.weekday-goal-row.unscheduled {
+  opacity: 0.45;
+}
+
+.weekday-goal-label {
+  width: 26px;
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.weekday-goal-unit {
+  color: #aaa;
+  font-size: 0.85rem;
+}
+
+.weekday-goal-row input[type="number"] {
+  width: 56px;
+  margin-bottom: 0;
+}
+
 .repeat-days-indicator {
   display: block;
   font-size: 0.75rem;
