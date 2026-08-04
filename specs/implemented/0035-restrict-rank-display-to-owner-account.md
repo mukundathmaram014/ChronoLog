@@ -1,9 +1,9 @@
 ---
-title: Restrict the Solo Leveling rank display to an env-configured account
+title: Restrict the letter-rank display to an env-configured account
 status: decided
 ---
 
-# Restrict the Solo Leveling rank display to an env-configured account
+# Restrict the letter-rank display to an env-configured account
 
 ## Summary
 
