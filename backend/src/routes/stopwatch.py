@@ -67,11 +67,17 @@ def finalize_stale_stopwatches(user_id):
     lockstep with its child, so it gets frozen by the same sweep, keeping the
     pair consistent. No curr_duration changes, so the day's work XP is already
     correct — recompute_from must not be called here.
+
+    "Past day" is judged against the server's date, which is UTC: behind UTC, the
+    user's today is already the server's yesterday every evening. So only rows at
+    least two server-days old are stale — no timezone's today is that far back —
+    otherwise a stopwatch genuinely running today would be frozen (crediting none
+    of its time) just by fetching the list.
     """
     stale_stopwatches = Stopwatch.query.filter(
         Stopwatch.user_id == user_id,
         Stopwatch.end_time.is_(None),
-        Stopwatch.date < date.today(),
+        Stopwatch.date < date.today() - timedelta(days=1),
     ).all()
     for stopwatch in stale_stopwatches:
         stopwatch.end_time = ensure_utc(stopwatch.interval_start)
