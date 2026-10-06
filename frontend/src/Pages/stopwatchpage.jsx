@@ -177,7 +177,19 @@ export function Stopwatch() {
                     })
                     .catch(error => console.error(error));
                 } else {
-                    setRunningId(null);
+                    // a stopwatch still running from a previous page load (the page was
+                    // backgrounded and then reloaded): pick it back up so it ticks live
+                    const stillRunning = dateToFetch !== today ? null :
+                        data.stopwatches.find(sw => !sw.isTotal && sw.end_time === null);
+                    if (stillRunning) {
+                        setRunningId(stillRunning.id);
+                        clearInterval(intervalRef.current);
+                        intervalRef.current = setInterval(() => {
+                            setTick(tick => tick + 1);
+                        }, 10);
+                    } else {
+                        setRunningId(null);
+                    }
                 }
             })
             .catch(error => console.error(error));
@@ -204,13 +216,32 @@ export function Stopwatch() {
 
     // stops running stopwatches when website closed
     useEffect ( () => {
-        const handleUnload = () => {
+        const handleUnload = (event) => {
+            // persisted = the page is going into the back/forward cache (app switch,
+            // phone locked) and may well come back: leave the stopwatch running so the
+            // time away keeps counting. Only a page that's really unloading stops it.
+            if (event.persisted) {
+                return;
+            }
             allStopwatchesRef.current.forEach(stopwatch => {
                 if ((stopwatch.end_time === null) && !stopwatch.isTotal){
                     fetchWithAuth(`/stopwatches/stop/${stopwatch.id}/`, {
                         keepalive : true,
                         method : "PATCH"
-                    });
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // only runs if the page survived after all: show the server's
+                        // stopped state instead of a stopwatch that looks like it's
+                        // still running (a later Pause would credit nothing)
+                        clearInterval(intervalRef.current);
+                        intervalStartClientRef.current = null;
+                        setStopwatches(allStopwatches =>
+                            allStopwatches.map(stopwatch =>
+                                (stopwatch.isTotal) ? data.stopwatches[0] :
+                             (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatch and stopwatch that stopped
+                    })
+                    .catch(error => console.error(error));
                 };
                 setRunningId(null);
             });
