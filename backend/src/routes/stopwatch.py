@@ -507,7 +507,22 @@ def stop_stopwatch(stopwatch_id):
         return failure_response("Stopwatch is not found")
     requested_date = stopwatch.date
     total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
-    total_stopwatch.end_time = stopwatch.end_time = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+
+    # Stop is idempotent: only the request that flips end_time from NULL credits
+    # time. A duplicate stop (double-tap, or a manual stop racing the pagehide /
+    # navigation stop before the first response lands) would otherwise add
+    # now - interval_start a second time. The conditional UPDATE makes the claim
+    # atomic, so two overlapping requests can't both see the stopwatch as running.
+    claimed = Stopwatch.query.filter(
+        Stopwatch.id == stopwatch.id,
+        Stopwatch.end_time.is_(None),
+    ).update({Stopwatch.end_time: now}, synchronize_session = False)
+    if claimed == 0:
+        db.session.rollback()
+        return success_response({"stopwatches" : [total_stopwatch.serialize(), stopwatch.serialize()]})
+
+    total_stopwatch.end_time = stopwatch.end_time = now
     increment = (ensure_utc(stopwatch.end_time) - ensure_utc(stopwatch.interval_start)).total_seconds() * 1000
     stopwatch.curr_duration = stopwatch.curr_duration + increment
     total_stopwatch.curr_duration = total_stopwatch.curr_duration + increment

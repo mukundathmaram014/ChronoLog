@@ -191,3 +191,22 @@ def test_intervals_are_scoped_to_the_requesting_user(client):
     intruder = auth_token(client, username="intruder")
     assert get_intervals(client, intruder, TODAY) == []
     assert len(get_intervals(client, owner, TODAY)) == 1
+
+
+def test_duplicate_stop_does_not_double_count(client):
+    token = auth_token(client)
+    sw_id = create_stopwatch(client, token, title="double stop", date=TODAY)
+
+    assert start_stopwatch(client, token, sw_id).status_code == 200
+    first = json.loads(stop_stopwatch(client, token, sw_id).data)["stopwatches"]
+    # a second stop for the same run (double-tap / pagehide racing a manual stop)
+    second_resp = stop_stopwatch(client, token, sw_id)
+    assert second_resp.status_code == 200
+    second = json.loads(second_resp.data)["stopwatches"]
+
+    # neither the stopwatch nor the day's Total is credited again
+    assert second[1]["curr_duration"] == first[1]["curr_duration"]
+    assert second[0]["curr_duration"] == first[0]["curr_duration"]
+    assert second[1]["end_time"] == first[1]["end_time"]
+    # and only one session-log segment is recorded
+    assert len(get_intervals(client, token, TODAY)) == 1
