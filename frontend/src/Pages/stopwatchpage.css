@@ -37,9 +37,21 @@ body {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5); /* dim background */
   display: flex;
-  justify-content: center;
-  align-items: center;
   z-index: 1000;
+  /* the overlay scrolls when the popup is taller than the screen (e.g. the edit
+     form with a weekday schedule on a phone) instead of clipping both ends */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* margin: auto centers the popup when it fits, but unlike align-items: center it
+   never pushes the top above the scrollable area when it doesn't */
+.stopwatch-input > .stopwatch-input-item,
+.stopwatch-input > .stopwatch-edit-item {
+  margin: auto;
+  flex-shrink: 0;
 }
 
 .stopwatch-input-item {
