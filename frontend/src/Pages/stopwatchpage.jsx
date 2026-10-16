@@ -214,42 +214,11 @@ export function Stopwatch() {
     }, [selectedDate]);
     
 
-    // stops running stopwatches when website closed
-    useEffect ( () => {
-        const handleUnload = (event) => {
-            // persisted = the page is going into the back/forward cache (app switch,
-            // phone locked) and may well come back: leave the stopwatch running so the
-            // time away keeps counting. Only a page that's really unloading stops it.
-            if (event.persisted) {
-                return;
-            }
-            allStopwatchesRef.current.forEach(stopwatch => {
-                if ((stopwatch.end_time === null) && !stopwatch.isTotal){
-                    fetchWithAuth(`/stopwatches/stop/${stopwatch.id}/`, {
-                        keepalive : true,
-                        method : "PATCH"
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        // only runs if the page survived after all: show the server's
-                        // stopped state instead of a stopwatch that looks like it's
-                        // still running (a later Pause would credit nothing)
-                        clearInterval(intervalRef.current);
-                        intervalStartClientRef.current = null;
-                        setStopwatches(allStopwatches =>
-                            allStopwatches.map(stopwatch =>
-                                (stopwatch.isTotal) ? data.stopwatches[0] :
-                             (stopwatch.id === data.stopwatches[1].id) ? data.stopwatches[1] : stopwatch)); // updates total stopwatch and stopwatch that stopped
-                    })
-                    .catch(error => console.error(error));
-                };
-                setRunningId(null);
-            });
-        }
-        window.addEventListener('pagehide', handleUnload)
-        return () => window.removeEventListener('pagehide', handleUnload);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
+    // Closing the page (or the phone locking it) deliberately does NOT stop a running
+    // stopwatch: the time is computed from the server's interval_start, so it keeps
+    // counting with the phone away, and on return the page picks it back up (see the
+    // fetch above). Mobile browsers can report a lock / app switch as a real unload,
+    // so a stop-on-pagehide would stop the stopwatch every time the phone sleeps.
 
     //stops running stopwatches when user navigates to different page
     useEffect(() => {
