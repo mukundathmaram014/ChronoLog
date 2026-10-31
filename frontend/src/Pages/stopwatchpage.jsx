@@ -31,6 +31,13 @@ const ALL_DAYS = 127;
 // the seven per-weekday goal inputs (spec 0036), all seeded to the same value
 const uniformWeekdayGoals = (hours, minutes) => Array.from({ length: 7 }, () => ({ hours, minutes }));
 
+// local 00:00 starting the day `days` after a "YYYY-MM-DD" date, as a Date: days = 1
+// is the midnight that ends that day, days = -1 is the start of the day before it
+const localMidnight = (dateString, days) => {
+    const [year, month, day] = dateString.split("-").map(Number);
+    return new Date(year, month - 1, day + days);
+};
+
 export function Stopwatch() {
 
     const fetchWithAuth = useFetch();
@@ -78,9 +85,6 @@ export function Stopwatch() {
     // display doesn't drift by the client/server clock skew (spec 0006)
     const intervalStartClientRef = useRef(null);
     const defaultTitleRef = useRef(document.title);
-    // title of the stopwatch that was running at midnight; the data effect starts
-    // its fresh copy on the new day (midnight rollover hand-off)
-    const rolloverTitleRef = useRef(null);
     const [stopwatchError, setStopwatchError] = useState("");
     // session log (spec 0030): collapsed by default and lazily fetched — expanding
     // is the only thing that loads it, and a date change collapses it back to unloaded
@@ -104,32 +108,68 @@ export function Stopwatch() {
     );
     
 
-    // midnight rollover: remember which stopwatch was running (by title), then
-    // advance today AND selectedDate. The data effect below finalizes the old
-    // day (stop persists its time up to ~00:00), fetches the new day (carry-
-    // forward creates fresh rows at 0), and restarts the remembered stopwatch
-    // so it keeps running, focused, counting up from 0 under the new day.
+    // midnight rollover: advance today AND selectedDate when the day changes. The data
+    // effect below then splits a stopwatch that ran past midnight exactly at 00:00. The
+    // timeout covers an app that's open at midnight; a phone asleep through midnight
+    // fires timers late or not at all, so coming back to the app checks the date too.
     useEffect(() => {
-        const now = new Date();
-        const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now //midnight next day
-        const timeout = setTimeout(() => {
-            const running = allStopwatchesRef.current.find(
-                sw => sw.end_time === null && !sw.isTotal
-            );
-            rolloverTitleRef.current = running ? running.title : null;
+        const advanceIfNewDay = () => {
             const newToday = DatetoISOString(new Date());
-            setToday(newToday);
-            setSelectedDate(newToday);
-        }, msUntilMidnight);
+            if (newToday !== today) {
+                setToday(newToday);
+                setSelectedDate(newToday);
+            }
+        };
+        const timeout = setTimeout(advanceIfNewDay, Math.max(0, localMidnight(today, 1) - new Date()));
+        const handleVisible = () => {
+            if (document.visibilityState === "visible") advanceIfNewDay();
+        };
+        document.addEventListener("visibilitychange", handleVisible);
 
-        return () => clearTimeout(timeout);
+        return () => {
+            clearTimeout(timeout);
+            document.removeEventListener("visibilitychange", handleVisible);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     },[today]);
 
     useEffect(() => {
+        // Splits a stopwatch still running from an earlier day (the app was asleep or
+        // closed through midnight) at the local midnight ending its own day, so that day
+        // keeps exactly the time it ran before 00:00. Returns the one that ran into
+        // today — yesterday's — so its copy on today can carry on from 00:00, or null.
+        // Only today's view does this; the ids it stopped go in rolledIds.
+        const rollOverPastRunning = async (rolledIds) => {
+            if (selectedDate !== today) return null;
+            const response = await fetchWithAuth(`/stopwatches/running/`, {
+                method: "GET"
+            });
+            const data = await response.json();
+            const yesterday = DatetoISOString(localMidnight(today, -1));
+            let carryOver = null;
+            for (const stopwatch of data.stopwatches) {
+                if (stopwatch.date >= today) continue; // "YYYY-MM-DD" compares as dates
+                const midnight = localMidnight(stopwatch.date, 1);
+                // started after its own day had already ended (from a past day's view):
+                // it never crossed that day's midnight, so there's nothing to split
+                if (new Date(stopwatch.interval_start) >= midnight) continue;
+                await fetchWithAuth(`/stopwatches/stop/${stopwatch.id}/`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ end_time: midnight.toISOString() })
+                });
+                rolledIds.add(stopwatch.id);
+                // older days just end at their midnight; only yesterday's run continues
+                if (stopwatch.date === yesterday) {
+                    carryOver = { title: stopwatch.title, midnight };
+                }
+            }
+            return carryOver;
+        };
+
         // stops any running stopwatches when selected date changes
-        const stopRunning = async () => {
+        const stopRunning = async (rolledIds) => {
             const running = allStopwatchesRef.current.find(
-                sw => sw.end_time === null && !sw.isTotal
+                sw => sw.end_time === null && !sw.isTotal && !rolledIds.has(sw.id)
             );
             if (running) {
                 await fetchWithAuth(`/stopwatches/stop/${running.id}/`, {
@@ -139,7 +179,14 @@ export function Stopwatch() {
             }
         };
 
-        stopRunning().then(() => {
+        const rolledIds = new Set();
+        let carryOver = null;
+        rollOverPastRunning(rolledIds)
+        .then(result => { carryOver = result; })
+        // a failed split must not block loading the day
+        .catch(error => console.error(error))
+        .then(() => stopRunning(rolledIds))
+        .then(() => {
             // gets current stopwatches if future date
             let dateToFetch = selectedDate;
             if (isFuture){
@@ -153,20 +200,23 @@ export function Stopwatch() {
                 setRunningId(null);
                 intervalStartClientRef.current = null;
                 setStopwatches((data.stopwatches));
-                // midnight hand-off: restart the stopwatch that was running when
-                // the day rolled over — its fresh copy counts up from 0 on the new day
-                const rolloverTitle = rolloverTitleRef.current;
-                rolloverTitleRef.current = null;
-                const match = (rolloverTitle === null || dateToFetch !== today) ? null :
-                    data.stopwatches.find(sw => !sw.isTotal && sw.title === rolloverTitle);
+                // midnight hand-off: the stopwatch that ran past midnight carries on in
+                // its copy on the new day, counted from 00:00 — so the time since
+                // midnight lands on today even if the app was asleep until now. Only an
+                // untouched copy: one that already has time would double-count from 00:00.
+                const match = (carryOver === null || dateToFetch !== today) ? null :
+                    data.stopwatches.find(sw => !sw.isTotal && sw.title === carryOver.title &&
+                        sw.end_time !== null && sw.curr_duration === 0);
                 if (match) {
+                    intervalStartClientRef.current = carryOver.midnight.getTime();
                     setRunningId(match.id);
                     clearInterval(intervalRef.current);
                     intervalRef.current = setInterval(() => {
                         setTick(tick => tick + 1);
                     }, 10);
                     fetchWithAuth(`/stopwatches/start/${match.id}/`, {
-                        method: "PATCH"
+                        method: "PATCH",
+                        body: JSON.stringify({ interval_start: carryOver.midnight.toISOString() })
                     })
                     .then(response => response.json())
                     .then(started => {

@@ -1,5 +1,5 @@
 from flask import Blueprint
-from utils import success_response, failure_response, process_date, ensure_utc, validate_repeat_days, validate_weekday_goal_times, effective_goal_time
+from utils import success_response, failure_response, process_date, ensure_utc, parse_client_datetime, validate_repeat_days, validate_weekday_goal_times, effective_goal_time
 import json
 from db import db
 from flask import Flask, request
@@ -125,6 +125,22 @@ def get_previous_stopwatch_titles():
             seen.add(stopwatch.title)
             titles.append({"title": stopwatch.title, "goal_time": stopwatch.goal_time, "repeat_days": stopwatch.repeat_days, "weekday_goal_times": stopwatch.weekday_goal_times_list()})
     return success_response({"titles": titles})
+
+@stopwatch_routes.route("/stopwatches/running/")
+@jwt_required()
+def get_running_stopwatches():
+    """
+    Endpoint for the user's running (non-Total) stopwatches on any date. The day
+    view only loads one date, so this is how the client finds a stopwatch left
+    running past midnight (app asleep or closed) to split it at the day boundary.
+    """
+    user_id = int(get_jwt_identity())
+    running = Stopwatch.query.filter(
+        Stopwatch.user_id == user_id,
+        Stopwatch.end_time.is_(None),
+        Stopwatch.isTotal == False,
+    ).order_by(Stopwatch.date).all()
+    return success_response({"stopwatches": [stopwatch.serialize() for stopwatch in running]})
 
 @stopwatch_routes.route("/stopwatches/<string:date_string>/")
 @jwt_required()
@@ -515,6 +531,19 @@ def stop_stopwatch(stopwatch_id):
     total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
     now = datetime.now(timezone.utc)
 
+    # Optional explicit stop time: the midnight rollover stops a stopwatch that ran
+    # past the end of its day at that day's local midnight, which only the client
+    # knows. Clamped to now so a stop can never credit time that hasn't happened.
+    body = json.loads(request.data) if request.data else {}
+    stop_at = now
+    if body.get("end_time") is not None:
+        try:
+            stop_at = min(parse_client_datetime(body["end_time"]), now)
+        except ValueError:
+            return failure_response("end_time must be an ISO-8601 datetime with a UTC offset", 400)
+        if stopwatch.end_time is None and stop_at < ensure_utc(stopwatch.interval_start):
+            return failure_response("end_time is before the stopwatch was started", 400)
+
     # Stop is idempotent: only the request that flips end_time from NULL credits
     # time. A duplicate stop (double-tap, or a manual stop racing the pagehide /
     # navigation stop before the first response lands) would otherwise add
@@ -523,12 +552,12 @@ def stop_stopwatch(stopwatch_id):
     claimed = Stopwatch.query.filter(
         Stopwatch.id == stopwatch.id,
         Stopwatch.end_time.is_(None),
-    ).update({Stopwatch.end_time: now}, synchronize_session = False)
+    ).update({Stopwatch.end_time: stop_at}, synchronize_session = False)
     if claimed == 0:
         db.session.rollback()
         return success_response({"stopwatches" : [total_stopwatch.serialize(), stopwatch.serialize()]})
 
-    total_stopwatch.end_time = stopwatch.end_time = now
+    total_stopwatch.end_time = stopwatch.end_time = stop_at
     increment = (ensure_utc(stopwatch.end_time) - ensure_utc(stopwatch.interval_start)).total_seconds() * 1000
     stopwatch.curr_duration = stopwatch.curr_duration + increment
     total_stopwatch.curr_duration = total_stopwatch.curr_duration + increment
@@ -569,7 +598,21 @@ def start_stopwatch(stopwatch_id):
     requested_date = stopwatch.date
     total_stopwatch = Stopwatch.query.filter_by(date = requested_date, isTotal = True, user_id = user_id).first()
     now = datetime.now(timezone.utc)
-    total_stopwatch.interval_start = stopwatch.interval_start = now
+
+    # Optional explicit start time: the midnight rollover restarts the new day's
+    # stopwatch at that day's local 00:00 (possibly hours ago, if the app was asleep
+    # through midnight). Clamped to now, and bounded so a bad value can't credit days.
+    body = json.loads(request.data) if request.data else {}
+    start_at = now
+    if body.get("interval_start") is not None:
+        try:
+            start_at = min(parse_client_datetime(body["interval_start"]), now)
+        except ValueError:
+            return failure_response("interval_start must be an ISO-8601 datetime with a UTC offset", 400)
+        if start_at < now - timedelta(days=2):
+            return failure_response("interval_start is too far in the past", 400)
+
+    total_stopwatch.interval_start = stopwatch.interval_start = start_at
     total_stopwatch.end_time = stopwatch.end_time = None
     db.session.commit()
 
