@@ -58,14 +58,14 @@ def get_titles(client, token):
 
 def test_new_stopwatch_defaults_to_recurring(client):
     token = auth_token(client)
-    resp = create_stopwatch(client, token, "study", "2026-01-15")
+    resp = create_stopwatch(client, token, "item a", "2026-01-15")
     stopwatch = json.loads(resp.data)["stopwatches"][1]
     assert stopwatch["is_recurring"] is True
 
 
 def test_non_recurring_flag_persists_and_is_editable(client):
     token = auth_token(client)
-    resp = create_stopwatch(client, token, "errand", "2026-01-15", is_recurring=False)
+    resp = create_stopwatch(client, token, "item c", "2026-01-15", is_recurring=False)
     stopwatch = json.loads(resp.data)["stopwatches"][1]
     assert stopwatch["is_recurring"] is False
 
@@ -78,13 +78,13 @@ def test_non_recurring_flag_persists_and_is_editable(client):
 def test_only_recurring_stopwatches_carry_forward(client):
     token = auth_token(client)
     d = date(2026, 1, 15)
-    create_stopwatch(client, token, "study", d.isoformat(), goal_time="02:00")
-    create_stopwatch(client, token, "errand", d.isoformat(), goal_time="01:00", is_recurring=False)
+    create_stopwatch(client, token, "item a", d.isoformat(), goal_time="02:00")
+    create_stopwatch(client, token, "item c", d.isoformat(), goal_time="01:00", is_recurring=False)
 
     stopwatches = get_stopwatches(client, token, (d + timedelta(days=1)).isoformat())
     titles = [s["title"] for s in stopwatches]
-    assert titles == ["Total Time", "study"]
-    carried = next(s for s in stopwatches if s["title"] == "study")
+    assert titles == ["Total Time", "item a"]
+    carried = next(s for s in stopwatches if s["title"] == "item a")
     assert carried["is_recurring"] is True
     assert carried["curr_duration"] == 0.0
     # the new day's Total goal reflects only the carried (recurring) goals
@@ -95,7 +95,7 @@ def test_only_recurring_stopwatches_carry_forward(client):
 def test_day_with_only_non_recurring_leaves_next_day_empty(client):
     token = auth_token(client)
     d = date(2026, 1, 15)
-    create_stopwatch(client, token, "errand", d.isoformat(), is_recurring=False)
+    create_stopwatch(client, token, "item c", d.isoformat(), is_recurring=False)
 
     assert get_stopwatches(client, token, (d + timedelta(days=1)).isoformat()) == []
 
@@ -103,21 +103,21 @@ def test_day_with_only_non_recurring_leaves_next_day_empty(client):
 def test_gap_fill_only_propagates_recurring(client):
     token = auth_token(client)
     d = date(2026, 1, 15)
-    create_stopwatch(client, token, "study", d.isoformat())
-    create_stopwatch(client, token, "errand", d.isoformat(), is_recurring=False)
+    create_stopwatch(client, token, "item a", d.isoformat())
+    create_stopwatch(client, token, "item c", d.isoformat(), is_recurring=False)
 
     # opening d+3 backfills d+1 and d+2 with the recurring stopwatch only
     stopwatches = get_stopwatches(client, token, (d + timedelta(days=3)).isoformat())
-    assert [s["title"] for s in stopwatches] == ["Total Time", "study"]
+    assert [s["title"] for s in stopwatches] == ["Total Time", "item a"]
     for offset in (1, 2):
         day = get_stopwatches(client, token, (d + timedelta(days=offset)).isoformat())
-        assert [s["title"] for s in day] == ["Total Time", "study"]
+        assert [s["title"] for s in day] == ["Total Time", "item a"]
 
 
 def test_intentionally_emptied_day_stays_empty(client):
     token = auth_token(client)
     d = date(2026, 1, 15)
-    resp = create_stopwatch(client, token, "study", d.isoformat())
+    resp = create_stopwatch(client, token, "item a", d.isoformat())
     stopwatch = json.loads(resp.data)["stopwatches"][1]
     # deleting the only stopwatch marks the day as intentionally emptied
     delete_stopwatch(client, token, stopwatch["id"])
@@ -176,13 +176,13 @@ def regulars_of(stopwatches):
 
 def test_carry_forward_next_day(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "Coding", D.isoformat())
-    create_stopwatch(client, token, "Reading", D.isoformat(), goal_time="00:30")
+    create_stopwatch(client, token, "Activity B", D.isoformat())
+    create_stopwatch(client, token, "Activity A", D.isoformat(), goal_time="00:30")
 
     next_day = (D + timedelta(days=1)).isoformat()
     stopwatches = get_stopwatches(client, token, next_day)
 
-    assert {s["title"] for s in regulars_of(stopwatches)} == {"Coding", "Reading"}
+    assert {s["title"] for s in regulars_of(stopwatches)} == {"Activity B", "Activity A"}
     totals = totals_of(stopwatches)
     assert len(totals) == 1
     # the returned Total reflects every carried goal, not just the first
@@ -193,14 +193,14 @@ def test_carry_forward_next_day(client):
 
 def test_total_only_day_repopulates(app, client):
     token = auth_token(client)
-    create_stopwatch(client, token, "Coding", D.isoformat())
+    create_stopwatch(client, token, "Activity B", D.isoformat())
     # a leftover goal on the Total must not survive into the repopulated sum
     seed_total_only_day(app, D + timedelta(days=1), goal_time=12345.0)
 
     next_day = (D + timedelta(days=1)).isoformat()
     stopwatches = get_stopwatches(client, token, next_day)
 
-    assert [s["title"] for s in regulars_of(stopwatches)] == ["Coding"]
+    assert [s["title"] for s in regulars_of(stopwatches)] == ["Activity B"]
     totals = totals_of(stopwatches)
     assert len(totals) == 1
     assert totals[0]["goal_time"] == ONE_HOUR_MS
@@ -213,12 +213,12 @@ def test_total_only_day_repopulates(app, client):
 
 def test_total_only_day_keeps_overridden_goal(app, client):
     token = auth_token(client)
-    create_stopwatch(client, token, "Coding", D.isoformat())
+    create_stopwatch(client, token, "Activity B", D.isoformat())
     seed_total_only_day(app, D + timedelta(days=1), goal_time=2 * ONE_HOUR_MS, goal_overridden=True)
 
     stopwatches = get_stopwatches(client, token, (D + timedelta(days=1)).isoformat())
 
-    assert [s["title"] for s in regulars_of(stopwatches)] == ["Coding"]
+    assert [s["title"] for s in regulars_of(stopwatches)] == ["Activity B"]
     totals = totals_of(stopwatches)
     assert len(totals) == 1
     assert totals[0]["goal_time"] == 2 * ONE_HOUR_MS
@@ -227,7 +227,7 @@ def test_total_only_day_keeps_overridden_goal(app, client):
 
 def test_deleted_day_not_repopulated(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "Coding", (D - timedelta(days=1)).isoformat())
+    create_stopwatch(client, token, "Activity B", (D - timedelta(days=1)).isoformat())
     resp = create_stopwatch(client, token, "Temp", D.isoformat())
     temp_id = json.loads(resp.data)["stopwatches"][1]["id"]
 
@@ -241,7 +241,7 @@ def test_deleted_day_not_repopulated(client):
 
 def test_carry_forward_stops_at_deleted_day(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "Coding", (D - timedelta(days=1)).isoformat())
+    create_stopwatch(client, token, "Activity B", (D - timedelta(days=1)).isoformat())
     resp = create_stopwatch(client, token, "Temp", D.isoformat())
     temp_id = json.loads(resp.data)["stopwatches"][1]["id"]
     delete_stopwatch(client, token, temp_id)
@@ -253,32 +253,32 @@ def test_carry_forward_stops_at_deleted_day(client):
 
 def test_multi_day_gap_fills_intermediates(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "Coding", D.isoformat())
+    create_stopwatch(client, token, "Activity B", D.isoformat())
 
     stopwatches = get_stopwatches(client, token, (D + timedelta(days=3)).isoformat())
-    assert [s["title"] for s in regulars_of(stopwatches)] == ["Coding"]
+    assert [s["title"] for s in regulars_of(stopwatches)] == ["Activity B"]
     assert all(s["date"] == (D + timedelta(days=3)).isoformat() for s in stopwatches)
 
     # intermediate days were created in the DB during the D+3 request
     for offset in (1, 2):
         day_stopwatches = get_stopwatches(client, token, (D + timedelta(days=offset)).isoformat())
-        assert [s["title"] for s in regulars_of(day_stopwatches)] == ["Coding"]
+        assert [s["title"] for s in regulars_of(day_stopwatches)] == ["Activity B"]
         assert len(totals_of(day_stopwatches)) == 1
 
 
 def test_gap_backfill_through_total_only_day(app, client):
     token = auth_token(client)
-    create_stopwatch(client, token, "Coding", D.isoformat())
+    create_stopwatch(client, token, "Activity B", D.isoformat())
     seed_total_only_day(app, D + timedelta(days=1))
 
     # the backwalk from D+3 skips the Total-only D+1 and carries from D;
     # the in-between backfill must reuse D+1's Total, not duplicate it
     stopwatches = get_stopwatches(client, token, (D + timedelta(days=3)).isoformat())
-    assert [s["title"] for s in regulars_of(stopwatches)] == ["Coding"]
+    assert [s["title"] for s in regulars_of(stopwatches)] == ["Activity B"]
 
     for offset in (1, 2):
         day_stopwatches = get_stopwatches(client, token, (D + timedelta(days=offset)).isoformat())
-        assert [s["title"] for s in regulars_of(day_stopwatches)] == ["Coding"]
+        assert [s["title"] for s in regulars_of(day_stopwatches)] == ["Activity B"]
         assert len(totals_of(day_stopwatches)) == 1
 
 
@@ -300,33 +300,33 @@ def titles_on(client, token, offset):
 
 def test_new_stopwatch_defaults_to_every_day(client):
     token = auth_token(client)
-    resp = create_stopwatch(client, token, "study", day(0))
+    resp = create_stopwatch(client, token, "item a", day(0))
     assert json.loads(resp.data)["stopwatches"][1]["repeat_days"] == 127
 
 
 def test_repeat_days_persists_on_create(client):
     token = auth_token(client)
-    resp = create_stopwatch(client, token, "gym", day(0), repeat_days=MWF)
+    resp = create_stopwatch(client, token, "item b", day(0), repeat_days=MWF)
     assert json.loads(resp.data)["stopwatches"][1]["repeat_days"] == MWF
 
 
 def test_carry_forward_skips_unscheduled_weekday(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "gym", day(0), repeat_days=MWF)
+    create_stopwatch(client, token, "item b", day(0), repeat_days=MWF)
 
     # Tuesday isn't in the repeat set, so nothing carries there
     assert titles_on(client, token, 1) == []
     # Wednesday is, so it comes back
-    assert titles_on(client, token, 2) == ["gym"]
+    assert titles_on(client, token, 2) == ["item b"]
 
 
 def test_gap_fill_only_creates_scheduled_weekdays(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "gym", day(0), repeat_days=MWF)
+    create_stopwatch(client, token, "item b", day(0), repeat_days=MWF)
 
     # opening Friday backfills the intermediate days, but only Wednesday qualifies
-    assert titles_on(client, token, 4) == ["gym"]
-    assert titles_on(client, token, 2) == ["gym"]
+    assert titles_on(client, token, 4) == ["item b"]
+    assert titles_on(client, token, 2) == ["item b"]
     assert titles_on(client, token, 1) == []
     assert titles_on(client, token, 3) == []
 
@@ -348,13 +348,13 @@ def test_off_day_stopwatch_survives_extended_lookback(client):
 def test_deletion_on_a_scheduled_day_stops_carry_forward(client):
     token = auth_token(client)
     create_stopwatch(client, token, "daily", day(0))
-    create_stopwatch(client, token, "gym", day(0), repeat_days=MWF)
+    create_stopwatch(client, token, "item b", day(0), repeat_days=MWF)
 
-    # delete "gym" on Wednesday, one of its scheduled days ("daily" keeps the day
+    # delete "item b" on Wednesday, one of its scheduled days ("daily" keeps the day
     # non-empty, so no DeletedDay marker is written)
     wednesday = get_stopwatches(client, token, day(2))
-    gym = next(s for s in wednesday if s["title"] == "gym")
-    delete_stopwatch(client, token, gym["id"])
+    sw_b = next(s for s in wednesday if s["title"] == "item b")
+    delete_stopwatch(client, token, sw_b["id"])
 
     # Friday is scheduled, but the Wednesday deletion means it shouldn't return
     assert titles_on(client, token, 4) == ["daily"]
@@ -376,14 +376,14 @@ def test_total_goal_counts_only_stopwatches_landing_that_day(client):
 def test_non_recurring_ignores_repeat_days(client):
     token = auth_token(client)
     # scheduled for Tuesday, but non-recurring wins: it never carries
-    create_stopwatch(client, token, "errand", day(0), is_recurring=False, repeat_days=TUE)
+    create_stopwatch(client, token, "item c", day(0), is_recurring=False, repeat_days=TUE)
 
     assert titles_on(client, token, 1) == []
 
 
 def test_repeat_days_is_editable_and_applies_forward(client):
     token = auth_token(client)
-    resp = create_stopwatch(client, token, "gym", day(0))
+    resp = create_stopwatch(client, token, "item b", day(0))
     stopwatch = json.loads(resp.data)["stopwatches"][1]
 
     resp = update_stopwatch(client, token, stopwatch["id"], {"repeat_days": MON})
@@ -399,7 +399,7 @@ def test_invalid_repeat_days_rejected_on_create_and_edit(client):
         resp = create_stopwatch(client, token, f"bad{bad}", day(0), repeat_days=bad)
         assert resp.status_code == 400, f"repeat_days={bad!r} should be rejected"
 
-    resp = create_stopwatch(client, token, "gym", day(0))
+    resp = create_stopwatch(client, token, "item b", day(0))
     stopwatch = json.loads(resp.data)["stopwatches"][1]
     for bad in (0, 128, -1, "127", True):
         resp = update_stopwatch(client, token, stopwatch["id"], {"repeat_days": bad})
@@ -408,7 +408,7 @@ def test_invalid_repeat_days_rejected_on_create_and_edit(client):
 
 def test_editing_total_ignores_repeat_days(client):
     token = auth_token(client)
-    resp = create_stopwatch(client, token, "gym", day(0))
+    resp = create_stopwatch(client, token, "item b", day(0))
     total = json.loads(resp.data)["stopwatches"][0]
 
     # the Total has no meaningful mask; the edit still succeeds
@@ -419,16 +419,16 @@ def test_editing_total_ignores_repeat_days(client):
 
 def test_titles_endpoint_returns_repeat_days(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "gym", day(0), repeat_days=MWF)
-    create_stopwatch(client, token, "study", day(0))
+    create_stopwatch(client, token, "item b", day(0), repeat_days=MWF)
+    create_stopwatch(client, token, "item a", day(0))
 
     titles = {t["title"]: t["repeat_days"] for t in get_titles(client, token)}
-    assert titles == {"gym": MWF, "study": 127}
+    assert titles == {"item b": MWF, "item a": 127}
 
 
 def test_weekday_gated_carry_forward_leaves_day_xp_unchanged(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "gym", day(0), repeat_days=MWF)
+    create_stopwatch(client, token, "item b", day(0), repeat_days=MWF)
 
     headers = {"Authorization": f"Bearer {token}"}
     before = json.loads(client.get(f"/api/level/{day(2)}/", headers=headers).data)
@@ -461,7 +461,7 @@ def total_on(client, token, offset):
 def test_weekday_schedule_persists_and_sets_the_creation_days_goal(client):
     token = auth_token(client)
     # created on the anchor Monday: it lands with Monday's slot, not the goal_time field
-    resp = create_stopwatch(client, token, "study", day(0), goal_time="09:00",
+    resp = create_stopwatch(client, token, "item a", day(0), goal_time="09:00",
                             weekday_goal_times=schedule(Mo="02:00"))
     created = json.loads(resp.data)["stopwatches"][1]
     assert created["goal_time"] == 2 * ONE_HOUR_MS
@@ -472,9 +472,9 @@ def test_weekday_schedule_persists_and_sets_the_creation_days_goal(client):
 
 def test_carry_forward_lands_the_new_days_weekday_goal(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00", Tu="00:45"))
+    create_stopwatch(client, token, "item a", day(0), weekday_goal_times=schedule(Mo="02:00", Tu="00:45"))
 
-    tuesday = regular_on(client, token, 1, "study")
+    tuesday = regular_on(client, token, 1, "item a")
     assert tuesday["goal_time"] == 45 * 60000
     # the schedule itself carries forward unchanged
     assert tuesday["weekday_goal_times"] == json.loads(
@@ -486,47 +486,47 @@ def test_carry_forward_lands_the_new_days_weekday_goal(client):
 
 def test_gap_backfill_gives_each_day_its_own_weekday_goal(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "study", day(0),
+    create_stopwatch(client, token, "item a", day(0),
                      weekday_goal_times=schedule(Mo="01:00", Tu="02:00", We="03:00", Th="04:00"))
 
     # opening Thursday backfills Tue and Wed; each gets its own weekday's goal
-    assert regular_on(client, token, 3, "study")["goal_time"] == 4 * ONE_HOUR_MS
-    assert regular_on(client, token, 1, "study")["goal_time"] == 2 * ONE_HOUR_MS
-    assert regular_on(client, token, 2, "study")["goal_time"] == 3 * ONE_HOUR_MS
+    assert regular_on(client, token, 3, "item a")["goal_time"] == 4 * ONE_HOUR_MS
+    assert regular_on(client, token, 1, "item a")["goal_time"] == 2 * ONE_HOUR_MS
+    assert regular_on(client, token, 2, "item a")["goal_time"] == 3 * ONE_HOUR_MS
     for offset in (1, 2, 3):
-        assert total_on(client, token, offset)["goal_time"] == regular_on(client, token, offset, "study")["goal_time"]
+        assert total_on(client, token, offset)["goal_time"] == regular_on(client, token, offset, "item a")["goal_time"]
 
 
 def test_zero_slot_carries_a_row_with_no_goal(client):
     token = auth_token(client)
     # Saturday set to 0: the stopwatch still lands there, just without a target
-    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Sa="00:00"))
+    create_stopwatch(client, token, "item a", day(0), weekday_goal_times=schedule(Sa="00:00"))
 
-    saturday = regular_on(client, token, 5, "study")
+    saturday = regular_on(client, token, 5, "item a")
     assert saturday["goal_time"] == 0
     assert total_on(client, token, 5)["goal_time"] == 0
     # ...unlike unchecking Saturday in the picker, which creates no row at all
-    assert "study" in [s["title"] for s in regulars_of(get_stopwatches(client, token, day(5)))]
+    assert "item a" in [s["title"] for s in regulars_of(get_stopwatches(client, token, day(5)))]
 
 
 def test_no_schedule_carries_the_uniform_goal_exactly_as_before(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "study", day(0), goal_time="02:00")
+    create_stopwatch(client, token, "item a", day(0), goal_time="02:00")
 
-    carried = regular_on(client, token, 1, "study")
+    carried = regular_on(client, token, 1, "item a")
     assert carried["weekday_goal_times"] is None
     assert carried["goal_time"] == 2 * ONE_HOUR_MS
 
 
 def test_schedule_survives_a_chain_of_carried_days(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="01:00", Su="05:00"))
+    create_stopwatch(client, token, "item a", day(0), weekday_goal_times=schedule(Mo="01:00", Su="05:00"))
 
     # walk day by day rather than backfilling in one request
     for offset in range(1, 8):
         get_stopwatches(client, token, day(offset))
-    assert regular_on(client, token, 6, "study")["goal_time"] == 5 * ONE_HOUR_MS   # Sunday
-    next_monday = regular_on(client, token, 7, "study")
+    assert regular_on(client, token, 6, "item a")["goal_time"] == 5 * ONE_HOUR_MS   # Sunday
+    next_monday = regular_on(client, token, 7, "item a")
     assert next_monday["goal_time"] == ONE_HOUR_MS
     assert next_monday["weekday_goal_times"] is not None
 
@@ -534,15 +534,15 @@ def test_schedule_survives_a_chain_of_carried_days(client):
 def test_row_outside_its_repeat_days_still_reads_that_weekdays_slot(client):
     token = auth_token(client)
     # a Monday-only stopwatch created by hand on a Tuesday still gets Tuesday's slot
-    resp = create_stopwatch(client, token, "gym", day(1), repeat_days=MON,
+    resp = create_stopwatch(client, token, "item b", day(1), repeat_days=MON,
                             weekday_goal_times=schedule(Mo="01:00", Tu="03:00"))
     assert json.loads(resp.data)["stopwatches"][1]["goal_time"] == 3 * ONE_HOUR_MS
 
 
 def test_total_goal_sums_each_days_landed_goals(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00", Tu="01:00"))
-    create_stopwatch(client, token, "gym", day(0), weekday_goal_times=schedule(Mo="00:30", Tu="02:00"))
+    create_stopwatch(client, token, "item a", day(0), weekday_goal_times=schedule(Mo="02:00", Tu="01:00"))
+    create_stopwatch(client, token, "item b", day(0), weekday_goal_times=schedule(Mo="00:30", Tu="02:00"))
 
     assert total_on(client, token, 0)["goal_time"] == 2 * ONE_HOUR_MS + HALF_HOUR_MS
     assert total_on(client, token, 1)["goal_time"] == 3 * ONE_HOUR_MS
@@ -550,7 +550,7 @@ def test_total_goal_sums_each_days_landed_goals(client):
 
 def test_carry_forward_leaves_an_overridden_total_untouched(app, client):
     token = auth_token(client)
-    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00", Tu="01:00"))
+    create_stopwatch(client, token, "item a", day(0), weekday_goal_times=schedule(Mo="02:00", Tu="01:00"))
     seed_total_only_day(app, MONDAY + timedelta(days=1), goal_time=8 * ONE_HOUR_MS, goal_overridden=True)
 
     tuesday = get_stopwatches(client, token, day(1))
@@ -560,7 +560,7 @@ def test_carry_forward_leaves_an_overridden_total_untouched(app, client):
 
 def test_editing_a_schedule_rewrites_the_open_days_goal_and_the_total(client):
     token = auth_token(client)
-    resp = create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00"))
+    resp = create_stopwatch(client, token, "item a", day(0), weekday_goal_times=schedule(Mo="02:00"))
     stopwatch = json.loads(resp.data)["stopwatches"][1]
 
     # editing Monday's slot moves this (Monday) row's goal and the Total with it
@@ -570,12 +570,12 @@ def test_editing_a_schedule_rewrites_the_open_days_goal_and_the_total(client):
     assert edited["goal_time"] == 3 * ONE_HOUR_MS
     assert total["goal_time"] == 3 * ONE_HOUR_MS
     # editing a *different* weekday's slot changes nothing until that day comes round
-    assert regular_on(client, token, 1, "study")["goal_time"] == 15 * 60000
+    assert regular_on(client, token, 1, "item a")["goal_time"] == 15 * 60000
 
 
 def test_clearing_the_schedule_returns_the_stopwatch_to_a_uniform_goal(client):
     token = auth_token(client)
-    resp = create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00"))
+    resp = create_stopwatch(client, token, "item a", day(0), weekday_goal_times=schedule(Mo="02:00"))
     stopwatch = json.loads(resp.data)["stopwatches"][1]
 
     resp = update_stopwatch(client, token, stopwatch["id"],
@@ -585,13 +585,13 @@ def test_clearing_the_schedule_returns_the_stopwatch_to_a_uniform_goal(client):
     assert edited["goal_time"] == 4 * ONE_HOUR_MS
     assert total["goal_time"] == 4 * ONE_HOUR_MS
     # and every carried day now uses that one goal again
-    assert regular_on(client, token, 1, "study")["goal_time"] == 4 * ONE_HOUR_MS
+    assert regular_on(client, token, 1, "item a")["goal_time"] == 4 * ONE_HOUR_MS
 
 
 def test_deleting_a_scheduled_stopwatch_removes_its_landed_goal(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00"))
-    resp = create_stopwatch(client, token, "gym", day(0), weekday_goal_times=schedule(Mo="00:30"))
+    create_stopwatch(client, token, "item a", day(0), weekday_goal_times=schedule(Mo="02:00"))
+    resp = create_stopwatch(client, token, "item b", day(0), weekday_goal_times=schedule(Mo="00:30"))
     gym_id = json.loads(resp.data)["stopwatches"][1]["id"]
 
     resp = delete_stopwatch(client, token, gym_id)
@@ -605,28 +605,28 @@ def test_invalid_weekday_goal_times_rejected_on_create_and_edit(client):
         resp = create_stopwatch(client, token, f"bad{index}", day(0), weekday_goal_times=bad)
         assert resp.status_code == 400, f"weekday_goal_times={bad!r} should be rejected"
 
-    resp = create_stopwatch(client, token, "study", day(0))
+    resp = create_stopwatch(client, token, "item a", day(0))
     stopwatch = json.loads(resp.data)["stopwatches"][1]
     for bad in bad_schedules:
         resp = update_stopwatch(client, token, stopwatch["id"], {"weekday_goal_times": bad})
         assert resp.status_code == 400, f"weekday_goal_times={bad!r} should be rejected"
     # the rejected edits changed nothing
-    assert regular_on(client, token, 0, "study")["goal_time"] == ONE_HOUR_MS
+    assert regular_on(client, token, 0, "item a")["goal_time"] == ONE_HOUR_MS
 
 
 def test_titles_endpoint_returns_the_weekday_schedule(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "study", day(0), weekday_goal_times=schedule(Mo="02:00"))
-    create_stopwatch(client, token, "gym", day(0))
+    create_stopwatch(client, token, "item a", day(0), weekday_goal_times=schedule(Mo="02:00"))
+    create_stopwatch(client, token, "item b", day(0))
 
     titles = {t["title"]: t["weekday_goal_times"] for t in get_titles(client, token)}
-    assert titles["gym"] is None
-    assert titles["study"] == [2 * ONE_HOUR_MS] + [HALF_HOUR_MS] * 6
+    assert titles["item b"] is None
+    assert titles["item a"] == [2 * ONE_HOUR_MS] + [HALF_HOUR_MS] * 6
 
 
 def test_carry_forward_leaves_day_xp_unchanged(client):
     token = auth_token(client)
-    create_stopwatch(client, token, "Coding", D.isoformat())
+    create_stopwatch(client, token, "Activity B", D.isoformat())
 
     day = (D + timedelta(days=1)).isoformat()
     headers = {"Authorization": f"Bearer {token}"}

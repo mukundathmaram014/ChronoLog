@@ -129,7 +129,7 @@ LEVEL_P = 1.5
 VALID_DIFFICULTIES = set(HABIT_XP)
 VALID_GOAL_DIFFICULTIES = set(GOAL_XP)
 
-# Solo Leveling-style letter ranks by level, ascending. S is the ultimate,
+# Letter ranks by level, ascending. S is the ultimate,
 # reached at level 100+. Each (threshold, letter) means "this letter from
 # `threshold` up to the next threshold".
 RANKS = [

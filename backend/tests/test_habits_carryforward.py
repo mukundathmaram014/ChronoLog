@@ -51,14 +51,14 @@ def get_titles(client, token):
 def test_carry_forward_next_day(client):
     token = auth_token(client)
     d = date(2026, 1, 15)
-    create_habit(client, token, "Morning run", d.isoformat())
-    create_habit(client, token, "Read book", d.isoformat())
+    create_habit(client, token, "Habit A", d.isoformat())
+    create_habit(client, token, "Habit B", d.isoformat())
 
     resp = get_habits(client, token, (d + timedelta(days=1)).isoformat())
     body = json.loads(resp.data)
     habits = body["habits"]
     descriptions = {h["description"] for h in habits}
-    assert descriptions == {"Morning run", "Read book"}
+    assert descriptions == {"Habit A", "Habit B"}
     assert all(h["done"] is False for h in habits)
     assert all(h["date"] == (d + timedelta(days=1)).isoformat() for h in habits)
 
@@ -66,14 +66,14 @@ def test_carry_forward_next_day(client):
 def test_carry_forward_gap_fill(client):
     token = auth_token(client)
     d = date(2026, 1, 15)
-    create_habit(client, token, "Morning run", d.isoformat())
+    create_habit(client, token, "Habit A", d.isoformat())
 
     # GET D+3 should fill D+1, D+2, and D+3
     resp = get_habits(client, token, (d + timedelta(days=3)).isoformat())
     body = json.loads(resp.data)
     habits = body["habits"]
     assert len(habits) == 1
-    assert habits[0]["description"] == "Morning run"
+    assert habits[0]["description"] == "Habit A"
     assert habits[0]["date"] == (d + timedelta(days=3)).isoformat()
 
     # Intermediate day D+1 was created in the DB during the D+3 request
@@ -86,7 +86,7 @@ def test_carry_forward_gap_fill(client):
 def test_deleted_day_no_repopulate(client):
     token = auth_token(client)
     d = date(2026, 1, 15)
-    resp = create_habit(client, token, "Morning run", d.isoformat())
+    resp = create_habit(client, token, "Habit A", d.isoformat())
     habit_id = json.loads(resp.data)["id"]
 
     # Delete the only habit — creates DeletedDay marker
@@ -103,7 +103,7 @@ def test_carry_forward_stops_at_deleted_day(client):
     d = date(2026, 1, 15)
 
     # Create a habit on d-1
-    create_habit(client, token, "Morning run", (d - timedelta(days=1)).isoformat())
+    create_habit(client, token, "Habit A", (d - timedelta(days=1)).isoformat())
 
     # Create and immediately delete a habit on d → creates DeletedDay marker for d
     resp = create_habit(client, token, "Temp habit", d.isoformat())
@@ -224,7 +224,7 @@ def test_carry_forward_mixed_habits(client):
 
 def test_edit_repeat_days_applies_forward_only(client):
     token = auth_token(client)
-    resp = create_habit(client, token, "Morning run", MONDAY.isoformat())
+    resp = create_habit(client, token, "Habit A", MONDAY.isoformat())
     monday_id = json.loads(resp.data)["id"]
 
     # Carry forward to Tuesday, then restrict Tuesday's row to MWF
@@ -281,14 +281,14 @@ def test_titles_endpoint_surfaces_habit_deleted_from_current_day(client):
     """The core use case: a habit deleted today is still re-addable from its prior day's row."""
     token = auth_token(client)
     d = date(2026, 1, 15)
-    create_habit(client, token, "Morning run", (d - timedelta(days=1)).isoformat())
-    resp = create_habit(client, token, "Morning run", d.isoformat())
+    create_habit(client, token, "Habit A", (d - timedelta(days=1)).isoformat())
+    resp = create_habit(client, token, "Habit A", d.isoformat())
     habit_id = json.loads(resp.data)["id"]
 
     delete_habit(client, token, habit_id)
 
     titles = get_titles(client, token)
-    assert [t["description"] for t in titles] == ["Morning run"]
+    assert [t["description"] for t in titles] == ["Habit A"]
     # falls back to the surviving prior-day row
     assert titles[0]["date"] == (d - timedelta(days=1)).isoformat()
 

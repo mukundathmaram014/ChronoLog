@@ -6,8 +6,8 @@ The XP ledger (DailyXP rows + User.total_xp) is only written by
 `recompute_from`, which the routes call "from the edited day forward" whenever
 an item is toggled *after* the XP feature shipped. Days recorded before then
 still have their Habit / Stopwatch / Goal rows in the DB, but were never fed
-through the engine, so they contributed no XP -- which is why an account with
-years of history still reads as level 1.
+through the engine, so they contributed no XP -- which is why a long-standing account can
+still read as level 1.
 
 This walks every user's history once, starting from their earliest XP-relevant
 day, and lets the normal engine recompute the ledger over the whole range. It
