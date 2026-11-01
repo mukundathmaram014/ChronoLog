@@ -10,7 +10,7 @@ status: built
 ID lineage — `get_habits_*` filters with `filter_by(description = description)`
 (`backend/src/routes/statistics.py:53-54`) and buckets with `per.setdefault(habit.description, ...)`
 (`:298`, `:460`). So if you stop a habit and later restart it under a slightly different name —
-"Read" vs "Reading" — the stats treat them as two unrelated habits and the earlier history is
+"Habit A" vs "Habit A2" — the stats treat them as two unrelated habits and the earlier history is
 stranded. Typing the name from memory is exactly where that goes wrong.
 
 This adds a "Reuse previous" `<select>` to the add-habit form that inserts a prior description
@@ -27,8 +27,8 @@ Two deliberate divergences from the stopwatch version, both driven by that goal:
   (409, "A habit with this description already exists."). Filtering leaves exactly the re-addable
   set: habits deleted previously, habits whose `repeat_days` exclude today (addable as a one-off),
   and habits that aged out of carry-forward.
-- **Each option shows when that habit was last active** — `Read — last: 2026-03-14`. The problem
-  being solved is *not remembering the old name*; with `Read`, `Reading`, and `Read books` all in
+- **Each option shows when that habit was last active** — `Habit A — last: 2026-01-01`. The problem
+  being solved is *not remembering the old name*; with `Habit A`, `Habit A2`, and `Habit A (new)` all in
   history, a bare list of strings means guessing, and a wrong guess re-splits the stats. The date
   disambiguates. It is nearly free: the backend query already orders by `Habit.date.desc()`, so the
   row kept per description is already the most recent one.

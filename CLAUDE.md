@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository.
 
 ## What ChronoLog is
 
-A personal productivity tracker (habits + time tracking + stats) the author uses daily,
+A habit and time tracker (habits + time tracking + stats),
 deployed at https://chronologtracker.com. Flask REST API backend + React 19 SPA frontend.
 
 ## Layout (note: the README's `frontend/productivityapp/src` path is outdated)
@@ -65,7 +65,7 @@ specs/                # implementation specs (see specs/README.md)
   NOT the Netlify dashboard, and there is no `netlify.toml`. The backend IP is baked into that file, so
   if the VM's IP changes the redirect must be re-committed.
 - **Backend: manual**, via `/deploy-backend <version>` (or `scripts/deploy-backend.sh <version>`
-  directly). It builds the image, pushes to Docker Hub (`mukund146/chronologbackend`), bumps the tag in
+  directly). It builds the image, pushes to Docker Hub (the `IMAGE` set in `.env.deploy`), bumps the tag in
   the repo's `docker-compose.yml`, then SSHes to the GCP VM to pull + restart. This hits **PRODUCTION** —
   confirm the version first, and commit the `docker-compose.yml` tag bump afterward so the repo records
   what's live.
@@ -89,9 +89,6 @@ specs/                # implementation specs (see specs/README.md)
   may be committed straight to `main`, since they don't touch the deployed app. If a change touches any
   code, or you're unsure, branch.
 - **No personal data in committed files.** `specs/`, `docs/`, code comments, and commit messages are
-  public (this repo is on public GitHub). When a spec is derived from the author's private notes (the
-  Obsidian "brain" — see `/triage`, `/spec`), **never transcribe personal specifics** into a committed
-  file: no real habit/routine lists, health/sleep details, personal goals, names, or other private
-  content. Describe the *mechanism* and use generic placeholders instead (e.g. "a few heavy habits
-  weighted ~50, others ~10–30"), and treat concrete personal values as in-app user data, not spec
-  content. If unsure whether something is private, generalize it or leave it out.
+  public (this repo is on public GitHub). Keep them generic: describe features by *mechanism*, use
+  neutral placeholders in examples and test data ("Habit A", "item a", "Project A 2h"), and don't
+  paste source notes (see `/triage`, `/spec`) verbatim. If unsure, generalize it or leave it out.

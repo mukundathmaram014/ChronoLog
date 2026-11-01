@@ -56,7 +56,7 @@ Rules:
   large but well-isolated change can be low-danger yet still Involved (lots to
   review), while a tiny diff to core logic can warrant High review. Call out
   what specifically drives the rating (prod migration, carry-forward/backfill,
-  auth, open-ended scope, new pillar, etc.). SpindleGraph schedules
-  higher-risk specs earlier in build batches.
+  auth, open-ended scope, new pillar, etc.). Batch builds schedule
+  higher-risk specs earlier.
 - Do NOT modify any other file. Do NOT start implementing.
 - End your final message with the path of the spec file you wrote.

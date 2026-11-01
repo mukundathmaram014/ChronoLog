@@ -7,7 +7,7 @@ status: decided
 
 ## Summary
 
-The letter-rank layer (E → D → C → B → A → S) is a personal flourish, but it currently renders for
+The letter-rank layer (E → D → C → B → A → S) is an optional flourish, but it currently renders for
 **every** account — registered users and guests alike. `GET /api/level/<date>/` returns `rank` for
 anyone, the homepage level card shows an `X-Rank` chip next to the level, and the profile popup's
 XP-rules section carries a "Ranks" table plus the wording "How XP & **ranks** work".
@@ -123,7 +123,7 @@ markup that uses them simply isn't rendered.
 
 `RANK_USERNAMES` must be added to the **VM's `~/.env`** (the file the VM's compose loads via
 `env_file: .env`) before or with the backend deploy — and to `backend/.env` for local dev.
-Ship the code without it and the rank simply vanishes for everyone, including the owner account:
+Ship the code without it and the rank simply vanishes for everyone, including allowlisted accounts:
 a silent, easily-missed regression. Call this out in the PR description.
 
 ### Verifying

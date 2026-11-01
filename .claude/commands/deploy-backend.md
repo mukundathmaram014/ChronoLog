@@ -11,7 +11,7 @@ Version to deploy: $ARGUMENTS
 
 Steps:
 1. If no version was given, look at the current tag in `docker-compose.yml`
-   (`image: mukund146/chronologbackend:vX.Y.Z`) and propose the next patch version, then ask
+   (`image: chronologbackend:vX.Y.Z`) and propose the next patch version, then ask
    the author to confirm before deploying.
 2. Confirm `scripts/.env.deploy` exists. If it does not, tell the author to copy
    `scripts/.env.deploy.example` to `scripts/.env.deploy` and fill it in — do NOT proceed.

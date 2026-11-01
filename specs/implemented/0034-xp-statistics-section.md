@@ -146,7 +146,7 @@ Response:
     {"source": "Bonuses","xp": 74}
   ],
   "days": [{"date": "2026-08-01", "xp": 410}, {"date": "2026-08-02", "xp": 0}],
-  "level": {"total_xp": 48210, "level": 27, "rank": "C", "xp_into_level": 900, "xp_to_next": 3509}
+  "level": {"total_xp": 10000, "level": 16, "rank": "D", "xp_into_level": 547, "xp_to_next": 1600}
 }
 ```
 

@@ -43,7 +43,7 @@ pattern — keep it minimal and local to the homepage.
 
 ## Decisions needed
 
-_None — decided in spec-chat (2026-07-19): cover all four cards; minimal
+_None — decided in spec-chat: cover all four cards; minimal
 treatment (background-color ring + muted "—" placeholder), no skeleton or
 pulse animation._
 

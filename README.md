@@ -4,7 +4,7 @@
 </h1>
 
 
-ChronoLog is a productivity tracking application with a Flask backend and a React frontend. It helps users manage habits, track time with stopwatches, and view statistics on these. It is currently hosted at [www.chronologtracker.com](https://chronologtracker.com/) where I use it daily, and also available for anyone else to use.
+ChronoLog is a habit and time tracker with a Flask backend and a React frontend. It lets you track habits, tasks, and time spent with custom stopwatches, and see statistics on all of them. It is hosted at [www.chronologtracker.com](https://chronologtracker.com/) and open for anyone to use.
 
 
 
@@ -19,17 +19,17 @@ For in-depth explanations of the architecture, authentication, deployment, and d
 - Habit tracking (CRUD operations)
 - Task / to-do tracking with sub-tasks, recurring tasks, and overdue roll-forward
 - Time tracking with custom stopwatches
-- Productivity statistics and analytics
+- Statistics and analytics on habits and tracked time
 - Responsive React frontend
 - RESTful API backend
 - Installable as an app (PWA) with an offline app shell
 
-## Install as an app (iPhone / desktop)
+## Install as an app (phone / desktop)
 
 ChronoLog is a Progressive Web App — same site, same login, same data, but it launches
 full-screen with its own icon:
 
-- **iPhone (Safari):** open the site, tap **Share → Add to Home Screen**.
+- **iOS (Safari):** open the site, tap **Share → Add to Home Screen**.
 - **Desktop Chrome/Edge:** click the **Install** icon in the address bar (or the in-app
   Install banner) to get a standalone window with a taskbar/Start-menu icon.
 
@@ -139,7 +139,7 @@ The loop:
 
 | Command | What it does |
 |---------|--------------|
-| `/triage` | Reads my Obsidian notes doc (read-only), pulls every unchecked idea, and writes a reviewable accept/reject list of candidate specs to `specs/triage.md`. The pre-spec idea funnel. |
+| `/triage` | Reads an ideas/notes document (read-only), pulls every unchecked idea, and writes a reviewable accept/reject list of candidate specs to `specs/triage.md`. The pre-spec idea funnel. |
 | `/spec <todo>` | Turns one accepted idea/bug into a structured, code-grounded implementation spec at `specs/NNNN-slug.md`. |
 | `/build specs/NNNN-...` | Implements one approved spec on its own branch and opens a PR. |
 | `/build-batch <specs \| all>` | Orchestrates building many specs: maps dependencies from each spec's "Affected files", builds in waves — independent specs in parallel (isolated git worktrees), coupled specs sequenced — and pauses after each wave for me to review/merge before the next. Never auto-merges. |

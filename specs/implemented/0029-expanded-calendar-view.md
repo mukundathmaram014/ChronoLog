@@ -53,7 +53,7 @@ This spec extends the statistics page in place (no new page or route):
   mini-calendars and the new stopwatch calendar section.
 
 ## Decisions needed
-_None — all resolved (2026-07-19):_
+_None — all resolved:_
 - **Where it lives:** on the statistics page itself — no new page, route, or
   nav item. The per-habit view is a dropdown toggle (Combined / Per-habit)
   that appears only when "All Habits" is selected; the stopwatch time

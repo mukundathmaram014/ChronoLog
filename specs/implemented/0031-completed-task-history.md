@@ -31,8 +31,7 @@ in `update_goal` (`goals.py:86-98`). Without it the only date available is `date
 so an overdue task finished today would file itself under a due date weeks ago, which is exactly
 wrong for a "what did I actually get done" view. **Second**, the task page gains a collapsed
 **"Completed"** disclosure below the task list, lazy-fetched on first expand from a new
-`GET /api/tasks/completed/` endpoint. The idea's phrasing — "*if you would like to* see that
-history" — asks for something opt-in rather than a fourth always-on group competing with Overdue /
+`GET /api/tasks/completed/` endpoint. The history should be opt-in rather than a fourth always-on group competing with Overdue /
 Today / Upcoming, so this follows the spec 0030 session-log pattern: a discreet disclosure plus a
 small dedicated component, keeping the rendering out of the already-long page.
 

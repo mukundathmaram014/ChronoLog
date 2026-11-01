@@ -103,7 +103,7 @@ factory) — see Risks. This was confirmed with the author as the chosen approac
 ### 4. CI (`.github/workflows/ci.yml`)
 - Trigger: `on: pull_request` (optionally also `push` to `main`).
 - Single job, `ubuntu-latest`, `actions/setup-python` pinned to **3.10** to match the production
-  Docker image (`python:3.10.5`) — not the local 3.13 venv.
+  Docker image (`python:3.10.5`).
 - Steps: checkout → setup-python → `pip install -r backend/requirements.txt -r backend/requirements-dev.txt`
   → run `pytest` with working directory `backend` and `env: JWT_SECRET_KEY: test-secret-key`.
 

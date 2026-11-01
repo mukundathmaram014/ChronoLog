@@ -5,7 +5,7 @@ Each file here is a small, self-contained implementation spec for one todo or bu
 Naming: `NNNN-short-slug.md` (e.g. `0001-fix-stopwatch-reset.md`), zero-padded, incrementing.
 
 Lifecycle:
-0. (Optional) `/triage` reads your Obsidian "Chronolog Documentation" doc, pulls every unchecked
+0. (Optional) `/triage` reads an ideas/notes document, pulls every unchecked
    idea, and writes `specs/triage.md` — a single accept/reject list of candidate specs (large
    large/heavy items flagged with their value-vs-cost trade-off). You triage; accepted items feed
    into step 1. `triage.md` is a scratch worklist, not a permanent spec.

@@ -9,7 +9,7 @@ goal effectively equals the current elapsed time, so progress is always "complet
 goal/progress math simplifies. Let a stopwatch opt out of having a goal.
 
 **(B) Overtime work-XP boost.** A day's **total goal time** is the sum of that day's individual
-stopwatch goal times (e.g. a daily target of 6 h across all stopwatches). Once worked time passes that
+stopwatch goal times (e.g. a daily target of N h across all stopwatches). Once worked time passes that
 total, every additional hour should earn **more XP than the standard `XP_PER_HOUR` (20)** — a reward for
 pushing past the day's committed target. This extends the XP engine (spec 0020).
 
