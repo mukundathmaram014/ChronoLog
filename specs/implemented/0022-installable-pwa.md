@@ -5,7 +5,7 @@ status: built
 # 0022 — Installable PWA (Progressive Web App)
 
 ## Problem / Goal
-Make ChronoLog installable to the home screen (iPhone) and to a standalone window (desktop Chrome/Edge)
+Make ChronoLog installable to the home screen (iOS) and to a standalone window (desktop Chrome/Edge)
 so it launches like an app — full-screen, own icon — instead of living in a browser tab. This is a
 **packaging/frontend-only** change: same site, same login, same data. No backend changes.
 
@@ -98,7 +98,7 @@ so it launches like an app — full-screen, own icon — instead of living in a 
   before applying the `/*  /index.html` rewrite, so `/service-worker.js` and `/manifest.json` are served
   directly, not rewritten to `index.html`. Confirm the SW is served with a JS MIME type and **not**
   long-cached (so updates propagate). See Risks.
-- `README.md` — a short "Install as an app (iPhone / desktop)" note once shipped.
+- `README.md` — a short "Install as an app (phone / desktop)" note once shipped.
 
 ## Approach
 1. **Manifest + icons + iOS meta** (Decision 1). Replace the CRA manifest with real ChronoLog metadata and
@@ -119,7 +119,7 @@ so it launches like an app — full-screen, own icon — instead of living in a 
    origin). Nothing to change — but test it (see Testing) because it's the thing people assume breaks.
 
 ## Acceptance criteria
-- On **iPhone Safari**, Share → "Add to Home Screen" installs ChronoLog with the correct name + icon;
+- On **iOS Safari**, Share → "Add to Home Screen" installs ChronoLog with the correct name + icon;
   launching it opens **full-screen** (no Safari chrome), with a correct status bar and no content under
   the notch.
 - On **desktop Chrome/Edge**, an **Install** control appears and installs ChronoLog into its **own
@@ -137,7 +137,7 @@ so it launches like an app — full-screen, own icon — instead of living in a 
 ## Testing / verification
 - **Lighthouse → PWA / Installable** (Chrome DevTools) on the deployed site: installable, has manifest +
   SW, valid icons.
-- **iPhone:** add to home screen; launch; confirm full-screen, icon, status bar, notch-safe; log in and
+- **iOS:** add to home screen; launch; confirm full-screen, icon, status bar, notch-safe; log in and
   navigate; toggle airplane mode and confirm the shell still opens.
 - **Desktop Chrome/Edge:** install; confirm standalone window + icon; confirm login/session works.
 - **Update:** deploy a change, reopen the installed app, confirm the new version appears (per Decision 2).

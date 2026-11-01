@@ -2,8 +2,8 @@
 
 ## Problem / Goal
 The daily total-time goal is currently *derived* as the sum of the individual stopwatch goals, which
-conflates two different intentions: a **per-activity** target ("study 3h") and a **whole-day** target
-("work 6h total"). The XP goal-time bonus + overtime (spec 0012) key off that sum, so there's no way to
+conflates two different intentions: a **per-activity** target ("Project A 2h") and a **whole-day** target
+("5h total"). The XP goal-time bonus + overtime (spec 0012) key off that sum, so there's no way to
 set a standalone daily target. Let the user set the **Total** goal directly — defaulting to the sum of
 individual goals, but overridable to any value. Per-stopwatch goals stay (optional; they drive only
 their own rings).

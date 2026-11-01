@@ -1,10 +1,10 @@
 ---
-description: Implement several specs in dependency order (CLI convenience; the SpindleGraph GUI orchestrates batches itself)
+description: Implement several specs in dependency order (CLI convenience; an external orchestrator can run batches itself)
 ---
 
 Implement these specs, in a safe order: $ARGUMENTS
 
-Note: when driven from the SpindleGraph GUI, batching is handled by the app
+Note: when driven from an external orchestrator, batching is handled there
 (one isolated worktree per spec, parallel waves). This command is the manual,
 sequential fallback for CLI-only use.
 

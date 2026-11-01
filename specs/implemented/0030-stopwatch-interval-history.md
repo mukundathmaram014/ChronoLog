@@ -10,8 +10,8 @@ Today the app only keeps a cumulative `curr_duration` per stopwatch: `Stopwatch.
 and `end_time` (db.py:216-217) are overwritten on every start/stop cycle, so "when exactly did I
 work" is unrecoverable — after a stop, only the total survives. This spec adds a persistent
 per-interval history: every completed run segment (start → stop) is recorded as a row in a new
-`StopwatchInterval` table, and the stopwatch page gains a per-day session log ("10:04–10:52
-Deep Work · 48m") built from those rows.
+`StopwatchInterval` table, and the stopwatch page gains a per-day session log ("10:00–10:45
+Project A · 45m") built from those rows.
 
 **Decided:** the log is a chronological session list, and it is **discreet** — a collapsed
 disclosure ("Session log") below the stopwatch grid, hidden by default. The user opts in to look

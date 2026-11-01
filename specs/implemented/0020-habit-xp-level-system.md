@@ -5,7 +5,7 @@ status: built
 # 0020 — XP / level system (habits + work time, streaks, goals)
 
 ## Problem / Goal
-Add a Solo-Leveling-style progression layer: your activity grants XP into a **single shared pool**, and
+Add an RPG-style progression layer: your activity grants XP into a **single shared pool**, and
 that XP maps to a **level** via a fixed curve. XP comes from three sources — completing **habits**
 (weighted by a per-habit difficulty), **time worked** on stopwatches (XP per hour), and completing
 **goals** (weighted by difficulty). A **streak multiplier** rewards consecutive good days. The level
@@ -33,7 +33,7 @@ vitality stat split — a single XP pool / single level only.
 ## XP sources (detail)
 ### A. Habit XP (difficulty tiers)
 - `Habit.difficulty` ∈ {easy, medium, hard} → fixed XP (starting values **easy = 10, medium = 25,
-  hard = 50**, matching the author's "heavy habits ~50, others ~10–30"; final values set by Calibration).
+  hard = 50**; final values set by Calibration).
 - A day's **habit base XP** = Σ (difficulty XP) over that day's completed (`done = True`) habits. Habits
   are per-day rows, so a daily habit pays out each day it's done.
 
@@ -193,7 +193,7 @@ vitality stat split — a single XP pool / single level only.
 ## Addendum — difficulty badges, extreme goals, ranks & XP note (follow-up)
 
 A follow-up pass after the initial ship (and after the historical-data XP backfill), covering
-visibility and goal-balance gaps found in daily use. Deltas from the spec above:
+visibility and goal-balance gaps. Deltas from the spec above:
 
 - **Goal XP rescaled.** The original goal tiers (easy 50 / medium 100 / hard 200) made even a hard
   goal worth roughly a single ordinary day (~200 XP/day for an active user). Goals now represent
@@ -206,7 +206,7 @@ visibility and goal-balance gaps found in daily use. Deltas from the spec above:
   goal rows (the habit page already had the picker; only the badge was missing).
 - **Streak cue on the level bar.** When a streak is active the homepage XP bar burns orange and glows,
   in addition to the existing "🔥 N-day streak · ×M XP" header text.
-- **Letter ranks (Solo Leveling-style).** Levels map to ranks **E → D → C → B → A → S**: E 1–9,
+- **Letter ranks (RPG-style).** Levels map to ranks **E → D → C → B → A → S**: E 1–9,
   D 10–24, C 25–49, B 50–74, A 75–99, **S 100+ (ultimate)**. `rank_from_level()` in `utils.py`, exposed
   as `rank` on `GET /level/<date>/`, shown next to the level on the homepage.
 - **XP-rules note.** The profile popup (👤, present on every page) gains an expandable "How XP & ranks

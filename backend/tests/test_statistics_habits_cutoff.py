@@ -29,7 +29,7 @@ def test_week_stats_exclude_future_days(client):
     today = date.today()
     start_of_week = today - timedelta(days=today.weekday())
     for i in range(7):
-        create_habit(client, token, "Reading", start_of_week + timedelta(days=i), done=True)
+        create_habit(client, token, "Activity A", start_of_week + timedelta(days=i), done=True)
 
     stats = get_habit_stats(client, token, today.isoformat(), "week")
 
@@ -76,7 +76,7 @@ def test_past_week_stats_unchanged(client):
     # 2026-01-12 is a Monday; the whole week is in the past
     start_of_week = date(2026, 1, 12)
     for i in range(7):
-        create_habit(client, token, "Reading", start_of_week + timedelta(days=i), done=(i % 2 == 0))
+        create_habit(client, token, "Activity A", start_of_week + timedelta(days=i), done=(i % 2 == 0))
 
     stats = get_habit_stats(client, token, "2026-01-14", "week")
 
@@ -89,7 +89,7 @@ def test_habits_all_excludes_future_days(client):
     today = date.today()
     start_of_week = today - timedelta(days=today.weekday())
     for i in range(7):
-        create_habit(client, token, "Reading", start_of_week + timedelta(days=i), done=True)
+        create_habit(client, token, "Activity A", start_of_week + timedelta(days=i), done=True)
 
     resp = client.get(
         f"/api/stats/habits/all/{today.isoformat()}/week/",
@@ -101,7 +101,7 @@ def test_habits_all_excludes_future_days(client):
     days_elapsed = today.weekday() + 1
     assert body["total"]["total_habits"] == days_elapsed
     assert body["items"] == [{
-        "description": "Reading",
+        "description": "Activity A",
         "total_habits": days_elapsed,
         "completed_habits": days_elapsed,
         "percentage": 100,

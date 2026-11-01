@@ -5,7 +5,7 @@ status: built
 # 0021 — Task / to-do subsystem
 
 ## Problem / Goal
-Add a to-do / assignment tracker alongside habits and stopwatches: create tasks (for today or any future
+Add a to-do tracker alongside habits and stopwatches: create tasks (for today or any future
 day), see what's due, tick them off, break them into **sub-tasks**, and let some tasks **repeat
 automatically**. Undone tasks **roll forward** and stay visible until done. It lives on its own **Tasks
 page** with a small **homepage card**.

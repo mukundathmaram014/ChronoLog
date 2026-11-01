@@ -159,7 +159,7 @@ def test_missed_periodic_task_stays_overdue_then_spawns(client):
 
 def test_monthly_recurrence_clamps_day(client):
     token = auth_token(client)
-    resp = create_task(client, token, description="rent", date="2026-01-31", recurrence="monthly")
+    resp = create_task(client, token, description="bill", date="2026-01-31", recurrence="monthly")
     task_id = json.loads(resp.data)["id"]
 
     update_task(client, token, task_id, done=True)

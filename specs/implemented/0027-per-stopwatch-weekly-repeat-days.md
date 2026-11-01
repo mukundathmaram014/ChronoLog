@@ -51,7 +51,7 @@ overridden), so the scan rewrite must keep specs 0004/0023 Total-goal accounting
   is recurring and the mask ≠ 127, mirroring `HabitItem.jsx:26-31`.
 
 ## Decisions needed
-_None — settled in spec-chat (2026-07-19):_
+_None — settled in spec-chat:_
 - **`repeat_days` composes with `is_recurring` (Option A, keep both).** `is_recurring = False`
   means "never carries" and `repeat_days` is ignored (stays 127). When recurring, `repeat_days`
   gates which weekdays. The UI shows the 7-day picker only while the recurring checkbox is on,

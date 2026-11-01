@@ -61,7 +61,7 @@ def iso_z(dt):
 
 def test_stop_at_explicit_time_credits_up_to_it(client):
     token = auth_token(client)
-    sw_id = create_stopwatch(client, token, title="late night", date=TODAY)
+    sw_id = create_stopwatch(client, token, title="late item", date=TODAY)
     now = datetime.now(timezone.utc)
 
     assert start(client, token, sw_id, iso_z(now - timedelta(hours=2))).status_code == 200
@@ -142,7 +142,7 @@ def test_running_lists_only_running_children_for_this_user(client):
 
 def test_midnight_split_credits_each_day_its_own_time(client):
     token = auth_token(client)
-    yesterday_id = create_stopwatch(client, token, title="deep work", date=YESTERDAY)
+    yesterday_id = create_stopwatch(client, token, title="item g", date=YESTERDAY)
     now = datetime.now(timezone.utc)
     # stand-ins for 23:00 and 00:00: an hour on the old day, then the app wakes later
     started = now - timedelta(hours=2)
@@ -152,7 +152,7 @@ def test_midnight_split_credits_each_day_its_own_time(client):
     # the client splits at midnight: stop the old day there...
     assert stop(client, token, yesterday_id, iso_z(midnight)).status_code == 200
     # ...then the new day's carried-forward copy restarts from that same instant
-    today_row = next(sw for sw in get_day(client, token, TODAY) if sw["title"] == "deep work")
+    today_row = next(sw for sw in get_day(client, token, TODAY) if sw["title"] == "item g")
     assert start(client, token, today_row["id"], iso_z(midnight)).status_code == 200
     total_today, stopped_today = json.loads(stop(client, token, today_row["id"]).data)["stopwatches"]
 

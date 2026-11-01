@@ -153,7 +153,7 @@ def test_habit_toggle_updates_total_and_streak(client):
     # a qualifying day needs >= 250 grind XP; 5 hard habits = 250 base
     habit_ids = []
     for i in range(5):
-        resp = create_habit(client, token, description=f"deep work {i}", date=TODAY, difficulty="hard")
+        resp = create_habit(client, token, description=f"item g {i}", date=TODAY, difficulty="hard")
         habit_ids.append(json.loads(resp.data)["id"])
     assert json.loads(resp.data)["difficulty"] == "hard"
     assert get_level(client, token)["total_xp"] == 0
@@ -176,7 +176,7 @@ def test_habit_toggle_updates_total_and_streak(client):
 
 def test_habit_difficulty_change_while_done_adjusts_total(client):
     token = auth_token(client)
-    resp = create_habit(client, token, description="reading", date=TODAY, difficulty="hard", done=True)
+    resp = create_habit(client, token, description="item d", date=TODAY, difficulty="hard", done=True)
     habit_id = json.loads(resp.data)["id"]
     # the day's only habit is done -> base + all-habits bonus
     assert get_level(client, token)["total_xp"] == HABIT_XP["hard"] + ALL_HABITS_BONUS
@@ -243,7 +243,7 @@ def test_past_day_edit_recomputes_streak_forward(client):
 
 def test_recompute_from_persists_xp_components_on_the_ledger_row(app, client):
     token = auth_token(client)
-    create_habit(client, token, description="deep work", date=TODAY, difficulty="hard", done=True)
+    create_habit(client, token, description="item g", date=TODAY, difficulty="hard", done=True)
 
     with app.app_context():
         row = DailyXP.query.filter_by(user_id=User.query.first().id, date=date.fromisoformat(TODAY)).first()
@@ -256,7 +256,7 @@ def test_recompute_from_persists_xp_components_on_the_ledger_row(app, client):
 
 def test_deleting_done_habit_removes_its_xp(client):
     token = auth_token(client)
-    resp = create_habit(client, token, description="workout", date=TODAY, difficulty="hard", done=True)
+    resp = create_habit(client, token, description="item f", date=TODAY, difficulty="hard", done=True)
     habit_id = json.loads(resp.data)["id"]
     # the day's only habit is done -> base + all-habits bonus
     assert get_level(client, token)["total_xp"] == HABIT_XP["hard"] + ALL_HABITS_BONUS
@@ -274,7 +274,7 @@ def test_worked_time_grants_flat_xp(client):
     # a 2h goal so working exactly 2h is at-goal (no overtime), i.e. flat XP
     resp = client.post(
         "/api/stopwatches/",
-        data=json.dumps({"title": "study", "date": TODAY, "goal_time": "02:00"}),
+        data=json.dumps({"title": "item a", "date": TODAY, "goal_time": "02:00"}),
         content_type="application/json",
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -349,22 +349,22 @@ def test_individual_goal_bonus_helper():
 def test_individual_goal_bonus_over_the_stopwatch_api(client):
     token = auth_token(client)
     # two individual stopwatches with goals; hitting one earns +10
-    _, study = _post_stopwatch(client, token, "study", "01:00")
-    _, reading = _post_stopwatch(client, token, "reading", "01:00")
+    _, sw_a = _post_stopwatch(client, token, "item a", "01:00")
+    _, sw_d = _post_stopwatch(client, token, "item d", "01:00")
 
-    # meet only study's goal -> +10, no total-goal bonus (total is 2h, only 1h worked)
-    _put_stopwatch(client, token, study["id"], curr_duration=3600000)
+    # meet only sw_a's goal -> +10, no total-goal bonus (total is 2h, only 1h worked)
+    _put_stopwatch(client, token, sw_a["id"], curr_duration=3600000)
     assert get_level(client, token)["total_xp"] == XP_PER_HOUR + INDIVIDUAL_GOAL_BONUS
 
-    # meet reading's goal too -> both individual bonuses, plus the total-goal
+    # meet sw_d's goal too -> both individual bonuses, plus the total-goal
     # bonus now that combined worked time (2h) hits the 2h Total goal
-    _put_stopwatch(client, token, reading["id"], curr_duration=3600000)
+    _put_stopwatch(client, token, sw_d["id"], curr_duration=3600000)
     assert get_level(client, token)["total_xp"] == (
         2 * XP_PER_HOUR + GOAL_TIME_BONUS + 2 * INDIVIDUAL_GOAL_BONUS
     )
 
     # falling short of a goal earns nothing for that stopwatch
-    _put_stopwatch(client, token, reading["id"], curr_duration=1800000)
+    _put_stopwatch(client, token, sw_d["id"], curr_duration=1800000)
     assert get_level(client, token)["total_xp"] == (
         round(1.5 * XP_PER_HOUR) + INDIVIDUAL_GOAL_BONUS
     )
@@ -396,10 +396,10 @@ def test_individual_goal_bonus_cap_holds_with_many_stopwatches(client):
 
 def test_total_stopwatch_never_counts_as_an_individual_goal(client):
     token = auth_token(client)
-    total, study = _post_stopwatch(client, token, "study", "01:00")
+    total, sw_a = _post_stopwatch(client, token, "item a", "01:00")
     # meet the Total goal directly (as if it were an "individual" goal) without
     # ever meeting the child's own goal
-    _put_stopwatch(client, token, study["id"], curr_duration=30 * 60000)
+    _put_stopwatch(client, token, sw_a["id"], curr_duration=30 * 60000)
     resp = client.put(
         f"/api/stopwatches/{total['id']}/",
         data=json.dumps({"curr_duration": 3600000}),
@@ -417,7 +417,7 @@ def test_overtime_work_xp_over_the_stopwatch_api(client):
     # day's total goal = 2h
     resp = client.post(
         "/api/stopwatches/",
-        data=json.dumps({"title": "study", "date": TODAY, "goal_time": "02:00"}),
+        data=json.dumps({"title": "item a", "date": TODAY, "goal_time": "02:00"}),
         content_type="application/json",
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -441,7 +441,7 @@ def test_no_goal_stopwatch_stores_zero_and_skips_overtime(client):
     # a "no goal" stopwatch is stored as goal_time 0
     resp = client.post(
         "/api/stopwatches/",
-        data=json.dumps({"title": "reading", "date": TODAY, "goal_time": None}),
+        data=json.dumps({"title": "item d", "date": TODAY, "goal_time": None}),
         content_type="application/json",
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -483,7 +483,7 @@ def _put_stopwatch(client, token, sw_id, **fields):
 
 def test_total_goal_defaults_to_sum_then_holds_an_override(client):
     token = auth_token(client)
-    total, _ = _post_stopwatch(client, token, "study", "02:00")
+    total, _ = _post_stopwatch(client, token, "item a", "02:00")
     # default: Total goal = sum of individual goals (2h), not overridden
     assert total["goal_time"] == 2 * 3600000
     assert total["goal_overridden"] is False
@@ -494,7 +494,7 @@ def test_total_goal_defaults_to_sum_then_holds_an_override(client):
     assert total["goal_overridden"] is True
 
     # adding another stopwatch must NOT change the overridden Total
-    total2, _ = _post_stopwatch(client, token, "reading", "01:00")
+    total2, _ = _post_stopwatch(client, token, "item d", "01:00")
     assert total2["goal_time"] == 5 * 3600000
 
     # match_sum clears the override -> back to the live sum (2h + 1h = 3h)
@@ -505,18 +505,18 @@ def test_total_goal_defaults_to_sum_then_holds_an_override(client):
 
 def test_total_goal_override_drives_xp(client):
     token = auth_token(client)
-    total, study = _post_stopwatch(client, token, "study", "02:00")
+    total, sw_a = _post_stopwatch(client, token, "item a", "02:00")
     # override the daily total to 3h (vs the 2h sum)
     _put_stopwatch(client, token, total["id"], goal_time="03:00")
     # log exactly 3h -> hits the 3h override: flat 3h work + goal bonus, no overtime;
-    # study's own (unoverridden) 2h goal is also met -> individual-goal bonus stacks
-    _put_stopwatch(client, token, study["id"], curr_duration=3 * 3600000)
+    # sw_a's own (unoverridden) 2h goal is also met -> individual-goal bonus stacks
+    _put_stopwatch(client, token, sw_a["id"], curr_duration=3 * 3600000)
     assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
 
 
 def test_goal_complete_uncomplete_and_delete(client):
     token = auth_token(client)
-    resp = create_goal(client, token, description="run a marathon", difficulty="medium")
+    resp = create_goal(client, token, description="goal c", difficulty="medium")
     assert resp.status_code == 201
     goal_id = json.loads(resp.data)["id"]
     assert get_level(client, token)["total_xp"] == 0
@@ -546,7 +546,7 @@ def test_goal_validation(client):
     assert create_goal(client, token, description="   ").status_code == 400
     assert create_goal(client, token, description="x", difficulty="brutal").status_code == 400
     # "extreme" is a goal-only tier and must be accepted
-    assert create_goal(client, token, description="frontier lab", difficulty="extreme").status_code == 201
+    assert create_goal(client, token, description="goal a", difficulty="extreme").status_code == 201
     resp = create_goal(client, token, description="x")
     goal_id = json.loads(resp.data)["id"]
     assert update_goal(client, token, goal_id, difficulty="brutal").status_code == 400
@@ -554,7 +554,7 @@ def test_goal_validation(client):
 
 def test_extreme_goal_grants_its_xp(client):
     token = auth_token(client)
-    resp = create_goal(client, token, description="join a league", difficulty="extreme")
+    resp = create_goal(client, token, description="goal b", difficulty="extreme")
     goal_id = json.loads(resp.data)["id"]
     update_goal(client, token, goal_id, done=True, date=TODAY)
     assert get_level(client, token)["total_xp"] == GOAL_XP["extreme"]
@@ -631,7 +631,7 @@ def test_level_readout_includes_streak_progress(client):
     assert lvl["streak_remaining"] == 0
 
     # a hard habit (not yet done) -> possible, needs XP
-    resp = create_habit(client, token, description="workout", date=TODAY, difficulty="hard")
+    resp = create_habit(client, token, description="item f", date=TODAY, difficulty="hard")
     habit_id = json.loads(resp.data)["id"]
     lvl = get_level(client, token)
     assert lvl["streak_possible"] is True
@@ -649,7 +649,7 @@ def test_xp_and_goals_are_user_scoped(client):
     token_a = auth_token(client, username="usera")
     token_b = auth_token(client, username="userb")
 
-    create_habit(client, token_a, description="workout", date=TODAY, difficulty="hard", done=True)
+    create_habit(client, token_a, description="item f", date=TODAY, difficulty="hard", done=True)
     resp = create_goal(client, token_a, description="secret goal")
     goal_id = json.loads(resp.data)["id"]
 
@@ -674,15 +674,15 @@ def _thursday_schedule(thursday, other="02:00"):
 
 def test_lighter_weekday_goal_reaches_the_bonus_and_overtime_sooner(client):
     token = auth_token(client)
-    _, study = _post_stopwatch(client, token, "study", "02:00",
+    _, sw_a = _post_stopwatch(client, token, "item a", "02:00",
                                weekday_goal_times=_thursday_schedule("01:00"))
     # the row landed on its 1h Thursday slot, not the 2h field
-    assert study["goal_time"] == 3600000
+    assert sw_a["goal_time"] == 3600000
 
-    _put_stopwatch(client, token, study["id"], curr_duration=2 * 3600000)
+    _put_stopwatch(client, token, sw_a["id"], curr_duration=2 * 3600000)
     # against a 2h goal this would be 2h flat and no bonus; against 1h it's
     # 1h standard + 1h overtime + the goal-time bonus + the individual-goal
-    # bonus (study's own 1h Thursday goal is also met)
+    # bonus (sw_a's own 1h Thursday goal is also met)
     assert get_level(client, token)["total_xp"] == (
         XP_PER_HOUR + XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
     )
@@ -690,20 +690,20 @@ def test_lighter_weekday_goal_reaches_the_bonus_and_overtime_sooner(client):
 
 def test_heavier_weekday_goal_pushes_the_bonus_and_overtime_out(client):
     token = auth_token(client)
-    _, study = _post_stopwatch(client, token, "study", "02:00",
+    _, sw_a = _post_stopwatch(client, token, "item a", "02:00",
                                weekday_goal_times=_thursday_schedule("04:00"))
-    assert study["goal_time"] == 4 * 3600000
+    assert sw_a["goal_time"] == 4 * 3600000
 
-    _put_stopwatch(client, token, study["id"], curr_duration=2 * 3600000)
+    _put_stopwatch(client, token, sw_a["id"], curr_duration=2 * 3600000)
     # short of the 4h Thursday goal: flat rate, no overtime, no bonus
     assert get_level(client, token)["total_xp"] == 2 * XP_PER_HOUR
 
 
 def test_goal_only_edit_rescores_the_day(client):
     token = auth_token(client)
-    _, study = _post_stopwatch(client, token, "study", "02:00")
-    _put_stopwatch(client, token, study["id"], curr_duration=3 * 3600000)
-    # study's own 2h goal is also met by the 3h logged -> individual-goal bonus stacks
+    _, sw_a = _post_stopwatch(client, token, "item a", "02:00")
+    _put_stopwatch(client, token, sw_a["id"], curr_duration=3 * 3600000)
+    # sw_a's own 2h goal is also met by the 3h logged -> individual-goal bonus stacks
     assert get_level(client, token)["total_xp"] == (
         2 * XP_PER_HOUR + XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
     )
@@ -711,20 +711,20 @@ def test_goal_only_edit_rescores_the_day(client):
     # raising the goal with no duration change still moves the day's XP: the
     # overtime hour becomes a standard one; the (now 3h) individual goal is
     # still exactly met
-    _put_stopwatch(client, token, study["id"], goal_time="03:00")
+    _put_stopwatch(client, token, sw_a["id"], goal_time="03:00")
     assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
 
 
 def test_weekday_schedule_edit_rescores_the_day(client):
     token = auth_token(client)
-    _, study = _post_stopwatch(client, token, "study", "02:00")
-    _put_stopwatch(client, token, study["id"], curr_duration=2 * 3600000)
-    # study's own 2h goal is also met -> individual-goal bonus stacks
+    _, sw_a = _post_stopwatch(client, token, "item a", "02:00")
+    _put_stopwatch(client, token, sw_a["id"], curr_duration=2 * 3600000)
+    # sw_a's own 2h goal is also met -> individual-goal bonus stacks
     assert get_level(client, token)["total_xp"] == 2 * XP_PER_HOUR + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
 
     # switching to a schedule whose Thursday is 1h re-splits the same 2h worked;
-    # study's own goal (now 1h) is still met
-    _put_stopwatch(client, token, study["id"], weekday_goal_times=_thursday_schedule("01:00"))
+    # sw_a's own goal (now 1h) is still met
+    _put_stopwatch(client, token, sw_a["id"], weekday_goal_times=_thursday_schedule("01:00"))
     assert get_level(client, token)["total_xp"] == (
         XP_PER_HOUR + XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
     )
@@ -732,20 +732,20 @@ def test_weekday_schedule_edit_rescores_the_day(client):
 
 def test_create_and_delete_that_move_the_days_goal_rescore_it(client):
     token = auth_token(client)
-    _, study = _post_stopwatch(client, token, "study", "02:00")
-    _put_stopwatch(client, token, study["id"], curr_duration=3 * 3600000)
-    # study's own 2h goal is also met by the 3h logged -> individual-goal bonus stacks
+    _, sw_a = _post_stopwatch(client, token, "item a", "02:00")
+    _put_stopwatch(client, token, sw_a["id"], curr_duration=3 * 3600000)
+    # sw_a's own 2h goal is also met by the 3h logged -> individual-goal bonus stacks
     assert get_level(client, token)["total_xp"] == (
         2 * XP_PER_HOUR + XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
     )
 
     # a second stopwatch adds its goal to the day even though it logs no time;
-    # study's own goal is still met, reading's is not (0 logged < 1h goal)
-    _, reading = _post_stopwatch(client, token, "reading", "01:00")
+    # sw_a's own goal is still met, sw_d's is not (0 logged < 1h goal)
+    _, sw_d = _post_stopwatch(client, token, "item d", "01:00")
     assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
 
     # ...and deleting that zero-duration stopwatch takes the goal back out
-    resp = client.delete(f"/api/stopwatches/{reading['id']}/", headers={"Authorization": f"Bearer {token}"})
+    resp = client.delete(f"/api/stopwatches/{sw_d['id']}/", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     assert get_level(client, token)["total_xp"] == (
         2 * XP_PER_HOUR + XP_PER_HOUR_OVERTIME + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
@@ -754,26 +754,26 @@ def test_create_and_delete_that_move_the_days_goal_rescore_it(client):
 
 def test_overridden_total_ignores_a_child_goal_edit_for_xp(client):
     token = auth_token(client)
-    total, study = _post_stopwatch(client, token, "study", "02:00")
+    total, sw_a = _post_stopwatch(client, token, "item a", "02:00")
     _put_stopwatch(client, token, total["id"], goal_time="03:00")
-    _put_stopwatch(client, token, study["id"], curr_duration=3 * 3600000)
-    # study's own (unoverridden) 2h goal is also met -> individual-goal bonus stacks
+    _put_stopwatch(client, token, sw_a["id"], curr_duration=3 * 3600000)
+    # sw_a's own (unoverridden) 2h goal is also met -> individual-goal bonus stacks
     assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
 
     # the child's goal no longer feeds the overridden Total, so the day's XP holds;
-    # study's own goal (now 30 min) is still met by the 3h logged
-    _put_stopwatch(client, token, study["id"], goal_time="00:30")
+    # sw_a's own goal (now 30 min) is still met by the 3h logged
+    _put_stopwatch(client, token, sw_a["id"], goal_time="00:30")
     assert get_level(client, token)["total_xp"] == 3 * XP_PER_HOUR + GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
 
 
 def test_carry_forward_rescores_a_day_that_already_had_a_ledger_row(app, client):
     token = auth_token(client)
     monday, tuesday = "2026-01-05", "2026-01-06"
-    _post_stopwatch(client, token, "study", "01:00",
+    _post_stopwatch(client, token, "item a", "01:00",
                     weekday_goal_times=["01:00", "04:00"] + ["01:00"] * 5, day=monday)
     # Tuesday's only habit is done, so before any goal lands there the day is 100%
     # complete and its ledger row qualifies for the streak
-    create_habit(client, token, description="reading", date=tuesday, difficulty="medium", done=True)
+    create_habit(client, token, description="item d", date=tuesday, difficulty="medium", done=True)
     with app.app_context():
         row = DailyXP.query.filter_by(user_id=User.query.first().id, date=date(2026, 1, 6)).first()
         assert row.streak == 1

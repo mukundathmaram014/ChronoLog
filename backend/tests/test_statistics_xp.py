@@ -110,12 +110,12 @@ def test_xp_stats_route_shape_and_breakdown_reconciles_to_total(client):
 
 def test_xp_stats_breakdown_includes_work_xp(client):
     token = auth_token(client)
-    sw = post_stopwatch(client, token, "study", "02:00")
+    sw = post_stopwatch(client, token, "item a", "02:00")
     put_stopwatch(client, token, sw["id"], curr_duration=2 * 3600000)
 
     data = get_xp_stats(client, token, TODAY, "day")
 
-    # the "study" stopwatch has a 2h goal and 2h logged, so it hits BOTH the
+    # the "item a" stopwatch has a 2h goal and 2h logged, so it hits BOTH the
     # total daily goal (+GOAL_TIME_BONUS) and its own individual goal
     # (+INDIVIDUAL_GOAL_BONUS, spec 0037) — the two bonuses stack.
     bonuses = GOAL_TIME_BONUS + INDIVIDUAL_GOAL_BONUS
@@ -133,7 +133,7 @@ def test_xp_stats_week_aggregates_across_days_with_streak_multiplier(client):
     # fully-elapsed days in the same week as 2026-01-14
     days = ["2026-01-12", "2026-01-13", "2026-01-14"]
     for day in days:
-        create_habit(client, token, description="deep work", date=day, difficulty="hard", done=True)
+        create_habit(client, token, description="item g", date=day, difficulty="hard", done=True)
 
     data = get_xp_stats(client, token, "2026-01-14", "week")
 

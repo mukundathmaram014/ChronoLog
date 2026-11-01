@@ -85,7 +85,7 @@ def test_server_yesterday_running_stopwatch_is_not_frozen(client):
 
     # the server's clock is UTC: for a user behind UTC, their today is the server's
     # yesterday every evening, so a row one server-day back may still be running live
-    resp = create_stopwatch(client, token, title="evening", date=YESTERDAY)
+    resp = create_stopwatch(client, token, title="later item", date=YESTERDAY)
     assert resp.status_code == 200
     sw_id = json.loads(resp.data)["stopwatches"][1]["id"]
     assert start_stopwatch(client, token, sw_id).status_code == 200

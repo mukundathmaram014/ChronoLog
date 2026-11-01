@@ -92,7 +92,7 @@ def get_single_calendar(client, token, date_string, time_period, description):
 
 def test_time_calendar_day_reports_total_row(client):
     token = auth_token(client)
-    sw = create_stopwatch(client, token, "Reading", "2026-01-15")
+    sw = create_stopwatch(client, token, "Activity A", "2026-01-15")
     set_duration(client, token, sw["id"], 90000)
 
     data = get_time_calendar(client, token, "2026-01-15", "day")
@@ -108,7 +108,7 @@ def test_time_calendar_day_reports_total_row(client):
 def test_time_calendar_week_covers_every_day(client):
     token = auth_token(client)
     # 2026-01-12 is a Monday
-    sw = create_stopwatch(client, token, "Reading", "2026-01-14")
+    sw = create_stopwatch(client, token, "Activity A", "2026-01-14")
     set_duration(client, token, sw["id"], 60000)
 
     data = get_time_calendar(client, token, "2026-01-14", "week")
@@ -145,7 +145,7 @@ def test_time_calendar_invalid_period(client):
 def test_time_calendar_scoped_by_user(client):
     token_a = auth_token(client, username="userA", email="a@example.com")
     token_b = auth_token(client, username="userB", email="b@example.com")
-    sw_a = create_stopwatch(client, token_a, "Reading", "2026-01-15")
+    sw_a = create_stopwatch(client, token_a, "Activity A", "2026-01-15")
     set_duration(client, token_a, sw_a["id"], 60000)
 
     data = get_time_calendar(client, token_b, "2026-01-15", "day")
@@ -157,15 +157,15 @@ def test_time_calendar_scoped_by_user(client):
 
 def test_batch_calendar_matches_single_habit_endpoint(client):
     token = auth_token(client)
-    habit = create_habit(client, token, "Read", "2026-01-15")
+    habit = create_habit(client, token, "Habit E", "2026-01-15")
     set_done(client, token, habit["id"], True)
     create_habit(client, token, "Run", "2026-01-15")
 
     batch = get_batch_calendar(client, token, "2026-01-15", "month")
     by_description = {h["description"]: h["days"] for h in batch["habits"]}
 
-    assert sorted(by_description) == ["Read", "Run"]
-    for description in ("Read", "Run"):
+    assert sorted(by_description) == ["Habit E", "Run"]
+    for description in ("Habit E", "Run"):
         single = get_single_calendar(client, token, "2026-01-15", "month", description)
         assert by_description[description] == single["days"]
 
@@ -173,7 +173,7 @@ def test_batch_calendar_matches_single_habit_endpoint(client):
 def test_batch_calendar_marks_absent_days_no_data(client):
     token = auth_token(client)
     # only exists on the 15th; the rest of the month has no row for it
-    create_habit(client, token, "Read", "2026-01-15")
+    create_habit(client, token, "Habit E", "2026-01-15")
 
     batch = get_batch_calendar(client, token, "2026-01-15", "month")
     days = batch["habits"][0]["days"]
@@ -188,7 +188,7 @@ def test_batch_calendar_marks_absent_days_no_data(client):
 def test_batch_calendar_respects_repeat_days(client):
     token = auth_token(client)
     # 2026-01-15 is a Thursday (weekday 3); schedule Monday only
-    create_habit(client, token, "Read", "2026-01-15", repeat_days=1)
+    create_habit(client, token, "Habit E", "2026-01-15", repeat_days=1)
 
     batch = get_batch_calendar(client, token, "2026-01-15", "day")
 
@@ -212,6 +212,6 @@ def test_batch_calendar_invalid_period(client):
 def test_batch_calendar_scoped_by_user(client):
     token_a = auth_token(client, username="userA", email="a@example.com")
     token_b = auth_token(client, username="userB", email="b@example.com")
-    create_habit(client, token_a, "Read", "2026-01-15")
+    create_habit(client, token_a, "Habit E", "2026-01-15")
 
     assert get_batch_calendar(client, token_b, "2026-01-15", "day")["habits"] == []

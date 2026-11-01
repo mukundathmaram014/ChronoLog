@@ -32,7 +32,7 @@ if [[ -z "$VERSION" ]]; then
   exit 1
 fi
 
-: "${IMAGE:?set IMAGE in .env.deploy (e.g. mukund146/chronologbackend)}"
+: "${IMAGE:?set IMAGE in .env.deploy (e.g. YOUR_DOCKERHUB_USER/chronologbackend)}"
 : "${VM_HOST:?set VM_HOST in .env.deploy (the VM external IP or hostname)}"
 : "${VM_USER:?set VM_USER in .env.deploy}"
 : "${VM_PATH:?set VM_PATH in .env.deploy (dir on the VM holding docker-compose.yml + backend/.env)}"
@@ -48,8 +48,10 @@ docker build -t "$FULL_IMAGE" "$REPO_ROOT/backend"
 echo ">> Pushing $FULL_IMAGE to Docker Hub"
 docker push "$FULL_IMAGE"
 
-echo ">> Pinning local docker-compose.yml to $FULL_IMAGE (repo record of what's live)"
-sed -i -E "s#(image:[[:space:]]*)${IMAGE}:.*#\1${FULL_IMAGE}#" "$COMPOSE"
+# The repo's compose names the image without the Docker Hub account, so match on the bare name.
+LOCAL_IMAGE="${IMAGE##*/}"
+echo ">> Pinning local docker-compose.yml to $LOCAL_IMAGE:$VERSION (repo record of what's live)"
+sed -i -E "s#(image:[[:space:]]*)${LOCAL_IMAGE}:.*#\1${LOCAL_IMAGE}:${VERSION}#" "$COMPOSE"
 
 # NOTE: we deliberately do NOT copy the local compose to the VM. The VM's compose uses a
 # different env_file path (.env, not backend/.env); overwriting it would break the backend.

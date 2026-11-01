@@ -61,7 +61,7 @@ def total_id(client, token, day):
 
 def test_stop_records_one_interval(client):
     token = auth_token(client)
-    sw_id = create_stopwatch(client, token, title="deep work", date=TODAY)
+    sw_id = create_stopwatch(client, token, title="item g", date=TODAY)
 
     assert start_stopwatch(client, token, sw_id).status_code == 200
     stopped = json.loads(stop_stopwatch(client, token, sw_id).data)["stopwatches"][1]
@@ -69,7 +69,7 @@ def test_stop_records_one_interval(client):
     intervals = get_intervals(client, token, TODAY)
     assert len(intervals) == 1
     assert intervals[0]["stopwatch_id"] == sw_id
-    assert intervals[0]["title"] == "deep work"
+    assert intervals[0]["title"] == "item g"
     # the recorded bounds are the same pair the endpoint used for the increment
     assert intervals[0]["end_time"] == stopped["end_time"]
     assert intervals[0]["start_time"] == stopped["interval_start"]
@@ -77,7 +77,7 @@ def test_stop_records_one_interval(client):
 
 def test_two_cycles_record_two_ordered_intervals(client):
     token = auth_token(client)
-    sw_id = create_stopwatch(client, token, title="reading", date=TODAY)
+    sw_id = create_stopwatch(client, token, title="item d", date=TODAY)
 
     for _ in range(2):
         assert start_stopwatch(client, token, sw_id).status_code == 200
@@ -91,7 +91,7 @@ def test_two_cycles_record_two_ordered_intervals(client):
 
 def test_total_row_records_no_interval(client):
     token = auth_token(client)
-    sw_id = create_stopwatch(client, token, title="writing", date=TODAY)
+    sw_id = create_stopwatch(client, token, title="item e", date=TODAY)
     total = total_id(client, token, TODAY)
 
     # the frontend never stops the Total directly, but the endpoint allows it

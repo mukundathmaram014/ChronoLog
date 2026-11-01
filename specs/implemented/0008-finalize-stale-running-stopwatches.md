@@ -82,5 +82,5 @@ change, the day's work-time XP is already correct and no `recompute_from` call i
   a day's worked time calls `recompute_from(user_id, date)` before commit. The freeze decision keeps
   this spec out of the XP path entirely; do not "helpfully" credit time during the sweep, as that would
   both inflate stats and require a ledger recompute. Spec 0020 currently lives on branch
-  `spec/0020-habit-xp-level-system` (not yet merged to `main` as of 2026-07-06) — build 0008 on top of
+  `spec/0020-habit-xp-level-system` (not yet merged to `main` when this was written) — build 0008 on top of
   it or rebase after it merges, since both touch `backend/src/routes/stopwatch.py`.
