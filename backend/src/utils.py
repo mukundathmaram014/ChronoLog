@@ -1,7 +1,7 @@
 import json
 import math
 import os
-from datetime import date, timezone
+from datetime import date, datetime, timezone
 
 
 # generalized response formats
@@ -76,6 +76,23 @@ def ensure_utc(dt):
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
+
+def parse_client_datetime(value):
+    """
+    Parse an ISO-8601 instant sent by the client (e.g. JS toISOString()) into a
+    UTC-aware datetime. Raises ValueError unless it is a string carrying a UTC
+    offset: a naive time is ambiguous, since the server doesn't know the user's
+    timezone. The trailing "Z" is rewritten because fromisoformat only accepts it
+    from Python 3.11, and production runs 3.10.
+    """
+    if not isinstance(value, str):
+        raise ValueError("expected an ISO-8601 string")
+    if value.endswith("Z"):
+        value = value[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        raise ValueError("datetime must include a UTC offset")
+    return parsed.astimezone(timezone.utc)
 
 
 # ---- XP / level system (spec 0020) ----
