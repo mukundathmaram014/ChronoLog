@@ -5,9 +5,10 @@ from db import db
 from flask import Flask, request
 from db import Stopwatch
 from db import Habit
-from db import DailyXP, User, WeekNote
+from db import DailyXP, Goal, User, WeekNote
 from datetime import datetime, date, timedelta
 import calendar
+import math
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func
 from xp import current_streak
@@ -15,6 +16,8 @@ from xp import current_streak
 statistic_routes = Blueprint('statistics', __name__)
 
 MAX_WEEK_NOTE_LENGTH = 500
+PROJECTION_WINDOW_DAYS = 28
+ALL_TIME_PROJECTION_DAYS = 182
 
 
 def get_period_range(requested_date, time_period):
@@ -688,42 +691,117 @@ def parse_week_start(value):
 @jwt_required()
 def get_overview(year):
     """
-    Endpoint for the Overview section: per-week habit completion, average time
-    per day, XP and note for one year, plus the daily XP series for the curve.
-    Reads each table once over the whole range rather than per day, since this
-    covers up to 53 weeks.
+    Endpoint for the Overview section for one year.
     """
 
-    user_id = int(get_jwt_identity())
     if year < 1 or year > 9998:
         return failure_response("Invalid year", 400)
+    return success_response(build_overview(int(get_jwt_identity()), year))
+
+
+@statistic_routes.route("/stats/overview/all/")
+@jwt_required()
+def get_overview_all():
+    """
+    Endpoint for the Overview section across all of the user's history.
+    """
+
+    return success_response(build_overview(int(get_jwt_identity()), None))
+
+
+def xp_snapshot(day, total_xp):
+    progress = level_from_xp(total_xp)
+    return {
+        "date": day.isoformat(),
+        "total_xp": total_xp,
+        "level": progress["level"],
+        "xp_into_level": progress["xp_into_level"],
+        "xp_to_next": progress["xp_to_next"],
+    }
+
+
+def build_projection(user_id, first_day, today, current_xp, horizon):
+    """
+    Where the user's level is heading at their recent daily XP. Goals are left out
+    of the rate: they're one-time, so a big one would otherwise predict more of the
+    same every day. Today is left out too, since it isn't over yet.
+    """
+
+    window_start = max(today - timedelta(days = PROJECTION_WINDOW_DAYS), first_day)
+    window_days = (today - window_start).days
+    if window_days < 1:
+        return None
+    rows = DailyXP.query.filter(
+        DailyXP.user_id == user_id, DailyXP.date >= window_start, DailyXP.date < today
+    ).all()
+    rate = sum(row.xp_earned - row.goal_xp for row in rows) / window_days
+    if rate <= 0:
+        return None
+
+    def xp_at(day):
+        return round(current_xp + rate * (day - today).days)
+
+    points = []
+    day = today + timedelta(days = 7)
+    while day < horizon:
+        points.append(xp_snapshot(day, xp_at(day)))
+        day += timedelta(days = 7)
+    if horizon > today:
+        points.append(xp_snapshot(horizon, xp_at(horizon)))
+
+    progress = level_from_xp(current_xp)
+    days_to_next = math.ceil((progress["xp_to_next"] - progress["xp_into_level"]) / rate)
+    one_year = today + timedelta(days = 365)
+    return {
+        "rate_per_day": rate,
+        "window_days": window_days,
+        "next_level": {"level": progress["level"] + 1, "date": (today + timedelta(days = days_to_next)).isoformat()},
+        "in_one_year": xp_snapshot(one_year, xp_at(one_year)),
+        "points": points,
+    }
+
+
+def build_overview(user_id, year):
+    """
+    Per-week habit completion, average time per day, XP and note, plus the daily XP
+    series for the curve, for one year or (year = None) all of the user's history.
+    Reads each table once over the whole range rather than per day, since this
+    covers at least a year of weeks.
+    """
+
     today = client_today()
 
     first_habit_day = db.session.query(func.min(Habit.date)).filter(Habit.user_id == user_id).scalar()
     first_time_day = first_tracked_day(user_id)
     first_days = [day for day in (first_habit_day, first_time_day) if day is not None]
+    first_week = monday_of(min(first_days)) if first_days else None
 
-    # Jan 4 is always in the year's first week, Dec 28 always in its last
-    year_first_monday = monday_of(date(year, 1, 4))
-    year_last_monday = monday_of(date(year, 12, 28))
+    if year is None:
+        axis_start = first_week or monday_of(today)
+        axis_end = today
+    else:
+        # Jan 4 is always in the year's first week, Dec 28 always in its last
+        axis_start = monday_of(date(year, 1, 4))
+        axis_end = monday_of(date(year, 12, 28)) + timedelta(days = 6)
+
     response = {
         "year": year,
-        "axis_start": year_first_monday.isoformat(),
-        "axis_end": (year_last_monday + timedelta(days = 6)).isoformat(),
+        "axis_start": axis_start.isoformat(),
+        "axis_end": axis_end.isoformat(),
         "years": [overview_year_of(monday_of(today))],
         "weeks": [],
         "xp_days": [],
+        "projection": None,
     }
     if not first_days:
-        return success_response(response)
+        return response
 
-    first_week = monday_of(min(first_days))
     response["years"] = list(range(overview_year_of(first_week), overview_year_of(monday_of(today)) + 1))
 
-    range_start = max(year_first_monday, first_week)
-    range_end = min(year_last_monday + timedelta(days = 6), today)
+    range_start = max(axis_start, first_week)
+    range_end = min(axis_end, today)
     if range_start > range_end:
-        return success_response(response)
+        return response
 
     habit_totals = {}  # date -> [total, completed]
     habit_rows = db.session.query(Habit.date, Habit.done).filter(
@@ -743,6 +821,14 @@ def get_overview(year):
 
     xp_rows = DailyXP.query.filter(DailyXP.user_id == user_id, DailyXP.date >= range_start).all()
     xp_by_day = {row.date: row.xp_earned for row in xp_rows}
+    goal_xp_by_day = {row.date: row.goal_xp for row in xp_rows}
+
+    goals_by_day = {}
+    for goal in Goal.query.filter(
+        Goal.user_id == user_id, Goal.done == True,
+        Goal.completed_date >= range_start, Goal.completed_date <= range_end
+    ).all():
+        goals_by_day.setdefault(goal.completed_date, []).append(goal.description)
 
     notes = {note.week_start: note.text for note in WeekNote.query.filter(
         WeekNote.user_id == user_id, WeekNote.week_start >= range_start, WeekNote.week_start <= range_end
@@ -774,18 +860,20 @@ def get_overview(year):
     while current_day <= range_end:
         earned = xp_by_day.get(current_day, 0)
         running_xp += earned
-        progress = level_from_xp(running_xp)
         response["xp_days"].append({
-            "date": current_day.isoformat(),
+            **xp_snapshot(current_day, running_xp),
             "xp_earned": earned,
-            "total_xp": running_xp,
-            "level": progress["level"],
-            "xp_into_level": progress["xp_into_level"],
-            "xp_to_next": progress["xp_to_next"],
+            "goal_xp": goal_xp_by_day.get(current_day, 0),
+            "goals": goals_by_day.get(current_day, []),
         })
         current_day += timedelta(days = 1)
 
-    return success_response(response)
+    # only when the range reaches today: a finished year has nothing left to project
+    if range_end == today:
+        horizon = axis_end if year is not None else today + timedelta(days = ALL_TIME_PROJECTION_DAYS)
+        response["projection"] = build_projection(user_id, min(first_days), today, running_xp, horizon)
+
+    return response
 
 
 @statistic_routes.route("/stats/overview/notes/<string:week_start>/", methods=["PUT"])

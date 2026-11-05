@@ -678,8 +678,9 @@ export function Statistics() {
                     </div>
                     {selectedStatistics === "overview" ? (
                         <div className = "year-select-bar">
-                        <select aria-label="Year" value={overviewYear} onChange={e => setOverviewYear(Number(e.target.value))}>
-                        {(overviewData?.years ?? [overviewYear]).map(year => (
+                        <select aria-label="Year" value={overviewYear} onChange={e => setOverviewYear(e.target.value === "all" ? "all" : Number(e.target.value))}>
+                        <option value="all">All time</option>
+                        {(overviewData?.years ?? (overviewYear === "all" ? [] : [overviewYear])).map(year => (
                             <option key={year} value={year}>{year}</option>
                         ))}
                         </select>

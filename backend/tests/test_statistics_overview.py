@@ -226,3 +226,118 @@ def test_import_requires_a_list(client):
         headers=headers(token),
     )
     assert resp.status_code == 400
+
+
+def create_goal(client, token, description, difficulty, day):
+    resp = client.post(
+        "/api/goals/",
+        data=json.dumps({"description": description, "difficulty": difficulty}),
+        content_type="application/json",
+        headers=headers(token),
+    )
+    assert resp.status_code == 201
+    goal_id = json.loads(resp.data)["id"]
+    resp = client.put(
+        f"/api/goals/{goal_id}/",
+        data=json.dumps({"done": True, "date": day.isoformat()}),
+        content_type="application/json",
+        headers=headers(token),
+    )
+    assert resp.status_code == 200
+
+
+def get_all_time(client, token):
+    resp = client.get("/api/stats/overview/all/", headers=headers(token))
+    assert resp.status_code == 200
+    return json.loads(resp.data)
+
+
+def test_all_time_spans_every_year_with_data(client):
+    token = auth_token(client)
+    create_habit(client, token, "Habit A", date(2025, 3, 3))
+
+    data = get_all_time(client, token)
+
+    assert data["year"] is None
+    assert data["axis_start"] == "2025-03-03"
+    assert data["axis_end"] == date.today().isoformat()
+    assert data["weeks"][0]["week_start"] == "2025-03-03"
+    assert data["weeks"][-1]["week_start"] == this_monday().isoformat()
+    assert data["years"][0] == 2025
+
+
+def test_all_time_with_no_data_is_empty(client):
+    token = auth_token(client)
+    data = get_all_time(client, token)
+    assert data["weeks"] == []
+    assert data["projection"] is None
+
+
+def test_goals_appear_on_their_completion_day(client):
+    token = auth_token(client)
+    day = date.today() - timedelta(days=3)
+    create_habit(client, token, "Habit A", day)
+    create_goal(client, token, "goal a", "easy", day)
+
+    days = {d["date"]: d for d in get_all_time(client, token)["xp_days"]}
+
+    assert days[day.isoformat()]["goals"] == ["goal a"]
+    assert days[day.isoformat()]["goal_xp"] == 500
+    assert days[(day + timedelta(days=1)).isoformat()]["goals"] == []
+
+
+def test_goals_are_scoped_by_user(client):
+    token_a = auth_token(client, username="userA", email="a@example.com")
+    token_b = auth_token(client, username="userB", email="b@example.com")
+    day = date.today() - timedelta(days=3)
+    create_habit(client, token_a, "Habit A", day)
+    create_habit(client, token_b, "Habit A", day)
+    create_goal(client, token_a, "goal a", "easy", day)
+
+    assert all(d["goals"] == [] for d in get_all_time(client, token_b)["xp_days"])
+
+
+def test_projection_rate_leaves_out_goals_and_today(client):
+    token = auth_token(client)
+    today = date.today()
+    start = today - timedelta(days=4)
+    for offset in range(4):
+        create_habit(client, token, "Habit A", start + timedelta(days=offset), done=True)
+    create_habit(client, token, "Habit A", today, done=True)
+    before = get_all_time(client, token)["projection"]
+    assert before["window_days"] == 4
+    assert before["rate_per_day"] > 0
+
+    create_goal(client, token, "goal a", "extreme", today - timedelta(days=1))
+    after = get_all_time(client, token)["projection"]
+
+    # a 20,000 XP goal doesn't predict 5,000 XP more every day
+    assert after["rate_per_day"] < 1000
+
+
+def test_projection_extends_from_the_current_total(client):
+    token = auth_token(client)
+    today = date.today()
+    create_habit(client, token, "Habit A", today - timedelta(days=2), done=True)
+    create_habit(client, token, "Habit A", today - timedelta(days=1), done=True)
+
+    data = get_all_time(client, token)
+    projection = data["projection"]
+    current = data["xp_days"][-1]["total_xp"]
+    points = projection["points"]
+
+    assert points[0]["date"] == (today + timedelta(days=7)).isoformat()
+    assert points[-1]["date"] == (today + timedelta(days=182)).isoformat()
+    assert [p["total_xp"] for p in points] == sorted(p["total_xp"] for p in points)
+    assert points[0]["total_xp"] == round(current + projection["rate_per_day"] * 7)
+    assert projection["next_level"]["level"] == data["xp_days"][-1]["level"] + 1
+    assert projection["next_level"]["date"] > today.isoformat()
+    assert projection["in_one_year"]["date"] == (today + timedelta(days=365)).isoformat()
+
+
+def test_no_projection_without_recent_xp_or_for_a_finished_year(client):
+    token = auth_token(client)
+    create_habit(client, token, "Habit A", date(2025, 3, 3), done=True)
+    # nothing earned in the last 28 days
+    assert get_all_time(client, token)["projection"] is None
+    assert get_overview(client, token, 2025)["projection"] is None

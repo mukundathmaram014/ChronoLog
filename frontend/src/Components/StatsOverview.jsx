@@ -7,15 +7,17 @@ const MS_PER_HOUR = 3600000;
 const TOP = 16;
 const BOTTOM = 34;
 const LEFT = 46;
+const SNAP_DISTANCE = 10;
 
 const isoToTime = (iso) => {
     const [year, month, day] = iso.split("-").map(Number);
     return Date.UTC(year, month - 1, day);
 };
 
-const shortDate = (iso) => {
+const shortDate = (iso, withYear = false) => {
     const date = new Date(isoToTime(iso));
-    return `${MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}`;
+    const label = `${MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}`;
+    return withYear ? `${label}, ${date.getUTCFullYear()}` : label;
 };
 
 const formatHours = (milliseconds) => {
@@ -61,27 +63,43 @@ const niceStep = (span) => {
     return factor * power;
 };
 
-// Canvas size and x scale shared by the three charts, so their months line up
-const chartFrame = (data) => {
+// Canvas size and x scale for a chart. The labels are the months of the year, or for
+// the all-time view (year = null) evenly spaced months that name each new year.
+const chartFrame = (data, axisEnd = data.axis_end) => {
     const narrow = window.innerWidth < 640;
     const width = narrow ? 460 : 900;
     const height = narrow ? 240 : 280;
     const right = narrow ? 14 : 22;
     const start = isoToTime(data.axis_start);
-    const end = isoToTime(data.axis_end);
-    const scaleX = (iso) => LEFT + ((isoToTime(iso) - start) / (end - start)) * (width - LEFT - right);
+    const end = isoToTime(axisEnd);
+    const scale = (time) => LEFT + ((time - start) / ((end - start) || 1)) * (width - LEFT - right);
+    const scaleX = (iso) => scale(isoToTime(iso));
 
     const months = [];
-    MONTHS.forEach((label, month) => {
-        if (narrow && month % 2 !== 0) return;
-        const mid = Date.UTC(data.year, month, 15);
-        months.push({ label, x: LEFT + ((mid - start) / (end - start)) * (width - LEFT - right) });
-    });
+    if (data.year !== null) {
+        MONTHS.forEach((label, month) => {
+            if (narrow && month % 2 !== 0) return;
+            months.push({ label, x: scale(Date.UTC(data.year, month, 15)) });
+        });
+    } else {
+        const first = new Date(start);
+        const spanMonths = ((end - start) / (365.25 * 86400000)) * 12;
+        const every = [1, 2, 3, 6, 12, 24].find(step => spanMonths / step <= (narrow ? 5 : 11)) ?? 48;
+        for (let index = first.getUTCFullYear() * 12 + first.getUTCMonth() + 1; ; index++) {
+            const time = Date.UTC(Math.floor(index / 12), index % 12, 1);
+            if (time > end) break;
+            if (index % every !== 0) continue;
+            months.push({
+                label: index % 12 === 0 || months.length === 0 ? `${MONTHS[index % 12]} ${Math.floor(index / 12)}` : MONTHS[index % 12],
+                x: scale(time),
+            });
+        }
+    }
     return { width, height, right, scaleX, months };
 };
 
 // Chart shell: the month labels, plus a crosshair and tooltip for the nearest point
-const ChartFrame = ({ frame, points, ariaLabel, tooltip, children }) => {
+const ChartFrame = ({ frame, points, snapTo = [], ariaLabel, tooltip, children }) => {
     const svgRef = useRef(null);
     const [active, setActive] = useState(null);
 
@@ -91,6 +109,11 @@ const ChartFrame = ({ frame, points, ariaLabel, tooltip, children }) => {
         let nearest = 0;
         points.forEach(([px], i) => {
             if (Math.abs(px - x) < Math.abs(points[nearest][0] - x)) nearest = i;
+        });
+        // a marked day is one pixel wide on a long chart, so pull the pointer onto it
+        snapTo.forEach(i => {
+            const gap = Math.abs(points[i][0] - x);
+            if (gap <= SNAP_DISTANCE && (!snapTo.includes(nearest) || gap < Math.abs(points[nearest][0] - x))) nearest = i;
         });
         setActive({ index: nearest, scale: rect.width / frame.width, chartWidth: rect.width });
     };
@@ -170,11 +193,14 @@ const WeeklyChart = ({ data, value, maxValue, step, tick, ariaLabel, tooltip }) 
 };
 
 const XpCurve = ({ data, mode }) => {
-    const frame = chartFrame(data);
+    const projected = data.projection?.points ?? [];
+    const axisEnd = projected.length ? projected[projected.length - 1].date : data.axis_end;
+    const frame = chartFrame(data, axisEnd);
     const showLevel = mode === "level";
     const days = data.xp_days;
+    const entries = [...days, ...projected];
     const value = (day) => (showLevel ? day.level + day.xp_into_level / day.xp_to_next : day.total_xp);
-    const values = days.map(value);
+    const values = entries.map(value);
     const low = Math.min(...values);
     const high = Math.max(...values);
     const span = high - low || 1;
@@ -182,30 +208,57 @@ const XpCurve = ({ data, mode }) => {
     const minValue = Math.floor(low / step) * step;
     const maxValue = Math.max(Math.ceil(high / step) * step, minValue + step);
     const scaleY = (v) => TOP + (1 - (v - minValue) / (maxValue - minValue)) * (frame.height - TOP - BOTTOM);
-    const points = days.map((day, i) => [frame.scaleX(day.date), scaleY(values[i])]);
+    const points = entries.map((entry, i) => [frame.scaleX(entry.date), scaleY(values[i])]);
+    const past = points.slice(0, days.length);
+    const last = past[past.length - 1];
+    const future = points.slice(days.length - 1);
+
+    const goalDays = [];
+    days.forEach((day, i) => { if (day.goals.length) goalDays.push(i); });
 
     const ticks = [];
     for (let v = minValue; v <= maxValue + 1e-9; v += step) ticks.push(v);
 
-    const curve = monotonePath(points);
-    const last = points[points.length - 1];
+    const curve = monotonePath(past);
     const lastDay = days[days.length - 1];
-    const endLabel = showLevel ? `Level ${lastDay.level}` : `${lastDay.total_xp.toLocaleString()} XP`;
-    const labelOnLeft = last[0] > frame.width - 130;
+    const label = (entry) => (showLevel ? `Level ${entry.level}` : `${entry.total_xp.toLocaleString()} XP`);
+    const labelOnLeft = projected.length > 0 || last[0] > frame.width - 130;
+    const withYear = data.year === null;
+    // above the line, unless that would run off the top of the chart
+    const labelY = (y) => (y - 12 < TOP + 12 ? y + 20 : y - 12);
 
     return (
         <ChartFrame
             frame={frame}
             points={points}
-            ariaLabel={`${showLevel ? "Level" : "Total XP"} over the year, ending at ${endLabel}.`}
-            tooltip={(i) => (
-                <>
-                    <strong>{shortDate(days[i].date)}</strong>
-                    <div>Level {days[i].level} <span className="ov-muted">({days[i].xp_into_level.toLocaleString()} / {days[i].xp_to_next.toLocaleString()})</span></div>
-                    <div>{days[i].total_xp.toLocaleString()} XP total</div>
-                    <div className="ov-muted">+{days[i].xp_earned.toLocaleString()} that day</div>
-                </>
-            )}
+            snapTo={goalDays}
+            ariaLabel={`${showLevel ? "Level" : "Total XP"} over time, currently ${label(lastDay)}.`}
+            tooltip={(i) => {
+                const entry = entries[i];
+                if (i >= days.length) {
+                    return (
+                        <>
+                            <strong>{shortDate(entry.date, true)} (projected)</strong>
+                            <div>Level {entry.level} <span className="ov-muted">({entry.xp_into_level.toLocaleString()} / {entry.xp_to_next.toLocaleString()})</span></div>
+                            <div>{entry.total_xp.toLocaleString()} XP total</div>
+                        </>
+                    );
+                }
+                return (
+                    <>
+                        <strong>{shortDate(entry.date, withYear)}</strong>
+                        <div>Level {entry.level} <span className="ov-muted">({entry.xp_into_level.toLocaleString()} / {entry.xp_to_next.toLocaleString()})</span></div>
+                        <div>{entry.total_xp.toLocaleString()} XP total</div>
+                        <div className="ov-muted">+{entry.xp_earned.toLocaleString()} that day</div>
+                        {entry.goals.length > 0 && (
+                            <div className="ov-tooltip-note">
+                                {entry.goals.map(goal => <div key={goal}>Goal completed: {goal}</div>)}
+                                <div className="ov-muted">+{entry.goal_xp.toLocaleString()} XP from {entry.goals.length === 1 ? "this goal" : "these goals"}</div>
+                            </div>
+                        )}
+                    </>
+                );
+            }}
         >
             <defs>
                 <linearGradient id="ov-xp-fill" x1="0" x2="0" y1="0" y2="1">
@@ -219,20 +272,50 @@ const XpCurve = ({ data, mode }) => {
                     <text x={LEFT - 8} y={scaleY(v) + 4} textAnchor="end">{Math.round(v).toLocaleString()}</text>
                 </g>
             ))}
-            <path d={`${curve}L${last[0]},${frame.height - BOTTOM}L${points[0][0]},${frame.height - BOTTOM}Z`} fill="url(#ov-xp-fill)" />
+            <path d={`${curve}L${last[0]},${frame.height - BOTTOM}L${past[0][0]},${frame.height - BOTTOM}Z`} fill="url(#ov-xp-fill)" />
             <path d={curve} fill="none" stroke={ACCENT} strokeWidth="2.5" />
+            {projected.length > 0 && (
+                <path d={monotonePath(future)} fill="none" stroke={ACCENT} strokeWidth="2" strokeDasharray="5 5" />
+            )}
+            {goalDays.map(i => (
+                <rect
+                    key={days[i].date}
+                    x={past[i][0] - 5} y={past[i][1] - 5} width="10" height="10"
+                    transform={`rotate(45 ${past[i][0]} ${past[i][1]})`}
+                    fill="#fff" stroke={ACCENT} strokeWidth="2.5"
+                />
+            ))}
             <circle cx={last[0]} cy={last[1]} r="5" fill={ACCENT} stroke="#232323" strokeWidth="2" />
             <text
                 className="ov-end-label"
                 x={labelOnLeft ? last[0] - 10 : last[0] + 10}
-                y={Math.max(TOP + 12, last[1] - 12)}
+                y={labelY(last[1])}
                 textAnchor={labelOnLeft ? "end" : "start"}
             >
-                {endLabel}
+                {label(lastDay)}
             </text>
+            {projected.length > 0 && (
+                <text
+                    className="ov-end-label"
+                    x={points[points.length - 1][0]}
+                    y={labelY(points[points.length - 1][1])}
+                    textAnchor="end"
+                >
+                    {label(projected[projected.length - 1])}
+                </text>
+            )}
         </ChartFrame>
     );
 };
+
+const ProjectionSummary = ({ projection }) => (
+    <p className="ov-projection">
+        At your recent rate of {Math.round(projection.rate_per_day).toLocaleString()} XP a day, you'd reach{" "}
+        <strong>Level {projection.next_level.level}</strong> around {shortDate(projection.next_level.date, true)} and{" "}
+        <strong>Level {projection.in_one_year.level}</strong> by {shortDate(projection.in_one_year.date, true)}.
+        <span className="ov-muted"> Based on the last {projection.window_days} {projection.window_days === 1 ? "day" : "days"}, leaving out one-time goals.</span>
+    </p>
+);
 
 const NoteCell = ({ week, fetchWithAuth, onSaved, onError }) => {
     const [editing, setEditing] = useState(false);
@@ -290,6 +373,15 @@ const NoteCell = ({ week, fetchWithAuth, onSaved, onError }) => {
     );
 };
 
+// A spreadsheet copies dates as M/D/YYYY, so take that as well as YYYY-MM-DD
+const parseImportLine = (line) => {
+    const iso = line.match(/^(\d{4}-\d{2}-\d{2})\s+(.+)$/);
+    if (iso) return { week_start: iso[1], note: iso[2] };
+    const us = line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(.+)$/);
+    if (us) return { week_start: `${us[3]}-${us[1].padStart(2, "0")}-${us[2].padStart(2, "0")}`, note: us[4] };
+    return null;
+};
+
 const NotesImport = ({ fetchWithAuth, onImported }) => {
     const [open, setOpen] = useState(false);
     const [text, setText] = useState("");
@@ -300,10 +392,14 @@ const NotesImport = ({ fetchWithAuth, onImported }) => {
         const unreadable = [];
         text.split(/\r?\n/).forEach(line => {
             if (!line.trim()) return;
-            const match = line.trim().match(/^(\d{4}-\d{2}-\d{2})\s+(.+)$/);
-            if (match) notes.push({ week_start: match[1], note: match[2] });
+            const parsed = parseImportLine(line.trim());
+            if (parsed) notes.push(parsed);
             else unreadable.push(line.trim());
         });
+        if (notes.length === 0) {
+            setMessage(`Nothing was imported. Couldn't read: ${unreadable.join("; ")}`);
+            return;
+        }
         fetchWithAuth("/stats/overview/notes/import/", {
             method: "POST",
             body: JSON.stringify({ notes }),
@@ -330,7 +426,7 @@ const NotesImport = ({ fetchWithAuth, onImported }) => {
     }
     return (
         <div className="ov-import">
-            <label htmlFor="ov-import-text">Paste one note per line: the week's Monday as YYYY-MM-DD, then the note.</label>
+            <label htmlFor="ov-import-text">Paste one note per line: the week's Monday as YYYY-MM-DD or M/D/YYYY, then the note.</label>
             <textarea
                 id="ov-import-text"
                 rows={6}
@@ -372,12 +468,14 @@ export default function StatsOverview({ data, failed, fetchWithAuth, onOpenWeek,
     const maxAverage = Math.max(...data.weeks.map(week => week.average_time_worked_per_day)) / MS_PER_HOUR;
     const maxHours = Math.max(2, Math.ceil(maxAverage / 2) * 2);
     const anyInProgress = data.weeks[data.weeks.length - 1].in_progress;
+    const allTime = data.year === null;
+    const periodLabel = allTime ? "all time" : data.year;
 
     const weekTooltip = (i) => {
         const week = data.weeks[i];
         return (
             <>
-                <strong>Week of {shortDate(week.week_start)}{week.in_progress ? " (so far)" : ""}</strong>
+                <strong>Week of {shortDate(week.week_start, allTime)}{week.in_progress ? " (so far)" : ""}</strong>
                 <div>{percentage(week).toFixed(1)}% <span className="ov-muted">({week.completed_habits} of {week.total_habits})</span></div>
                 <div>{formatHours(week.average_time_worked_per_day)} <span className="ov-muted">per day</span></div>
                 <div>{week.xp.toLocaleString()} <span className="ov-muted">XP</span></div>
@@ -409,7 +507,7 @@ export default function StatsOverview({ data, failed, fetchWithAuth, onOpenWeek,
                 maxValue={100}
                 step={20}
                 tick={v => `${v}%`}
-                ariaLabel={`Habit completion percentage for each week of ${data.year}. The table below has the same numbers.`}
+                ariaLabel={`Habit completion percentage for each week of ${periodLabel}. The table below has the same numbers.`}
                 tooltip={weekTooltip}
             />
 
@@ -420,20 +518,35 @@ export default function StatsOverview({ data, failed, fetchWithAuth, onOpenWeek,
                 maxValue={maxHours}
                 step={2}
                 tick={v => `${v}h`}
-                ariaLabel={`Average hours worked per day for each week of ${data.year}. The table below has the same numbers.`}
+                ariaLabel={`Average hours worked per day for each week of ${periodLabel}. The table below has the same numbers.`}
                 tooltip={weekTooltip}
             />
 
             {data.xp_days.length > 0 && (
                 <>
                     <div className="ov-head">
-                        <p className="ov-title">{xpMode === "level" ? "Level" : "Total XP"} over the year</p>
-                        <div className="ov-toggle" role="group" aria-label="Curve shows">
-                            <button aria-pressed={xpMode === "level"} onClick={() => setXpMode("level")}>Level</button>
-                            <button aria-pressed={xpMode === "xp"} onClick={() => setXpMode("xp")}>XP</button>
+                        <p className="ov-title">{xpMode === "level" ? "Level" : "Total XP"} over {allTime ? "time" : "the year"}</p>
+                        <div className="ov-legend">
+                            {data.xp_days.some(day => day.goals.length > 0) && (
+                                <span>
+                                    <svg width="14" height="14" aria-hidden="true"><rect x="3" y="3" width="8" height="8" transform="rotate(45 7 7)" fill="#fff" stroke={ACCENT} strokeWidth="2" /></svg>
+                                    Goal completed
+                                </span>
+                            )}
+                            {data.projection && (
+                                <span>
+                                    <svg width="22" height="6" aria-hidden="true"><line x1="0" x2="22" y1="3" y2="3" stroke={ACCENT} strokeWidth="2" strokeDasharray="5 5" /></svg>
+                                    Projected
+                                </span>
+                            )}
+                            <div className="ov-toggle" role="group" aria-label="Curve shows">
+                                <button aria-pressed={xpMode === "level"} onClick={() => setXpMode("level")}>Level</button>
+                                <button aria-pressed={xpMode === "xp"} onClick={() => setXpMode("xp")}>XP</button>
+                            </div>
                         </div>
                     </div>
                     <XpCurve data={data} mode={xpMode} />
+                    {data.projection && <ProjectionSummary projection={data.projection} />}
                 </>
             )}
 
@@ -461,7 +574,7 @@ export default function StatsOverview({ data, failed, fetchWithAuth, onOpenWeek,
                         {[...data.weeks].reverse().map(week => (
                             <tr key={week.week_start}>
                                 <td className="ov-week">
-                                    <button className="ov-week-link" onClick={() => onOpenWeek(week.week_start)}>{shortDate(week.week_start)}</button>
+                                    <button className="ov-week-link" onClick={() => onOpenWeek(week.week_start)}>{shortDate(week.week_start, allTime)}</button>
                                     {week.in_progress && <span className="ov-so-far">so far</span>}
                                 </td>
                                 <td className="ov-num" data-label="Done">{week.completed_habits} / {week.total_habits}</td>
