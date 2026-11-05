@@ -2,7 +2,7 @@
 services:
   backend:
     build: ./backend
-    image: chronologbackend:v.1.0.26
+    image: chronologbackend:v.1.0.27
     ports: 
       - "80:5000"
     env_file: backend/.env
