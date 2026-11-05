@@ -5,7 +5,7 @@ from db import db
 from flask import Flask, request
 from db import Stopwatch
 from db import Habit
-from db import DailyXP, User
+from db import DailyXP, User, WeekNote
 from datetime import datetime, date, timedelta
 import calendar
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -13,6 +13,8 @@ from sqlalchemy import func
 from xp import current_streak
 
 statistic_routes = Blueprint('statistics', __name__)
+
+MAX_WEEK_NOTE_LENGTH = 500
 
 
 def get_period_range(requested_date, time_period):
@@ -57,9 +59,20 @@ def elapsed_tracked_days(user_id, start_day, num_days, today):
     it, so it belongs in a per-day average as a zero, not out of it.
     """
 
-    first_day = db.session.query(func.min(Stopwatch.date)).filter(
+    return days_elapsed_since(first_tracked_day(user_id), start_day, num_days, today)
+
+
+def first_tracked_day(user_id):
+    """
+    The earliest day the user has a Total stopwatch row, or None.
+    """
+
+    return db.session.query(func.min(Stopwatch.date)).filter(
         Stopwatch.user_id == user_id, Stopwatch.isTotal == True
     ).scalar()
+
+
+def days_elapsed_since(first_day, start_day, num_days, today):
     if first_day is None:
         return 0
     begin = max(start_day, first_day)
@@ -643,3 +656,199 @@ def get_xp_stats(date_string, time_period):
         "days": days,
         "level": level_obj,
     })
+
+
+def monday_of(day):
+    return day - timedelta(days = day.weekday())
+
+
+def overview_year_of(monday):
+    """
+    The year a week counts towards: the one holding its Thursday, so each week
+    belongs to exactly one year and a week straddling New Year has most of its
+    days in the year it's listed under.
+    """
+
+    return (monday + timedelta(days = 3)).year
+
+
+def parse_week_start(value):
+    """
+    The date for a YYYY-MM-DD string if it's a Monday, otherwise None.
+    """
+
+    try:
+        day = date.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+    return day if day.weekday() == 0 else None
+
+
+@statistic_routes.route("/stats/overview/<int:year>/")
+@jwt_required()
+def get_overview(year):
+    """
+    Endpoint for the Overview section: per-week habit completion, average time
+    per day, XP and note for one year, plus the daily XP series for the curve.
+    Reads each table once over the whole range rather than per day, since this
+    covers up to 53 weeks.
+    """
+
+    user_id = int(get_jwt_identity())
+    if year < 1 or year > 9998:
+        return failure_response("Invalid year", 400)
+    today = client_today()
+
+    first_habit_day = db.session.query(func.min(Habit.date)).filter(Habit.user_id == user_id).scalar()
+    first_time_day = first_tracked_day(user_id)
+    first_days = [day for day in (first_habit_day, first_time_day) if day is not None]
+
+    # Jan 4 is always in the year's first week, Dec 28 always in its last
+    year_first_monday = monday_of(date(year, 1, 4))
+    year_last_monday = monday_of(date(year, 12, 28))
+    response = {
+        "year": year,
+        "axis_start": year_first_monday.isoformat(),
+        "axis_end": (year_last_monday + timedelta(days = 6)).isoformat(),
+        "years": [overview_year_of(monday_of(today))],
+        "weeks": [],
+        "xp_days": [],
+    }
+    if not first_days:
+        return success_response(response)
+
+    first_week = monday_of(min(first_days))
+    response["years"] = list(range(overview_year_of(first_week), overview_year_of(monday_of(today)) + 1))
+
+    range_start = max(year_first_monday, first_week)
+    range_end = min(year_last_monday + timedelta(days = 6), today)
+    if range_start > range_end:
+        return success_response(response)
+
+    habit_totals = {}  # date -> [total, completed]
+    habit_rows = db.session.query(Habit.date, Habit.done).filter(
+        Habit.user_id == user_id, Habit.date >= range_start, Habit.date <= range_end
+    ).all()
+    for day, done in habit_rows:
+        counts = habit_totals.setdefault(day, [0, 0])
+        counts[0] += 1
+        if done:
+            counts[1] += 1
+
+    time_rows = db.session.query(Stopwatch.date, Stopwatch.curr_duration).filter(
+        Stopwatch.user_id == user_id, Stopwatch.isTotal == True,
+        Stopwatch.date >= range_start, Stopwatch.date <= range_end
+    ).all()
+    time_by_day = {day: duration for day, duration in time_rows}
+
+    xp_rows = DailyXP.query.filter(DailyXP.user_id == user_id, DailyXP.date >= range_start).all()
+    xp_by_day = {row.date: row.xp_earned for row in xp_rows}
+
+    notes = {note.week_start: note.text for note in WeekNote.query.filter(
+        WeekNote.user_id == user_id, WeekNote.week_start >= range_start, WeekNote.week_start <= range_end
+    ).all()}
+
+    monday = range_start
+    while monday <= range_end:
+        days = [monday + timedelta(days = i) for i in range(7)]
+        total_habits = sum(habit_totals.get(day, [0, 0])[0] for day in days)
+        completed_habits = sum(habit_totals.get(day, [0, 0])[1] for day in days)
+        total_time = sum(time_by_day.get(day, 0) for day in days)
+        days_for_average = days_elapsed_since(first_time_day, monday, 7, today)
+        response["weeks"].append({
+            "week_start": monday.isoformat(),
+            "total_habits": total_habits,
+            "completed_habits": completed_habits,
+            "total_time_worked": total_time,
+            "average_time_worked_per_day": total_time / days_for_average if days_for_average > 0 else total_time,
+            "xp": sum(xp_by_day.get(day, 0) for day in days if day <= range_end),
+            "note": notes.get(monday),
+            "in_progress": days[-1] >= today,
+        })
+        monday += timedelta(days = 7)
+
+    # anchored to the user's current total, so the curve ends on the level shown elsewhere
+    user = db.session.get(User, user_id)
+    running_xp = max(0, (user.total_xp or 0) - sum(xp_by_day.values()))
+    current_day = range_start
+    while current_day <= range_end:
+        earned = xp_by_day.get(current_day, 0)
+        running_xp += earned
+        progress = level_from_xp(running_xp)
+        response["xp_days"].append({
+            "date": current_day.isoformat(),
+            "xp_earned": earned,
+            "total_xp": running_xp,
+            "level": progress["level"],
+            "xp_into_level": progress["xp_into_level"],
+            "xp_to_next": progress["xp_to_next"],
+        })
+        current_day += timedelta(days = 1)
+
+    return success_response(response)
+
+
+@statistic_routes.route("/stats/overview/notes/<string:week_start>/", methods=["PUT"])
+@jwt_required()
+def set_week_note(week_start):
+    """
+    Endpoint for setting one week's note. An empty note removes it.
+    """
+
+    user_id = int(get_jwt_identity())
+    monday = parse_week_start(week_start)
+    if monday is None:
+        return failure_response("Week must be a Monday in YYYY-MM-DD format", 400)
+
+    body = json.loads(request.data)
+    text = body.get("note", "")
+    if not isinstance(text, str):
+        return failure_response("Note must be text", 400)
+    text = text.strip()
+    if len(text) > MAX_WEEK_NOTE_LENGTH:
+        return failure_response(f"Note must be at most {MAX_WEEK_NOTE_LENGTH} characters", 400)
+
+    note = WeekNote.query.filter_by(user_id = user_id, week_start = monday).first()
+    if not text:
+        if note is not None:
+            db.session.delete(note)
+    elif note is None:
+        db.session.add(WeekNote(user_id = user_id, week_start = monday, text = text))
+    else:
+        note.text = text
+    db.session.commit()
+    return success_response({"week_start": monday.isoformat(), "note": text or None})
+
+
+@statistic_routes.route("/stats/overview/notes/import/", methods=["POST"])
+@jwt_required()
+def import_week_notes():
+    """
+    Endpoint for adding many week notes at once. Weeks that already have a note
+    keep it, so running an import twice changes nothing.
+    """
+
+    user_id = int(get_jwt_identity())
+    body = json.loads(request.data)
+    items = body.get("notes")
+    if not isinstance(items, list):
+        return failure_response("notes must be a list", 400)
+
+    taken = {note.week_start for note in WeekNote.query.filter_by(user_id = user_id).all()}
+    imported = 0
+    skipped = 0
+    errors = []
+    for item in items:
+        week_start = item.get("week_start") if isinstance(item, dict) else None
+        text = item.get("note") if isinstance(item, dict) else None
+        monday = parse_week_start(week_start)
+        if monday is None or not isinstance(text, str) or not text.strip() or len(text.strip()) > MAX_WEEK_NOTE_LENGTH:
+            errors.append(str(week_start))
+        elif monday in taken:
+            skipped += 1
+        else:
+            db.session.add(WeekNote(user_id = user_id, week_start = monday, text = text.strip()))
+            taken.add(monday)
+            imported += 1
+    db.session.commit()
+    return success_response({"imported": imported, "skipped": skipped, "errors": errors})

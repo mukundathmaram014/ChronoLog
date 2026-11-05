@@ -224,6 +224,28 @@ class DailyXP(db.Model):
         }
 
 
+class WeekNote(db.Model):
+    """
+    A user's free-text note on one week, keyed by that week's Monday.
+    """
+
+    __tablename__ = "week_notes"
+    __table_args__ = (db.UniqueConstraint("user_id", "week_start"),)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    week_start = db.Column(db.Date, nullable=False)
+    text = db.Column(db.String, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    def __init__(self, **kwargs):
+        """
+        Initialize a WeekNote object
+        """
+
+        self.week_start = kwargs.get("week_start")
+        self.text = kwargs.get("text", "")
+        self.user_id = kwargs.get("user_id")
+
+
 #stopwatch model
 class Stopwatch(db.Model):
     """
