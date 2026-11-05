@@ -3,7 +3,7 @@ from utils import success_response, failure_response, process_date, ensure_utc, 
 import json
 import os
 import secrets
-from db import db, User, Habit, Task, Goal, DailyXP, Stopwatch, DeletedDay, TokenBlocklist
+from db import db, User, Habit, Task, Goal, DailyXP, Stopwatch, DeletedDay, TokenBlocklist, WeekNote
 from flask import Flask, request
 from sqlalchemy import func
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -30,7 +30,7 @@ def purge_expired_guests():
         if created is not None and created < cutoff:
             expired.append(user)
     for user in expired:
-        for model in (Habit, Task, Goal, DailyXP, Stopwatch, DeletedDay, TokenBlocklist):
+        for model in (Habit, Task, Goal, DailyXP, Stopwatch, DeletedDay, TokenBlocklist, WeekNote):
             model.query.filter_by(user_id=user.id).delete()
         db.session.delete(user)
     if expired:

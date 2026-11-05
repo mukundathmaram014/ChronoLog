@@ -2,6 +2,7 @@ import {useState, useEffect, useRef} from "react";
 import './statisticspage.css';
 import useFetch from "../hooks/useFetch";
 import HabitCalendar from "../Components/HabitCalendar";
+import StatsOverview from "../Components/StatsOverview";
 
 // Slice colors for the stopwatch pie: starts from the app's green accent, then
 // hues spaced for distinguishability on the dark background. Cycles if exceeded.
@@ -28,7 +29,7 @@ export function Statistics() {
         return isoString;
     }
 
-    const [selectedStatistics, setSelectedStatistics] = useState("habits")
+    const [selectedStatistics, setSelectedStatistics] = useState("overview")
     const [selectedTimePeriod, setSelectedTimePeriod] = useState("day");
     const [selectedDate, setSelectedDate] = useState(() => (DatetoISOString(new Date())));
     const [statsData, setStatsData] = useState(null);
@@ -45,6 +46,14 @@ export function Statistics() {
     const [perHabitCalendars, setPerHabitCalendars] = useState(null);
     const [timeCalendarData, setTimeCalendarData] = useState(null);
     const [xpData, setXpData] = useState(null);
+    // a week counts towards the year holding its Thursday (see overview_year_of in the backend)
+    const [overviewYear, setOverviewYear] = useState(() => {
+        const thursday = new Date();
+        thursday.setDate(thursday.getDate() - ((thursday.getDay() + 6) % 7) + 3);
+        return thursday.getFullYear();
+    });
+    const [overviewData, setOverviewData] = useState(null);
+    const [overviewVersion, setOverviewVersion] = useState(0);
 
 
     // Rows for days the app wasn't opened only get created when a day page reads a
@@ -101,7 +110,7 @@ export function Statistics() {
     }, [selectedDate, selectedTimePeriod]);
 
     useEffect(() => {
-            if (selectedStatistics === "xp") return; // fetched by its own effect below
+            if (selectedStatistics === "xp" || selectedStatistics === "overview") return; // fetched by their own effects below
 
             // the server's clock is UTC; the average needs to know what day it is for the user
             let query = `?today=${DatetoISOString(new Date())}`;
@@ -123,7 +132,7 @@ export function Statistics() {
 
     // fetches the aggregate Total + per-item stats for the combined view (spec 0016)
     useEffect(() => {
-            if (selectedStatistics === "xp") return; // no "all" variant for XP
+            if (selectedStatistics === "xp" || selectedStatistics === "overview") return; // no "all" variant for these
 
             fetchAfterSync(`/stats/${selectedStatistics}/all/${selectedDate}/${selectedTimePeriod}/?today=${DatetoISOString(new Date())}`)
             .then(response => response.json())
@@ -132,6 +141,18 @@ export function Statistics() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedStatistics, selectedDate, selectedTimePeriod])
+
+    // fetches one year of weekly rows and the XP curve for the Overview section (spec 0039)
+    useEffect(() => {
+            if (selectedStatistics !== "overview") return;
+
+            fetchAfterSync(`/stats/overview/${overviewYear}/?today=${DatetoISOString(new Date())}`)
+            .then(response => response.json())
+            .then(data => setOverviewData(data))
+            .catch(error => console.error(error))
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedStatistics, overviewYear, overviewVersion])
 
     // fetches the period-aware XP readout (spec 0034)
     useEffect(() => {
@@ -395,6 +416,24 @@ export function Statistics() {
 
     const renderStats = () => {
         switch(selectedStatistics){
+            case "overview":
+                return (
+                    <StatsOverview
+                        data={overviewData}
+                        fetchWithAuth={fetchWithAuth}
+                        onOpenWeek={weekStart => {
+                            setSelectedDate(weekStart);
+                            setSelectedTimePeriod("week");
+                            setSelectedStatistics("habits");
+                            window.scrollTo(0, 0);
+                        }}
+                        onNoteSaved={(weekStart, note) => setOverviewData(previous => ({
+                            ...previous,
+                            weeks: previous.weeks.map(week => week.week_start === weekStart ? { ...week, note } : week),
+                        }))}
+                        onImported={() => setOverviewVersion(version => version + 1)}
+                    />
+                );
             case "habits": 
                 return (
                     <div className = "habitstatistics">
@@ -604,6 +643,7 @@ export function Statistics() {
 
     return (
         <div className = "App">
+            {selectedStatistics !== "overview" && (
             <div className="date-slider-container">
             <label htmlFor="date-slider">Select Date: </label>
             <input
@@ -613,26 +653,38 @@ export function Statistics() {
                 onChange={e => setSelectedDate(e.target.value)}
             />
             </div>
+            )}
             <h1>Statistics</h1>
             <div className = "statistics-wrapper">
                 <div className = "selection-bar">
                     <div className = "stats-select-bar">
                     <select value = {selectedStatistics} onChange = {e => setSelectedStatistics(e.target.value)}>
+                    <option value = "overview">Overview</option>
                     <option value= "habits">Habits</option>
                     <option value = "stopwatches">Stopwatches</option>
                     <option value = "xp">XP</option>
                     </select>
                     </div>
-                    <div className = "time-period-select-bar">
-                    <select value={selectedTimePeriod} onChange={e => setSelectedTimePeriod(e.target.value)}>
-                    <option value="day">Day</option>
-                    <option value="week">Week</option>
-                    <option value="month">Month</option>
-                    <option value="year">Year</option>
-                    </select>
-                    </div>
-                    {/* item selector: doesn't apply to the XP section (spec 0034) */}
-                    {selectedStatistics !== "xp" && (
+                    {selectedStatistics === "overview" ? (
+                        <div className = "year-select-bar">
+                        <select aria-label="Year" value={overviewYear} onChange={e => setOverviewYear(Number(e.target.value))}>
+                        {(overviewData?.years ?? [overviewYear]).map(year => (
+                            <option key={year} value={year}>{year}</option>
+                        ))}
+                        </select>
+                        </div>
+                    ) : (
+                        <div className = "time-period-select-bar">
+                        <select value={selectedTimePeriod} onChange={e => setSelectedTimePeriod(e.target.value)}>
+                        <option value="day">Day</option>
+                        <option value="week">Week</option>
+                        <option value="month">Month</option>
+                        <option value="year">Year</option>
+                        </select>
+                        </div>
+                    )}
+                    {/* item selector: doesn't apply to the XP or Overview sections (spec 0034) */}
+                    {selectedStatistics !== "xp" && selectedStatistics !== "overview" && (
                         <div className = "habits-or-stopwatches-select-bar">
                         <select value = {selectedStatistics === "habits" ? selectedHabit : selectedStopwatch}
                          onChange = {e => {if (selectedStatistics === "habits"){ setSelectedHabit(e.target.value)}
