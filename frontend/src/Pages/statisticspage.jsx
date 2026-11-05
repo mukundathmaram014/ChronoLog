@@ -54,6 +54,7 @@ export function Statistics() {
     });
     const [overviewData, setOverviewData] = useState(null);
     const [overviewVersion, setOverviewVersion] = useState(0);
+    const [overviewFailed, setOverviewFailed] = useState(false);
 
 
     // Rows for days the app wasn't opened only get created when a day page reads a
@@ -147,9 +148,18 @@ export function Statistics() {
             if (selectedStatistics !== "overview") return;
 
             fetchAfterSync(`/stats/overview/${overviewYear}/?today=${DatetoISOString(new Date())}`)
-            .then(response => response.json())
-            .then(data => setOverviewData(data))
-            .catch(error => console.error(error))
+            .then(response => {
+                if (!response.ok) throw new Error(`status ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                setOverviewData(data);
+                setOverviewFailed(false);
+            })
+            .catch(error => {
+                console.error(error);
+                setOverviewFailed(true);
+            })
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedStatistics, overviewYear, overviewVersion])
@@ -420,6 +430,7 @@ export function Statistics() {
                 return (
                     <StatsOverview
                         data={overviewData}
+                        failed={overviewFailed}
                         fetchWithAuth={fetchWithAuth}
                         onOpenWeek={weekStart => {
                             setSelectedDate(weekStart);

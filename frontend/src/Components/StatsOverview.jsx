@@ -346,11 +346,17 @@ const NotesImport = ({ fetchWithAuth, onImported }) => {
     );
 };
 
-export default function StatsOverview({ data, fetchWithAuth, onOpenWeek, onNoteSaved, onImported }) {
+export default function StatsOverview({ data, failed, fetchWithAuth, onOpenWeek, onNoteSaved, onImported }) {
     const [xpMode, setXpMode] = useState("level");
     const [error, setError] = useState("");
 
-    if (!data) return <div className="overviewstatistics" />;
+    if (!data) {
+        return (
+            <div className="overviewstatistics">
+                {failed && <p className="ov-message" role="alert">Couldn't load the overview. Please refresh the page to try again.</p>}
+            </div>
+        );
+    }
 
     const importer = <NotesImport fetchWithAuth={fetchWithAuth} onImported={onImported} />;
 
