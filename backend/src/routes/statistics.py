@@ -9,6 +9,7 @@ from db import DailyXP, User
 from datetime import datetime, date, timedelta
 import calendar
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import func
 from xp import current_streak
 
 statistic_routes = Blueprint('statistics', __name__)
@@ -31,6 +32,39 @@ def get_period_range(requested_date, time_period):
         return (requested_date.replace(month = 1, day = 1), 366 if calendar.isleap(requested_date.year) else 365)
     else:
         return None
+
+
+def client_today():
+    """
+    The user's local date from the ?today= param, or the server's date if it's
+    missing or implausible. The server runs in UTC, so its date can be a day off
+    from the user's -- which would count a day that hasn't started yet. Only
+    accepted within a day of the server's date, the most any timezone differs.
+    """
+
+    server_today = date.today()
+    try:
+        today = date.fromisoformat(request.args.get("today", ""))
+    except ValueError:
+        return server_today
+    return today if abs((today - server_today).days) <= 1 else server_today
+
+
+def elapsed_tracked_days(user_id, start_day, num_days, today):
+    """
+    Calendar days of the period that have passed since the user started tracking
+    time. A day with no stopwatch scheduled still counts: nothing was worked on
+    it, so it belongs in a per-day average as a zero, not out of it.
+    """
+
+    first_day = db.session.query(func.min(Stopwatch.date)).filter(
+        Stopwatch.user_id == user_id, Stopwatch.isTotal == True
+    ).scalar()
+    if first_day is None:
+        return 0
+    begin = max(start_day, first_day)
+    end = min(start_day + timedelta(days = num_days - 1), today)
+    return max(0, (end - begin).days + 1)
 
 
 @statistic_routes.route("/")
@@ -198,7 +232,14 @@ def get_stopwatchs_stats(date_string, time_period):
     else:
         return failure_response("Invalid time period")
     
-    average_time_worked_per_day = total_time_worked / days_with_data if days_with_data > 0 else total_time_worked
+    # a single stopwatch averages over the days it had a row, since it may only be
+    # scheduled on some weekdays; the overall figure averages over every elapsed day
+    if title:
+        days_for_average = days_with_data
+    else:
+        start_day, num_days = get_period_range(requested_date, time_period)
+        days_for_average = elapsed_tracked_days(user_id, start_day, num_days, client_today())
+    average_time_worked_per_day = total_time_worked / days_for_average if days_for_average > 0 else total_time_worked
     return success_response({"total_time_worked" : total_time_worked, "average_time_worked_per_day" : average_time_worked_per_day, "total_goal_time" : total_goal_time})
 
 
@@ -341,7 +382,6 @@ def get_stopwatches_all(date_string, time_period):
     per = {}  # title -> [duration, goal]
     total_time = 0
     total_goal = 0
-    days_with_data = 0
     current_day = start_day
     for i in range(num_days):
         if current_day > date.today() and time_period != "day":
@@ -350,7 +390,6 @@ def get_stopwatches_all(date_string, time_period):
         if total_row:
             total_time += total_row.curr_duration
             total_goal += total_row.goal_time
-            days_with_data += 1
         for stopwatch in Stopwatch.query.filter_by(date = current_day, isTotal = False, user_id = user_id).all():
             counts = per.setdefault(stopwatch.title, [0, 0])
             counts[0] += stopwatch.curr_duration
@@ -361,10 +400,11 @@ def get_stopwatches_all(date_string, time_period):
         {"title": title, "total_time_worked": duration, "total_goal_time": goal}
         for title, (duration, goal) in sorted(per.items())
     ]
+    days_for_average = elapsed_tracked_days(user_id, start_day, num_days, client_today())
     total = {
         "total_time_worked": total_time,
         "total_goal_time": total_goal,
-        "average_time_worked_per_day": (total_time / days_with_data) if days_with_data > 0 else total_time,
+        "average_time_worked_per_day": (total_time / days_for_average) if days_for_average > 0 else total_time,
     }
     return success_response({"total": total, "items": items})
 

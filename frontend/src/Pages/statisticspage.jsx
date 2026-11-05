@@ -1,4 +1,4 @@
-import {useState, useEffect} from "react";
+import {useState, useEffect, useRef} from "react";
 import './statisticspage.css';
 import useFetch from "../hooks/useFetch";
 import HabitCalendar from "../Components/HabitCalendar";
@@ -47,15 +47,30 @@ export function Statistics() {
     const [xpData, setXpData] = useState(null);
 
 
+    // Rows for days the app wasn't opened only get created when a day page reads a
+    // later date, so do that once for today before anything reads stats. Everything
+    // below waits on it, including the selector fetch of the same day: two carry-forwards
+    // running at once would create duplicate rows. Must stay the first effect on the page.
+    const syncRef = useRef(null);
+    useEffect(() => {
+        if (syncRef.current) return;
+        const today = DatetoISOString(new Date());
+        syncRef.current = Promise.all([
+            fetchWithAuth(`/habits/${today}/`, { method: "GET" }),
+            fetchWithAuth(`/stopwatches/${today}/`, { method: "GET" }),
+        ]).catch(error => console.error(error));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const fetchAfterSync = (path) => syncRef.current.then(() => fetchWithAuth(path, { method: "GET" }));
+
     // fetches the habits and stopwatches for the selector. For "day" these are the
     // day's own items; for longer periods, the distinct items that existed on any
     // day within the period. If the previously selected item isn't in the new list,
     // the selection falls back to the all/total view.
     useEffect(() => {
         if (selectedTimePeriod === "day") {
-            fetchWithAuth(`/habits/${selectedDate}/`, {
-            method: "GET"
-            })
+            fetchAfterSync(`/habits/${selectedDate}/`)
             .then( response => response.json())
             .then(data => {
                 setHabits(data.habits);
@@ -63,9 +78,7 @@ export function Statistics() {
             })
             .catch(error => console.error(error))
 
-            fetchWithAuth(`/stopwatches/${selectedDate}/`, {
-                    method: "GET"
-                    })
+            fetchAfterSync(`/stopwatches/${selectedDate}/`)
             .then(response => response.json())
             .then(data => {
                     setStopwatches((data.stopwatches));
@@ -73,9 +86,7 @@ export function Statistics() {
                 })
             .catch(error => console.error(error));
         } else {
-            fetchWithAuth(`/stats/items/${selectedDate}/${selectedTimePeriod}/`, {
-                method: "GET"
-                })
+            fetchAfterSync(`/stats/items/${selectedDate}/${selectedTimePeriod}/`)
             .then(response => response.json())
             .then(data => {
                 setHabits(data.habits.map(description => ({ id: description, description })));
@@ -92,16 +103,15 @@ export function Statistics() {
     useEffect(() => {
             if (selectedStatistics === "xp") return; // fetched by its own effect below
 
-            let query = "";
+            // the server's clock is UTC; the average needs to know what day it is for the user
+            let query = `?today=${DatetoISOString(new Date())}`;
             if (selectedStatistics === "habits" && selectedHabit) {
-                query = `?description=${encodeURIComponent(selectedHabit)}`;
+                query += `&description=${encodeURIComponent(selectedHabit)}`;
             } else if (selectedStatistics === "stopwatches" && selectedStopwatch) {
-                query = `?title=${encodeURIComponent(selectedStopwatch)}`;
+                query += `&title=${encodeURIComponent(selectedStopwatch)}`;
             }
 
-            fetchWithAuth(`/stats/${selectedStatistics}/${selectedDate}/${selectedTimePeriod}/${query}`, {
-                method: "GET"
-                })
+            fetchAfterSync(`/stats/${selectedStatistics}/${selectedDate}/${selectedTimePeriod}/${query}`)
             .then(response => response.json())
             .then(data => {
                 setStatsData(data);
@@ -115,9 +125,7 @@ export function Statistics() {
     useEffect(() => {
             if (selectedStatistics === "xp") return; // no "all" variant for XP
 
-            fetchWithAuth(`/stats/${selectedStatistics}/all/${selectedDate}/${selectedTimePeriod}/`, {
-                method: "GET"
-                })
+            fetchAfterSync(`/stats/${selectedStatistics}/all/${selectedDate}/${selectedTimePeriod}/?today=${DatetoISOString(new Date())}`)
             .then(response => response.json())
             .then(data => setCombinedData(data))
             .catch(error => console.error(error))
@@ -129,9 +137,7 @@ export function Statistics() {
     useEffect(() => {
             if (selectedStatistics !== "xp") { setXpData(null); return; }
 
-            fetchWithAuth(`/stats/xp/${selectedDate}/${selectedTimePeriod}/`, {
-                method: "GET"
-                })
+            fetchAfterSync(`/stats/xp/${selectedDate}/${selectedTimePeriod}/`)
             .then(response => response.json())
             .then(data => setXpData(data))
             .catch(error => console.error(error))
@@ -146,9 +152,7 @@ export function Statistics() {
             // the per-habit view renders from its own batch fetch below
             if (!selectedHabit && calendarView === "per-habit") { setCalendarData(null); return; }
             const query = selectedHabit ? `?description=${encodeURIComponent(selectedHabit)}` : "";
-            fetchWithAuth(`/stats/habits/calendar/${selectedDate}/${selectedTimePeriod}/${query}`, {
-                method: "GET"
-                })
+            fetchAfterSync(`/stats/habits/calendar/${selectedDate}/${selectedTimePeriod}/${query}`)
             .then(response => response.json())
             .then(data => setCalendarData(data))
             .catch(error => console.error(error))
@@ -162,9 +166,7 @@ export function Statistics() {
                 setPerHabitCalendars(null);
                 return;
             }
-            fetchWithAuth(`/stats/habits/calendar/all/${selectedDate}/${selectedTimePeriod}/`, {
-                method: "GET"
-                })
+            fetchAfterSync(`/stats/habits/calendar/all/${selectedDate}/${selectedTimePeriod}/`)
             .then(response => response.json())
             .then(data => setPerHabitCalendars(data))
             .catch(error => console.error(error))
@@ -178,9 +180,7 @@ export function Statistics() {
                 setTimeCalendarData(null);
                 return;
             }
-            fetchWithAuth(`/stats/stopwatches/calendar/${selectedDate}/${selectedTimePeriod}/`, {
-                method: "GET"
-                })
+            fetchAfterSync(`/stats/stopwatches/calendar/${selectedDate}/${selectedTimePeriod}/`)
             .then(response => response.json())
             .then(data => setTimeCalendarData(data))
             .catch(error => console.error(error))
@@ -193,9 +193,7 @@ export function Statistics() {
 
             if (selectedStatistics !== "stopwatches") return;
 
-            fetchWithAuth(`/stats/stopwatches/breakdown/${selectedDate}/${selectedTimePeriod}/`, {
-                method: "GET"
-                })
+            fetchAfterSync(`/stats/stopwatches/breakdown/${selectedDate}/${selectedTimePeriod}/`)
             .then(response => response.json())
             .then(data => {
                 setBreakdownData(data.breakdown ?? []);
