@@ -39,6 +39,18 @@
     gap: 6px;
 }
 
+.ov-projection {
+    margin: 0;
+    color: #ccc;
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+.ov-projection strong {
+    color: #fff;
+    font-weight: 500;
+}
+
 .ov-chart {
     position: relative;
     width: 100%;
